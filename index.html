@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Keke Finder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Keke Finder</h1>
+
+<div class="container">
+
+<div class="box">
+<h2>For Students</h2>
+<p>Find available kekes near you instantly</p>
+<button onclick="requestKeke()">I need a keke</button>
+<p id="studentMsg"></p>
+</div>
+
+<div class="box">
+<h2>For Riders</h2>
+<p>Let students know where you are</p>
+<button onclick="becomeAvailable()">I am available</button>
+<p id="riderMsg"></p>
+</div>
+
+<div class="box">
+<h2>Available Kekes</h2>
+<ul id="kekeList"></ul>
+</div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
