@@ -1,3 +1,5 @@
+console.log("SCRIPT STARTED");
+
 let availableKekes = [];
 
 function becomeAvailable() {
