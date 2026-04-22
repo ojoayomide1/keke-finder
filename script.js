@@ -128,4 +128,3 @@ snapshot.forEach((doc) => {
     li.innerText = `${keke.name} - (${keke.lat.toFixed(4)}, ${keke.lng.toFixed(4)})`;
     list.appendChild(li);
   });
-});
