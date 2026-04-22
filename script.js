@@ -37,8 +37,10 @@ window.selectRole = function (role) {
 
   if (role === "student") {
     document.getElementById("studentUI").style.display = "block";
+    setTimeout(() => initMap("studentMap"), 100);
   } else {
     document.getElementById("riderUI").style.display = "block";
+    setTimeout(() => initMap("riderMap"), 100);
   }
 };
 
