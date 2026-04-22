@@ -109,7 +109,7 @@ onSnapshot(q, (snapshot) => {
 
     // Add to list (cleaner display)
     const li = document.createElement("li");
-    li.innerHTML = `🚖 <strong>\( {keke.name}</strong> <small>( \){keke.lat.toFixed(4)}, ${keke.lng.toFixed(4)})</small>`;
+    li.innerHTML = `🚖 <strong>${keke.name}</strong> <small>(${keke.lat.toFixed(4)}, ${keke.lng.toFixed(4)})</small>`;
     list.appendChild(li);
 
     // Add circle marker on map
