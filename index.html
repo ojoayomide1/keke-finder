@@ -1,114 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Keke Finder</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Keke Finder</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>Keke Finder</h1>
+  <h1>🚖 Keke Finder</h1>
 
-<div class="container">
+  <div class="container">
 
-<div class="box">
-<h2>For Students</h2>
-<p>Find available kekes near you instantly</p>
-<button onclick="requestKeke()">I need a keke</button>
-<p id="studentMsg"></p>
-</div>
+    <div class="box">
+      <h2>Find a Keke</h2>
+      <button onclick="requestKeke()">I need a keke</button>
+      <p id="studentMsg"></p>
+    </div>
 
-<div class="box">
-<h2>For Riders</h2>
-<p>Let students know where you are</p>
-<button onclick="becomeAvailable()">I am available</button>
-<p id="riderMsg"></p>
-</div>
+    <div class="box">
+      <h2>Go Online (Riders)</h2>
+      <button onclick="becomeAvailable()">I am available</button>
+      <p id="riderMsg"></p>
+    </div>
 
-<div class="box">
-<h2>Available Kekes</h2>
-<ul id="kekeList"></ul>
-</div>
+    <div class="box">
+      <h2>Available Kekes</h2>
+      <ul id="kekeList"></ul>
+    </div>
 
-</div>
+  </div>
 
-<script src="script.js"></script>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+  <!-- Firebase + your logic -->
+  <script type="module" src="script.js"></script>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4",
-  authDomain: "keke-finder-cd5fe.firebaseapp.com",
-  projectId: "keke-finder-cd5fe",
-  storageBucket: "keke-finder-cd5fe.firebasestorage.app",
-  messagingSenderId: "836112236677",
-  appId: "1:836112236677:web:bd2a64d87f093a3230e9ec"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-console.log("Firebase connected:", db);
-
-
-
-// 🚖 RIDER: go online
-window.becomeAvailable = async function () {
-  let name = prompt("Enter your name or keke number:");
-  if (!name) return;
-
-  if (!navigator.geolocation) {
-    alert("Geolocation is not supported on your device");
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(async (position) => {
-    let lat = position.coords.latitude;
-    let lng = position.coords.longitude;
-
-    await addDoc(collection(db, "kekes"), {
-      name: name,
-      lat: lat,
-      lng: lng,
-      time: Date.now()
-    });
-
-    document.getElementById("riderMsg").innerText =
-      "You are now live at your current location 📍";
-  },
-  (error) => {
-    alert("Location access denied ❌");
-  });
-};
-
-
-
-// 🎯 STUDENT: request keke
-window.requestKeke = function () {
-  document.getElementById("studentMsg").innerText =
-    "Searching for available keke...";
-};
-
-
-
-//REAL-TIME LISTENER (auto updates list)
-const q = query(collection(db, "kekes"), orderBy("time", "desc"));
-
-onSnapshot(q, (snapshot) => {
-  let list = document.getElementById("kekeList");
-  list.innerHTML = "";
-
-  snapshot.forEach((doc) => {
-    let keke = doc.data();
-
-    let li = document.createElement("li");
-    li.innerText = `${keke.name} - (${keke.lat}, ${keke.lng})';
-    list.appendChild(li);
-  });
-});
-</script>
 </body>
 </html>
