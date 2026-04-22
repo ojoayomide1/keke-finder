@@ -192,3 +192,8 @@ window.selectRole = function (role) {
     document.getElementById("riderUI").style.display = "block";
   }
 };
+window.goBack = function () {
+  document.getElementById("studentUI").style.display = "none";
+  document.getElementById("riderUI").style.display = "none";
+  document.getElementById("roleSelect").style.display = "block";
+};
