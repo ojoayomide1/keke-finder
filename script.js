@@ -1,44 +1,72 @@
-console.log("SCRIPT STARTED");
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
-let availableKekes = [];
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4",
+  authDomain: "keke-finder-cd5fe.firebaseapp.com",
+  projectId: "keke-finder-cd5fe",
+  storageBucket: "keke-finder-cd5fe.firebasestorage.app",
+  messagingSenderId: "836112236677",
+  appId: "1:836112236677:web:bd2a64d87f093a3230e9ec"
+};
 
-function becomeAvailable() {
-  let locations = ["Hostel Gate", "Library", "Faculty Building", "Main Gate"];
-  
-  let randomLocation = locations[Math.floor(Math.random() * locations.length)];
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-  let rider = {
-    name: "Keke Rider #" + (availableKekes.length + 1),
-    location: randomLocation
-  };
+console.log("Firebase connected");
 
-  availableKekes.push(rider);
 
-  document.getElementById("riderMsg").innerText =
-    "You are now available at " + randomLocation;
+// 🚖 RIDER: go online with GPS
+window.becomeAvailable = function () {
+  let name = prompt("Enter your name or keke number:");
+  if (!name) return;
 
-  updateList();
-}
-
-function requestKeke() {
-  if (availableKekes.length > 0) {
-    let nearest = availableKekes[0];
-
-    document.getElementById("studentMsg").innerText =
-      "🚖 " + nearest.name + " is at " + nearest.location;
-  } else {
-    document.getElementById("studentMsg").innerText =
-      "No keke available right now 😢";
+  if (!navigator.geolocation) {
+    alert("Geolocation not supported");
+    return;
   }
-}
 
-function updateList() {
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    let lat = position.coords.latitude;
+    let lng = position.coords.longitude;
+
+    await addDoc(collection(db, "kekes"), {
+      name: name,
+      lat: lat,
+      lng: lng,
+      time: Date.now()
+    });
+
+    document.getElementById("riderMsg").innerText =
+      "You are now live 📍";
+  },
+  () => {
+    alert("Location permission denied");
+  });
+};
+
+
+// 🎯 STUDENT: request keke
+window.requestKeke = function () {
+  document.getElementById("studentMsg").innerText =
+    "Searching for nearby kekes...";
+};
+
+
+// 🔥 REAL-TIME LISTENER
+const q = query(collection(db, "kekes"), orderBy("time", "desc"));
+
+onSnapshot(q, (snapshot) => {
   let list = document.getElementById("kekeList");
   list.innerHTML = "";
 
-  availableKekes.forEach((keke) => {
+  snapshot.forEach((doc) => {
+    let keke = doc.data();
+
     let li = document.createElement("li");
-    li.innerText = `${keke.name} - ${keke.location}`;
+    li.innerText = `${keke.name} - (${keke.lat.toFixed(4)}, ${keke.lng.toFixed(4)})`;
     list.appendChild(li);
   });
-}
+});
