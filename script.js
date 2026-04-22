@@ -143,48 +143,39 @@ window.requestKeke = function () {
 const q = query(collection(db, "kekes"), orderBy("time", "desc"));
 
 onSnapshot(q, (snapshot) => {
-  const list = document.getElementById("kekeList");
-  if (!list) return;
 
-  list.innerHTML = "";
+  console.log("Snapshot size:", snapshot.size);
 
-  // Clear old markers safely
+  // Clear markers
   window.markers.forEach(marker => map.removeLayer(marker));
   window.markers = [];
 
-  const bounds = L.latLngBounds(); // 🔥 for auto zoom
+  const bounds = L.latLngBounds();
 
   snapshot.forEach((doc) => {
     const keke = doc.data();
 
     if (!keke.lat || !keke.lng) return;
 
-    console.log("Keke:", keke.name, keke.lat, keke.lng);
+    console.log("Showing keke:", keke.name);
 
-    // Add to list
-    const li = document.createElement("li");
-    li.innerHTML = `🚖 <strong>${keke.name}</strong>`;
-    list.appendChild(li);
-
-    // Add marker
+    // Create marker
     const marker = L.marker([keke.lat, keke.lng])
       .addTo(map)
       .bindPopup(`🚖 ${keke.name}`);
 
     window.markers.push(marker);
 
-    // Extend bounds
     bounds.extend([keke.lat, keke.lng]);
   });
 
-  // 🔥 THIS IS THE FIX
+  // Adjust map
   if (window.markers.length > 0) {
     map.fitBounds(bounds, { padding: [50, 50] });
 
-    document.getElementById("studentMsg").innerText =
-      "🚖 Kekes available!";
-  } else {
-    document.getElementById("studentMsg").innerText =
-      "No keke available 😢";
+    const msg = document.getElementById("studentMsg");
+    if (msg) {
+      msg.innerText = "🚖 Kekes available!";
+    }
   }
 });
