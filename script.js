@@ -107,13 +107,15 @@ snapshot.forEach((doc) => {
 
   // Map marker
   if (keke.lat && keke.lng) {
-    let marker = L.marker([keke.lat, keke.lng])
-      .addTo(map)
-      .bindPopup(`${keke.name}`);
-
-    window.markers.push(marker);
-  }
-});
+    let marker = L.circleMarker([keke.lat, keke.lng], {
+  radius: 10,
+  fillColor: "green",
+  color: "black",
+  weight: 1,
+  fillOpacity: 0.9
+})
+  .addTo(map)
+  .bindPopup(`🚖 ${keke.name}`);
 
   snapshot.forEach((doc) => {
     let keke = doc.data();
