@@ -5,22 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Keke Finder</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 </head>
 <body>
 
-  <h1>🚖 Keke Finder</h1>
+  <h1>🚖 Keke Finder - Abuja</h1>
 
   <div class="container">
 
     <div class="box">
-      <h2>Find a Keke</h2>
-      <button onclick="requestKeke()">I need a keke</button>
+      <h2>Find a Keke (Student)</h2>
+      <button onclick="requestKeke()">I need a keke 📍</button>
       <p id="studentMsg"></p>
     </div>
 
     <div class="box">
-      <h2>Go Online (Riders)</h2>
-      <button onclick="becomeAvailable()">I am available</button>
+      <h2>Go Online (Rider)</h2>
+      <button onclick="becomeAvailable()">I am available 🚖</button>
       <p id="riderMsg"></p>
     </div>
 
@@ -28,12 +29,11 @@
       <h2>Available Kekes</h2>
       <ul id="kekeList"></ul>
     </div>
-    <div id="map" style="height: 300px; margin: 20px;"></div>
+
+    <div id="map" style="height: 400px; margin: 20px 0; border: 2px solid #ccc; border-radius: 8px;"></div>
   </div>
 
-  <!-- Firebase + your logic -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script type="module" src="script.js"></script>
 
 </body>
