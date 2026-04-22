@@ -50,6 +50,11 @@ window.goBack = function () {
   document.getElementById("studentUI").style.display = "none";
   document.getElementById("riderUI").style.display = "none";
   document.getElementById("roleSelect").style.display = "block";
+
+  if (map) {
+    map.remove();
+    map = null;
+  }
 };
 
 
