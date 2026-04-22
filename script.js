@@ -127,6 +127,18 @@ onSnapshot(q, (snapshot) => {
 
   // ❌ Skip old kekes
   if (Date.now() - keke.time > ACTIVE_TIME) return;
+   setInterval(async () => {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    await addDoc(collection(db, "kekes"), {
+      name: name,
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
+      time: Date.now()
+    });
+  });
+}, 60000); // update every 60 seconds
 
     // Add to list (cleaner display)
     const li = document.createElement("li");
