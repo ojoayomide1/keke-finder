@@ -169,9 +169,10 @@ const q = query(collection(db, "kekes"), orderBy("time", "desc"));
 
 onSnapshot(q, (snapshot) => {
 
+  if (!map) return; // 🔥 VERY IMPORTANT FIX
+
   console.log("Snapshot size:", snapshot.size);
 
-  // Clear markers
   window.markers.forEach(marker => map.removeLayer(marker));
   window.markers = [];
 
@@ -179,29 +180,21 @@ onSnapshot(q, (snapshot) => {
 
   snapshot.forEach((doc) => {
     const keke = doc.data();
-
     if (!keke.lat || !keke.lng) return;
 
-    console.log("Showing keke:", keke.name);
-
-    // Create marker
     const marker = L.marker([keke.lat, keke.lng])
       .addTo(map)
       .bindPopup(`🚖 ${keke.name}`);
 
     window.markers.push(marker);
-
     bounds.extend([keke.lat, keke.lng]);
   });
 
-  // Adjust map
   if (window.markers.length > 0) {
     map.fitBounds(bounds, { padding: [50, 50] });
 
     const msg = document.getElementById("studentMsg");
-    if (msg) {
-      msg.innerText = "🚖 Kekes available!";
-    }
+    if (msg) msg.innerText = "🚖 Kekes available!";
   }
 });
 window.initMap = function (mapId) {
