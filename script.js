@@ -21,10 +21,6 @@ console.log("Firebase connected ✅");
 // 🗺️ MAP SETUP (RUNS ON PAGE LOAD)
 let map = null;
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19
-}).addTo(map);
-
 
 // GLOBAL STORAGE
 window.markers = [];
