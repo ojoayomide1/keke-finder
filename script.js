@@ -201,3 +201,14 @@ onSnapshot(q, (snapshot) => {
     }
   }
 });
+function initMap(mapId) {
+  if (map) {
+    map.remove(); // destroy old map
+  }
+
+  map = L.map(mapId).setView([9.0579, 7.4951], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+  }).addTo(map);
+}
