@@ -122,10 +122,11 @@ onSnapshot(q, (snapshot) => {
 
   const bounds = L.latLngBounds(); // For auto-fitting
 
-  snapshot.forEach((doc) => {
-    const keke = doc.data();
+ snapshot.forEach((doc) => {
+  const keke = doc.data();
 
-    if (!keke.lat || !keke.lng) return;
+  // ❌ Skip old kekes
+  if (Date.now() - keke.time > ACTIVE_TIME) return;
 
     // Add to list (cleaner display)
     const li = document.createElement("li");
