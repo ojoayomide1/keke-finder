@@ -148,30 +148,39 @@ onSnapshot(q, (snapshot) => {
 
   list.innerHTML = "";
 
+  // Clear old markers safely
+  window.markers.forEach(marker => map.removeLayer(marker));
+  window.markers = [];
+
+  const bounds = L.latLngBounds(); // 🔥 for auto zoom
+
   snapshot.forEach((doc) => {
     const keke = doc.data();
+
     if (!keke.lat || !keke.lng) return;
 
-    // List display
+    console.log("Keke:", keke.name, keke.lat, keke.lng);
+
+    // Add to list
     const li = document.createElement("li");
     li.innerHTML = `🚖 <strong>${keke.name}</strong>`;
     list.appendChild(li);
 
-    // Map marker
-    const marker = L.circleMarker([keke.lat, keke.lng], {
-      radius: 10,
-      fillColor: "green",
-      color: "black",
-      fillOpacity: 0.9
-    })
+    // Add marker
+    const marker = L.marker([keke.lat, keke.lng])
       .addTo(map)
       .bindPopup(`🚖 ${keke.name}`);
 
     window.markers.push(marker);
+
+    // Extend bounds
+    bounds.extend([keke.lat, keke.lng]);
   });
 
-  // Update student message
+  // 🔥 THIS IS THE FIX
   if (window.markers.length > 0) {
+    map.fitBounds(bounds, { padding: [50, 50] });
+
     document.getElementById("studentMsg").innerText =
       "🚖 Kekes available!";
   } else {
