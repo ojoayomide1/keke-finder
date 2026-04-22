@@ -9,29 +9,41 @@
 </head>
 <body>
 
-  <h1>🚖 Keke Finder - Abuja</h1>
+  <h1>🚖 Keke Finder</h1>
 
-  <div class="container">
+  <!-- ROLE SELECTION -->
+  <div id="roleSelect" class="container">
+    <div class="box">
+      <h2>I am a Student</h2>
+      <button onclick="selectRole('student')">Find a Keke</button>
+    </div>
 
     <div class="box">
-      <h2>Find a Keke (Student)</h2>
+      <h2>I am a Rider</h2>
+      <button onclick="selectRole('rider')">Go Online</button>
+    </div>
+  </div>
+
+  <!-- STUDENT UI -->
+  <div id="studentUI" class="container" style="display:none;">
+    <div class="box">
+      <h2>Find a Keke</h2>
       <button onclick="requestKeke()">I need a keke 📍</button>
       <p id="studentMsg"></p>
     </div>
+  </div>
 
+  <!-- RIDER UI -->
+  <div id="riderUI" class="container" style="display:none;">
     <div class="box">
-      <h2>Go Online (Rider)</h2>
+      <h2>Go Online</h2>
       <button onclick="becomeAvailable()">I am available 🚖</button>
       <p id="riderMsg"></p>
     </div>
-
-    <div class="box">
-      <h2>Available Kekes</h2>
-      <ul id="kekeList"></ul>
-    </div>
-
-    <div id="map" style="height: 400px; margin: 20px 0; border: 2px solid #ccc; border-radius: 8px;"></div>
   </div>
+
+  <!-- MAP (shared) -->
+  <div id="map" style="height: 400px;"></div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script type="module" src="script.js"></script>
