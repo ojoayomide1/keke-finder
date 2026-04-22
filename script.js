@@ -1,3 +1,4 @@
+const ACTIVE_TIME = 2 * 60 * 1000; // 2 minutes
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
