@@ -2,33 +2,23 @@ console.log("SCRIPT STARTED");
 
 let availableKekes = [];
 
-window.becomeAvailable = async function () {
-  let name = prompt("Enter your name or keke number:");
-  if (!name) return;
+function becomeAvailable() {
+  let locations = ["Hostel Gate", "Library", "Faculty Building", "Main Gate"];
+  
+  let randomLocation = locations[Math.floor(Math.random() * locations.length)];
 
-  if (!navigator.geolocation) {
-    alert("Geolocation is not supported on your device");
-    return;
-  }
+  let rider = {
+    name: "Keke Rider #" + (availableKekes.length + 1),
+    location: randomLocation
+  };
 
-  navigator.geolocation.getCurrentPosition(async (position) => {
-    let lat = position.coords.latitude;
-    let lng = position.coords.longitude;
+  availableKekes.push(rider);
 
-    await addDoc(collection(db, "kekes"), {
-      name: name,
-      lat: lat,
-      lng: lng,
-      time: Date.now()
-    });
+  document.getElementById("riderMsg").innerText =
+    "You are now available at " + randomLocation;
 
-    document.getElementById("riderMsg").innerText =
-      "You are now live at your current location 📍";
-  },
-  (error) => {
-    alert("Location access denied ❌");
-  });
-};
+  updateList();
+}
 
 function requestKeke() {
   if (availableKekes.length > 0) {
