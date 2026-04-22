@@ -69,6 +69,30 @@ onSnapshot(q, (snapshot) => {
   let list = document.getElementById("kekeList");
   list.innerHTML = "";
 
+// Clear old markers
+if (window.markers) {
+  window.markers.forEach(marker => map.removeLayer(marker));
+}
+window.markers = [];
+
+snapshot.forEach((doc) => {
+  let keke = doc.data();
+
+  // List display
+  let li = document.createElement("li");
+  li.innerText = `${keke.name}`;
+  list.appendChild(li);
+
+  // Map marker
+  if (keke.lat && keke.lng) {
+    let marker = L.marker([keke.lat, keke.lng])
+      .addTo(map)
+      .bindPopup(`${keke.name}`);
+
+    window.markers.push(marker);
+  }
+});
+
   snapshot.forEach((doc) => {
     let keke = doc.data();
 
