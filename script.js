@@ -148,10 +148,6 @@ onSnapshot(q, (snapshot) => {
 
   list.innerHTML = "";
 
-  // Clear map markers
-  window.markers.forEach(marker => map.removeLayer(marker));
-  window.markers = [];
-
   snapshot.forEach((doc) => {
     const keke = doc.data();
     if (!keke.lat || !keke.lng) return;
