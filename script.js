@@ -117,6 +117,10 @@ snapshot.forEach((doc) => {
   .addTo(map)
   .bindPopup(`🚖 ${keke.name}`);
 
+  map.fitBounds(window.markers.map(m => m.getLatLng()), {
+  padding: [50, 50]
+});
+
   snapshot.forEach((doc) => {
     let keke = doc.data();
 
