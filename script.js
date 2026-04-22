@@ -17,6 +17,13 @@ const db = getFirestore(app);
 
 console.log("Firebase connected");
 
+const map = L.map('map').setView([9.0579, 7.4951], 15); // Abuja default
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+}).addTo(map);
+
+
 
 // 🚖 RIDER: go online with GPS
 window.becomeAvailable = function () {
