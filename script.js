@@ -57,8 +57,30 @@ window.becomeAvailable = function () {
 
 // 🎯 STUDENT: request keke
 window.requestKeke = function () {
-  document.getElementById("studentMsg").innerText =
-    "Searching for nearby kekes...";
+  if (!navigator.geolocation) {
+    alert("Geolocation not supported");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition((position) => {
+    let lat = position.coords.latitude;
+    let lng = position.coords.longitude;
+
+    map.setView([lat, lng], 17);
+
+    // Add "You" marker
+    if (window.userMarker) {
+      map.removeLayer(window.userMarker);
+    }
+
+    window.userMarker = L.marker([lat, lng])
+      .addTo(map)
+      .bindPopup("You are here 📍")
+      .openPopup();
+
+    document.getElementById("studentMsg").innerText =
+      "Showing nearby kekes...";
+  });
 };
 
 
