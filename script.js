@@ -68,22 +68,41 @@ window.requestKeke = function () {
   }
 
   navigator.geolocation.getCurrentPosition((position) => {
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
+    const userLat = position.coords.latitude;
+    const userLng = position.coords.longitude;
 
-    map.setView([lat, lng], 16);
+    map.setView([userLat, userLng], 16);
 
-    // Remove old user marker
     if (window.userMarker) map.removeLayer(window.userMarker);
 
-    window.userMarker = L.marker([lat, lng])
+    window.userMarker = L.marker([userLat, userLng])
       .addTo(map)
       .bindPopup("📍 You are here")
       .openPopup();
 
-    document.getElementById("studentMsg").innerText = "📍 Your location shown. Check available kekes below.";
-  }, () => {
-    alert("Could not get your location.");
+    // 🔥 Find nearest keke
+    let nearest = null;
+    let minDistance = Infinity;
+
+    window.markers.forEach((marker) => {
+      const kekeLatLng = marker.getLatLng();
+      const dist = getDistance(userLat, userLng, kekeLatLng.lat, kekeLatLng.lng);
+
+      if (dist < minDistance) {
+        minDistance = dist;
+        nearest = marker;
+      }
+    });
+
+    if (nearest) {
+      nearest.openPopup();
+      document.getElementById("studentMsg").innerText =
+        `🚖 Nearest keke is ${minDistance.toFixed(2)} km away`;
+    } else {
+      document.getElementById("studentMsg").innerText =
+        "No keke available 😢";
+    }
+
   });
 };
 
