@@ -15,47 +15,52 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-console.log("Firebase connected");
+console.log("Firebase connected ✅");
 
-const map = L.map('map').setView([9.0579, 7.4951], 15); // Abuja default
+const map = L.map('map').setView([9.0579, 7.4951], 13); // Abuja default
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
+// Global arrays for cleanup
+window.markers = [];
+window.userMarker = null;
 
-
-// 🚖 RIDER: go online with GPS
-window.becomeAvailable = function () {
-  let name = prompt("Enter your name or keke number:");
+// 🚖 RIDER: Go online
+window.becomeAvailable = async function () {
+  const name = prompt("Enter your name or keke number:");
   if (!name) return;
 
   if (!navigator.geolocation) {
-    alert("Geolocation not supported");
+    alert("Geolocation not supported by your browser");
     return;
   }
 
   navigator.geolocation.getCurrentPosition(async (position) => {
-    let lat = position.coords.latitude;
-    let lng = position.coords.longitude;
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
 
-    await addDoc(collection(db, "kekes"), {
-      name: name,
-      lat: lat,
-      lng: lng,
-      time: Date.now()
-    });
+    try {
+      await addDoc(collection(db, "kekes"), {
+        name: name.trim(),
+        lat: lat,
+        lng: lng,
+        time: Date.now()
+      });
 
-    document.getElementById("riderMsg").innerText =
-      "You are now live 📍";
-  },
-  () => {
-    alert("Location permission denied");
+      document.getElementById("riderMsg").innerText = "✅ You are now live on the map!";
+    } catch (err) {
+      console.error("Error adding keke:", err);
+      alert("Failed to go online. Check console.");
+    }
+  }, () => {
+    alert("Location permission denied or error occurred.");
   });
 };
 
-
-// 🎯 STUDENT: request keke
+// 🎯 STUDENT: Request keke (show my location + nearby)
 window.requestKeke = function () {
   if (!navigator.geolocation) {
     alert("Geolocation not supported");
@@ -63,68 +68,69 @@ window.requestKeke = function () {
   }
 
   navigator.geolocation.getCurrentPosition((position) => {
-    let lat = position.coords.latitude;
-    let lng = position.coords.longitude;
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
 
-    map.setView([lat, lng], 17);
+    map.setView([lat, lng], 16);
 
-    // Add "You" marker
-    if (window.userMarker) {
-      map.removeLayer(window.userMarker);
-    }
+    // Remove old user marker
+    if (window.userMarker) map.removeLayer(window.userMarker);
 
     window.userMarker = L.marker([lat, lng])
       .addTo(map)
-      .bindPopup("You are here 📍")
+      .bindPopup("📍 You are here")
       .openPopup();
 
-    document.getElementById("studentMsg").innerText =
-      "Showing nearby kekes...";
+    document.getElementById("studentMsg").innerText = "📍 Your location shown. Check available kekes below.";
+  }, () => {
+    alert("Could not get your location.");
   });
 };
 
-
-// 🔥 REAL-TIME LISTENER
+// 🔥 REAL-TIME LISTENER (only one listener)
 const q = query(collection(db, "kekes"), orderBy("time", "desc"));
 
 onSnapshot(q, (snapshot) => {
-  let list = document.getElementById("kekeList");
+  const list = document.getElementById("kekeList");
   list.innerHTML = "";
 
-// Clear old markers
-if (window.markers) {
-  window.markers.forEach(marker => map.removeLayer(marker));
-}
-window.markers = [];
+  // Clear old markers
+  if (window.markers) {
+    window.markers.forEach(marker => map.removeLayer(marker));
+  }
+  window.markers = [];
 
-snapshot.forEach((doc) => {
-  let keke = doc.data();
-
-  // List display
-  let li = document.createElement("li");
-  li.innerText = `${keke.name}`;
-  list.appendChild(li);
-
-  // Map marker
-  if (keke.lat && keke.lng) {
-    let marker = L.circleMarker([keke.lat, keke.lng], {
-  radius: 10,
-  fillColor: "green",
-  color: "black",
-  weight: 1,
-  fillOpacity: 0.9
-})
-  .addTo(map)
-  .bindPopup(`🚖 ${keke.name}`);
-
-  map.fitBounds(window.markers.map(m => m.getLatLng()), {
-  padding: [50, 50]
-});
+  const bounds = L.latLngBounds(); // For auto-fitting
 
   snapshot.forEach((doc) => {
-    let keke = doc.data();
+    const keke = doc.data();
 
-    let li = document.createElement("li");
-    li.innerText = `${keke.name} - (${keke.lat.toFixed(4)}, ${keke.lng.toFixed(4)})`;
+    if (!keke.lat || !keke.lng) return;
+
+    // Add to list (cleaner display)
+    const li = document.createElement("li");
+    li.innerHTML = `🚖 <strong>\( {keke.name}</strong> <small>( \){keke.lat.toFixed(4)}, ${keke.lng.toFixed(4)})</small>`;
     list.appendChild(li);
+
+    // Add circle marker on map
+    const marker = L.circleMarker([keke.lat, keke.lng], {
+      radius: 11,
+      fillColor: "#22c55e",
+      color: "#166534",
+      weight: 2,
+      fillOpacity: 0.85
+    })
+      .addTo(map)
+      .bindPopup(`🚖 ${keke.name}`);
+
+    window.markers.push(marker);
+    bounds.extend([keke.lat, keke.lng]);
   });
+
+  // Only fit bounds if we have at least one keke
+  if (window.markers.length > 0) {
+    map.fitBounds(bounds, { padding: [50, 50] });
+  }
+}, (error) => {
+  console.error("Firestore listener error:", error);
+});
