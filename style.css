@@ -1,4 +1,4 @@
-/* ====================== KEKE FINDER - NIGERIAN STYLE ====================== */
+/* ====================== KEKE FINDER - MOBILE-FIRST NIGERIAN STYLE ====================== */
 * {
   margin: 0;
   padding: 0;
@@ -7,154 +7,185 @@
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #FFEB3B 0%, #FFCC00 100%); /* Bright keke yellow gradient */
+  background: linear-gradient(135deg, #FFEB3B 0%, #FFCC00 100%);
   color: #1a1a1a;
   line-height: 1.6;
-  padding-bottom: 40px;
+  min-height: 100vh;
+  padding-bottom: 30px;
 }
 
 h1 {
   text-align: center;
-  padding: 20px 10px;
-  font-size: 2.8rem;
-  color: #1a1a1a;
+  padding: 20px 15px;
+  font-size: 2.4rem;
+  color: #FFEB3B;
   text-shadow: 3px 3px 0 #22c55e;
   background: #111;
-  color: #FFEB3B;
   margin-bottom: 10px;
   border-bottom: 8px solid #22c55e;
+  font-weight: bold;
 }
 
+/* Container - Mobile first: single column */
 .container {
-  max-width: 1100px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 15px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 20px;
 }
 
-/* Box styling - like keke body */
+/* Each section box - chunky keke style */
 .box {
   background: white;
   border: 6px solid #1a1a1a;
   border-radius: 20px;
-  padding: 25px;
+  padding: 25px 20px;
   box-shadow: 8px 8px 0 #1a1a1a;
   transition: all 0.3s ease;
 }
 
 .box:hover {
-  transform: translate(-5px, -5px);
+  transform: translate(-4px, -4px);
   box-shadow: 12px 12px 0 #22c55e;
 }
 
 .box h2 {
-  font-size: 1.6rem;
-  margin-bottom: 18px;
+  font-size: 1.55rem;
+  margin-bottom: 20px;
   color: #1a1a1a;
   border-bottom: 4px solid #FFCC00;
-  padding-bottom: 8px;
+  padding-bottom: 10px;
+  text-align: center;
 }
 
-/* Buttons - Big, bold, keke-style */
+/* Big, bold, easy-to-tap buttons */
 button {
   width: 100%;
-  padding: 18px 20px;
-  font-size: 1.3rem;
+  padding: 20px 15px;
+  font-size: 1.35rem;
   font-weight: bold;
   border: 5px solid #1a1a1a;
   border-radius: 15px;
   cursor: pointer;
-  margin: 10px 0;
+  margin: 12px 0;
   transition: all 0.3s;
   text-transform: uppercase;
   letter-spacing: 1px;
+  box-shadow: 4px 4px 0 #1a1a1a;
 }
 
-.box:nth-child(1) button { /* Student button */
+button:active {
+  transform: scale(0.95);
+  box-shadow: 2px 2px 0 #1a1a1a;
+}
+
+/* Student button - Green */
+.box:nth-child(1) button {
   background: #22c55e;
   color: white;
 }
 
-.box:nth-child(1) button:hover {
+.box:nth-child(1) button:hover,
+.box:nth-child(1) button:active {
   background: #16a34a;
-  transform: scale(1.05);
 }
 
-.box:nth-child(2) button { /* Rider button */
+/* Rider button - Bright Keke Yellow */
+.box:nth-child(2) button {
   background: #FFCC00;
   color: #1a1a1a;
 }
 
-.box:nth-child(2) button:hover {
+.box:nth-child(2) button:hover,
+.box:nth-child(2) button:active {
   background: #F59E0B;
-  transform: scale(1.05);
 }
 
-/* Messages */
+/* Status messages */
 p[id$="Msg"] {
   margin-top: 15px;
-  padding: 12px;
+  padding: 15px;
   border-radius: 12px;
   font-weight: bold;
-  min-height: 50px;
+  min-height: 55px;
   text-align: center;
+  background: #fefce8;
+  border: 3px solid #1a1a1a;
 }
 
 /* Available Kekes List */
 #kekeList {
   list-style: none;
-  max-height: 280px;
+  max-height: 260px;
   overflow-y: auto;
+  padding-right: 5px;
 }
 
 #kekeList li {
   background: #fefce8;
-  margin: 8px 0;
-  padding: 14px 16px;
-  border: 3px solid #1a1a1a;
-  border-radius: 12px;
-  font-size: 1.1rem;
+  margin: 10px 0;
+  padding: 16px 18px;
+  border: 4px solid #1a1a1a;
+  border-radius: 14px;
+  font-size: 1.15rem;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-/* Map styling */
+/* Map - Big and prominent on mobile */
 #map {
-  height: 420px !important;
+  height: 380px !important;
   border: 8px solid #1a1a1a;
   border-radius: 20px;
   box-shadow: 8px 8px 0 #1a1a1a;
   background: #111;
-  grid-column: 1 / -1; /* Make map full width on all screen sizes */
+  width: 100%;
 }
 
-/* Scrollbar for list (keke yellow) */
+/* Scrollbar styling (yellow like keke) */
 #kekeList::-webkit-scrollbar {
   width: 10px;
 }
-
 #kekeList::-webkit-scrollbar-thumb {
   background: #FFCC00;
   border-radius: 10px;
   border: 2px solid #1a1a1a;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* ====================== TABLET & DESKTOP (larger screens) ====================== */
+@media (min-width: 768px) {
   h1 {
-    font-size: 2.2rem;
+    font-size: 3rem;
   }
-  
+
+  .container {
+    max-width: 1100px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 25px;
+  }
+
+  #map {
+    height: 450px !important;
+    grid-column: 1 / -1;
+  }
+
   .box {
-    padding: 20px;
+    padding: 30px;
   }
-  
+
   button {
-    font-size: 1.2rem;
-    padding: 16px;
+    font-size: 1.4rem;
+    padding: 22px;
+  }
+}
+
+@media (min-width: 1024px) {
+  #map {
+    height: 500px !important;
   }
 }
