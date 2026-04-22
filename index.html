@@ -35,42 +35,70 @@
 
 <script src="script.js"></script>
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
-  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
-  import { getAuth } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4",
-    authDomain: "keke-finder-cd5fe.firebaseapp.com",
-    projectId: "keke-finder-cd5fe",
-    storageBucket: "keke-finder-cd5fe.firebasestorage.app",
-    messagingSenderId: "836112236677",
-    appId: "1:836112236677:web:bd2a64d87f093a3230e9ec"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4",
+  authDomain: "keke-finder-cd5fe.firebaseapp.com",
+  projectId: "keke-finder-cd5fe",
+  storageBucket: "keke-finder-cd5fe.firebasestorage.app",
+  messagingSenderId: "836112236677",
+  appId: "1:836112236677:web:bd2a64d87f093a3230e9ec"
+};
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-  // Initialize services
-  const db = getFirestore(app);
-  const auth = getAuth(app);
+console.log("Firebase connected:", db);
 
-  console.log("Firebase connected:", db);
 
-  // TEST write (very important)
-  async function testWrite() {
-    try {
-      await addDoc(collection(db, "test"), {
-        message: "Keke app working",
-        time: new Date()
-      });
-      console.log("Data saved");
-    } catch (e) {
-      console.error("Error:", e);
-    }
-  }
 
-  testWrite();
+// 🚖 RIDER: go online
+window.becomeAvailable = async function () {
+  let name = prompt("Enter your name or keke number:");
+
+  if (!name) return;
+
+  let locations = ["Hostel Gate", "Library", "Faculty Building", "Main Gate"];
+  let randomLocation = locations[Math.floor(Math.random() * locations.length)];
+
+  await addDoc(collection(db, "kekes"), {
+    name: name,
+    location: randomLocation,
+    time: Date.now()
+  });
+
+  document.getElementById("riderMsg").innerText =
+    "You are now available at " + randomLocation;
+};
+
+
+
+// 🎯 STUDENT: request keke
+window.requestKeke = function () {
+  document.getElementById("studentMsg").innerText =
+    "Searching for available keke...";
+};
+
+
+
+//REAL-TIME LISTENER (auto updates list)
+const q = query(collection(db, "kekes"), orderBy("time", "desc"));
+
+onSnapshot(q, (snapshot) => {
+  let list = document.getElementById("kekeList");
+  list.innerHTML = "";
+
+  snapshot.forEach((doc) => {
+    let keke = doc.data();
+
+    let li = document.createElement("li");
+    li.innerText = `${keke.name} - ${keke.location}`;
+    list.appendChild(li);
+  });
+});
 </script>
 </body>
 </html>
