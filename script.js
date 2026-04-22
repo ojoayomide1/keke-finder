@@ -60,6 +60,17 @@ window.becomeAvailable = async function () {
     alert("Location permission denied or error occurred.");
   });
 };
+const lat = position.coords.latitude;
+const lng = position.coords.longitude;
+
+// Move map to rider
+map.setView([lat, lng], 16);
+
+// Add rider marker
+L.marker([lat, lng])
+  .addTo(map)
+  .bindPopup("🚖 You are live")
+  .openPopup();
 
 // 🎯 STUDENT: Request keke (show my location + nearby)
 window.requestKeke = function () {
