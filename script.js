@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
-// Firebase config
+// 🔥 Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4",
   authDomain: "keke-finder-cd5fe.firebaseapp.com",
@@ -11,28 +11,27 @@ const firebaseConfig = {
   appId: "1:836112236677:web:bd2a64d87f093a3230e9ec"
 };
 
-// Initialize Firebase
+// 🔥 Init Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 console.log("Firebase connected ✅");
 
 
-// 🗺️ MAP SETUP
+// 🗺️ MAP SETUP (RUNS ON PAGE LOAD)
 const map = L.map('map').setView([9.0579, 7.4951], 13);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; OpenStreetMap contributors'
+  maxZoom: 19
 }).addTo(map);
 
 
-// GLOBALS
+// GLOBAL STORAGE
 window.markers = [];
 window.userMarker = null;
 
 
-// 🔘 ROLE SELECTION
+// 🔘 ROLE SELECT
 window.selectRole = function (role) {
   document.getElementById("roleSelect").style.display = "none";
 
@@ -52,124 +51,121 @@ window.goBack = function () {
 };
 
 
-// 🚖 RIDER: GO ONLINE
+// 🚖 RIDER FUNCTION (FIXED GPS)
 window.becomeAvailable = function () {
   const name = prompt("Enter your name or keke number:");
   if (!name) return;
 
   if (!navigator.geolocation) {
-    alert("Geolocation not supported");
+    alert("GPS not supported");
     return;
   }
 
-  navigator.geolocation.watchPosition(
-  async (position) => {
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
 
-    await addDoc(collection(db, "kekes"), {
-      name: name,
-      lat: lat,
-      lng: lng,
-      time: Date.now()
-    });
+      console.log("Rider GPS:", lat, lng);
 
-    map.setView([lat, lng], 16);
+      await addDoc(collection(db, "kekes"), {
+        name: name,
+        lat: lat,
+        lng: lng,
+        time: Date.now()
+      });
 
-    L.marker([lat, lng])
-      .addTo(map)
-      .bindPopup("🚖 You are moving")
-      .openPopup();
-  },
-  (error) => {
-    alert("Location error");
-  },
-  {
-    enableHighAccuracy: true,
-    maximumAge: 0
-  }
-);
-
-      // Move map to rider
       map.setView([lat, lng], 16);
 
-      // Show rider marker
       L.marker([lat, lng])
         .addTo(map)
         .bindPopup("🚖 You are live")
         .openPopup();
 
       document.getElementById("riderMsg").innerText =
-        "✅ You are now live on the map!";
-    } catch (err) {
-      console.error(err);
-      alert("Error going online");
+        "✅ You are now live!";
+    },
+    (error) => {
+      alert("Location error");
+      console.error(error);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
     }
-  }, () => {
-    alert("Location permission denied");
-  });
+  );
 };
 
 
-// 🎯 STUDENT: FIND KEKE
+// 🎯 STUDENT FUNCTION
 window.requestKeke = function () {
   if (!navigator.geolocation) {
-    alert("Geolocation not supported");
+    alert("GPS not supported");
     return;
   }
 
-  navigator.geolocation.getCurrentPosition((position) => {
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
 
-    map.setView([lat, lng], 16);
+      console.log("Student GPS:", lat, lng);
 
-    // Remove old user marker
-    if (window.userMarker) {
-      map.removeLayer(window.userMarker);
+      map.setView([lat, lng], 16);
+
+      if (window.userMarker) {
+        map.removeLayer(window.userMarker);
+      }
+
+      window.userMarker = L.marker([lat, lng])
+        .addTo(map)
+        .bindPopup("📍 You are here")
+        .openPopup();
+
+      document.getElementById("studentMsg").innerText =
+        "🔍 Searching...";
+    },
+    (error) => {
+      alert("Location error");
+      console.error(error);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
     }
-
-    window.userMarker = L.marker([lat, lng])
-      .addTo(map)
-      .bindPopup("📍 You are here")
-      .openPopup();
-
-    document.getElementById("studentMsg").innerText =
-      "🔍 Searching for nearby kekes...";
-  });
+  );
 };
 
 
-// 🔥 REAL-TIME LISTENER
+// 🔥 REAL-TIME DATABASE LISTENER
 const q = query(collection(db, "kekes"), orderBy("time", "desc"));
 
 onSnapshot(q, (snapshot) => {
   const list = document.getElementById("kekeList");
-
-  if (!list) return; // prevent crash
+  if (!list) return;
 
   list.innerHTML = "";
 
-  // Remove old markers
+  // Clear map markers
   window.markers.forEach(marker => map.removeLayer(marker));
   window.markers = [];
 
   snapshot.forEach((doc) => {
     const keke = doc.data();
-
     if (!keke.lat || !keke.lng) return;
 
-    // Add to list
+    // List display
     const li = document.createElement("li");
-    li.innerHTML = `🚖 <strong>${keke.name}</strong> <small>(${keke.lat.toFixed(4)}, ${keke.lng.toFixed(4)})</small>`;
+    li.innerHTML = `🚖 <strong>${keke.name}</strong>`;
     list.appendChild(li);
 
-    // Add marker
+    // Map marker
     const marker = L.circleMarker([keke.lat, keke.lng], {
       radius: 10,
-      fillColor: "#22c55e",
-      color: "#166534",
-      weight: 2,
+      fillColor: "green",
+      color: "black",
       fillOpacity: 0.9
     })
       .addTo(map)
@@ -178,6 +174,12 @@ onSnapshot(q, (snapshot) => {
     window.markers.push(marker);
   });
 
-}, (error) => {
-  console.error("Firestore error:", error);
+  // Update student message
+  if (window.markers.length > 0) {
+    document.getElementById("studentMsg").innerText =
+      "🚖 Kekes available!";
+  } else {
+    document.getElementById("studentMsg").innerText =
+      "No keke available 😢";
+  }
 });
