@@ -112,6 +112,7 @@ const q = query(collection(db, "kekes"), orderBy("time", "desc"));
 
 onSnapshot(q, (snapshot) => {
   const list = document.getElementById("kekeList");
+  if (!list) return;
   list.innerHTML = "";
 
   // Clear old markers
