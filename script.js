@@ -208,7 +208,7 @@ onSnapshot(q, (snapshot) => {
     }
   }
 });
-function initMap(mapId) {
+window.initMap = function (mapId) {
   if (map) {
     map.remove(); // destroy old map
   }
@@ -218,4 +218,4 @@ function initMap(mapId) {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19
   }).addTo(map);
-}
+};
