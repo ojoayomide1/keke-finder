@@ -19,7 +19,7 @@ console.log("Firebase connected ✅");
 
 
 // 🗺️ MAP SETUP (RUNS ON PAGE LOAD)
-const map = L.map('map').setView([9.0579, 7.4951], 13);
+let map = null;
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19
