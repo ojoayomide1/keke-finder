@@ -58,20 +58,30 @@ console.log("Firebase connected:", db);
 // 🚖 RIDER: go online
 window.becomeAvailable = async function () {
   let name = prompt("Enter your name or keke number:");
-
   if (!name) return;
 
-  let locations = ["Hostel Gate", "Library", "Faculty Building", "Main Gate"];
-  let randomLocation = locations[Math.floor(Math.random() * locations.length)];
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported on your device");
+    return;
+  }
 
-  await addDoc(collection(db, "kekes"), {
-    name: name,
-    location: randomLocation,
-    time: Date.now()
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    let lat = position.coords.latitude;
+    let lng = position.coords.longitude;
+
+    await addDoc(collection(db, "kekes"), {
+      name: name,
+      lat: lat,
+      lng: lng,
+      time: Date.now()
+    });
+
+    document.getElementById("riderMsg").innerText =
+      "You are now live at your current location 📍";
+  },
+  (error) => {
+    alert("Location access denied ❌");
   });
-
-  document.getElementById("riderMsg").innerText =
-    "You are now available at " + randomLocation;
 };
 
 
