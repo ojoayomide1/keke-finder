@@ -62,17 +62,33 @@ window.becomeAvailable = function () {
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(async (position) => {
+  navigator.geolocation.watchPosition(
+  async (position) => {
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
 
-    try {
-      await addDoc(collection(db, "kekes"), {
-        name: name.trim(),
-        lat: lat,
-        lng: lng,
-        time: Date.now()
-      });
+    await addDoc(collection(db, "kekes"), {
+      name: name,
+      lat: lat,
+      lng: lng,
+      time: Date.now()
+    });
+
+    map.setView([lat, lng], 16);
+
+    L.marker([lat, lng])
+      .addTo(map)
+      .bindPopup("🚖 You are moving")
+      .openPopup();
+  },
+  (error) => {
+    alert("Location error");
+  },
+  {
+    enableHighAccuracy: true,
+    maximumAge: 0
+  }
+);
 
       // Move map to rider
       map.setView([lat, lng], 16);
