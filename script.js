@@ -182,3 +182,12 @@ function getDistance(lat1, lng1, lat2, lng2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
+window.selectRole = function (role) {
+  document.getElementById("roleSelect").style.display = "none";
+
+  if (role === "student") {
+    document.getElementById("studentUI").style.display = "block";
+  } else {
+    document.getElementById("riderUI").style.display = "block";
+  }
+};
