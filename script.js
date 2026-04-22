@@ -86,12 +86,23 @@ window.becomeAvailable = function () {
         "✅ You are now live!";
     },
     (error) => {
-      alert("Location error");
-      console.error(error);
+  console.error(error);
+
+  let message = "Location error";
+
+  if (error.code === 1) {
+    message = "❌ Please allow location access";
+  } else if (error.code === 2) {
+    message = "📡 Location unavailable (turn on GPS)";
+  } else if (error.code === 3) {
+    message = "⏳ Location request timed out";
+  }
+
+  alert(message);
     },
     {
       enableHighAccuracy: true,
-      timeout: 10000,
+      timeout: 20000,
       maximumAge: 0
     }
   );
@@ -127,12 +138,23 @@ window.requestKeke = function () {
         "🔍 Searching...";
     },
     (error) => {
-      alert("Location error");
-      console.error(error);
+  console.error(error);
+
+  let message = "Location error";
+
+  if (error.code === 1) {
+    message = "❌ Please allow location access";
+  } else if (error.code === 2) {
+    message = "📡 Location unavailable (turn on GPS)";
+  } else if (error.code === 3) {
+    message = "⏳ Location request timed out";
+  }
+
+  alert(message);
     },
     {
       enableHighAccuracy: true,
-      timeout: 10000,
+      timeout: 20000,
       maximumAge: 0
     }
   );
