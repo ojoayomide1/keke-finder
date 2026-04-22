@@ -105,7 +105,7 @@ onSnapshot(q, (snapshot) => {
     let keke = doc.data();
 
     let li = document.createElement("li");
-    li.innerText = `${keke.name} - ${keke.location}`;
+    li.innerText = `${keke.name} - (${keke.lat}, ${keke.lng})';
     list.appendChild(li);
   });
 });
