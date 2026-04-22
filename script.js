@@ -138,7 +138,7 @@ onSnapshot(q, (snapshot) => {
   const keke = doc.data();
 
   // ❌ Skip old kekes
-  if (Date.now() - keke.time > ACTIVE_TIME) return;
+  // if (Date.now() - keke.time > ACTIVE_TIME) return;
    setInterval(async () => {
   if (!navigator.geolocation) return;
 
