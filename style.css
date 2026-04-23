@@ -266,3 +266,11 @@ button {
   50% { opacity: 1; }
   100% { opacity: 0.6; }
 }
+
+.controls {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  opacity: 1;
+}
