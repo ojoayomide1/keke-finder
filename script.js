@@ -253,8 +253,43 @@ function startListeners() {
           [r.lat, r.lng]
         );
 
-        const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
+        const title = document.getElementById("rideTitle");
+const sub = document.getElementById("rideSub");
+const controls = document.getElementById("rideControls");
 
+if (title && sub) {
+
+  if (r.status === "waiting") {
+    title.innerText = "🔍 Searching for rider";
+    sub.innerText = "Please wait...";
+    controls.classList.add("hidden");
+  }
+
+  else if (r.status === "accepted") {
+    title.innerText = "🚗 Rider on the way";
+
+    const dist = map.distance(
+      [r.riderLat, r.riderLng],
+      [r.lat, r.lng]
+    );
+
+    sub.innerText = `${Math.round(dist)} meters away`;
+
+    controls.classList.remove("hidden");
+  }
+
+  else if (r.status === "arriving") {
+    title.innerText = "📍 Rider arriving";
+    sub.innerText = "Get ready!";
+    controls.classList.remove("hidden");
+  }
+
+  else if (r.status === "completed") {
+    title.innerText = "✅ Ride completed";
+    sub.innerText = "Thanks for using Keke Finder!";
+    controls.classList.add("hidden");
+  }
+}
         if (msg) {
           if (r.status === "accepted") {
             msg.innerText = `🚗 ${Math.round(dist)}m away`;
