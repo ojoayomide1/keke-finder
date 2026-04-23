@@ -207,6 +207,16 @@ function updateUI(r, dist) {
   }
 }
 
+const fab = document.querySelector(".fab");
+
+if (fab) {
+  if (r.status === "waiting" || r.status === "accepted") {
+    fab.style.display = "none";
+  } else {
+    fab.style.display = "block";
+  }
+}
+
 // ================= LISTENERS =================
 function startListeners() {
 
