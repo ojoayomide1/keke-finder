@@ -278,3 +278,31 @@ function startListeners() {
     });
   });
 }
+
+const sheet = document.querySelectorAll(".bottomSheet");
+
+sheet.forEach(s => {
+  let startY = 0;
+  let isDragging = false;
+
+  s.addEventListener("touchstart", (e) => {
+    startY = e.touches[0].clientY;
+    isDragging = true;
+  });
+
+  s.addEventListener("touchmove", (e) => {
+    if (!isDragging) return;
+
+    const diff = startY - e.touches[0].clientY;
+
+    if (diff > 50) {
+      s.classList.add("expanded");
+    } else if (diff < -50) {
+      s.classList.remove("expanded");
+    }
+  });
+
+  s.addEventListener("touchend", () => {
+    isDragging = false;
+  });
+});
