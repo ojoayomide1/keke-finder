@@ -272,3 +272,15 @@ if (msg) {
     });
   });
 }
+window.setArriving = async function () {
+  if (!window.currentRequestId) {
+    alert("No active ride");
+    return;
+  }
+
+  await updateDoc(doc(db, "requests", window.currentRequestId), {
+    status: "arriving"
+  });
+
+  alert("Marked as arriving");
+};
