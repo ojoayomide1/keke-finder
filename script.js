@@ -258,3 +258,18 @@ window.initMap = function (mapId) {
     maxZoom: 19
   }).addTo(map);
 };
+
+import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+window.acceptRide = async function (requestId) {
+  try {
+    await updateDoc(doc(db, "requests", requestId), {
+      status: "accepted"
+    });
+
+    alert("✅ Ride accepted!");
+  } catch (err) {
+    console.error(err);
+    alert("Error accepting ride");
+  }
+};
