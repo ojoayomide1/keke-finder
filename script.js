@@ -33,6 +33,7 @@ window.riderDocId = null;
 
 // INIT MAP
 window.initMap = function (mapId) {
+window.initMap = function (mapId) {
   if (map) {
     map.remove();
     map = null;
@@ -40,27 +41,25 @@ window.initMap = function (mapId) {
 
   const container = document.getElementById(mapId);
   if (!container) {
-    console.error(`Map container #${mapId} not found`);
+    console.error("Map container not found:", mapId);
     return;
   }
 
-  map = L.map(mapId, { zoomControl: true }).setView([9.0579, 7.4951], 13);
+  map = L.map(mapId).setView([9.0579, 7.4951], 13);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // Force render multiple times
-  const forceSize = () => { if (map) map.invalidateSize(true); };
-  setTimeout(forceSize, 100);
-  setTimeout(forceSize, 300);
-  setTimeout(forceSize, 600);
-  setTimeout(() => window.dispatchEvent(new Event('resize')), 500);
+  setTimeout(() => map.invalidateSize(), 300);
 
-  startListeners();
+  // 🔥 VERY IMPORTANT FIX
+  if (!listenersStarted) {
+    startListeners();
+    listenersStarted = true;
+  }
 };
-
 // ROLE SELECT
 window.selectRole = function (role) {
   document.getElementById("roleSelect").classList.add("hidden");
