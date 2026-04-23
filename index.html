@@ -9,45 +9,35 @@
 </head>
 <body>
 
-  <h1>🚖 Keke Finder</h1>
-
-  <!-- ROLE SELECTION -->
-  <div id="roleSelect" class="container">
-    <div class="box">
-      <h2>I am a Student</h2>
-      <button onclick="selectRole('student')">Find a Keke</button>
-    </div>
-
-    <div class="box">
-      <h2>I am a Rider</h2>
-      <button onclick="selectRole('rider')">Go Online</button>
-    </div>
+  <!-- ROLE SELECT -->
+  <div id="roleSelect" class="screen center">
+    <h1>🚖 Keke Finder</h1>
+    <button onclick="selectRole('student')">Find a Keke</button>
+    <button onclick="selectRole('rider')">Go Online</button>
   </div>
 
   <!-- STUDENT UI -->
-  <div id="studentUI" class="container" style="display:none;">
-  <div class="box">
-    <h2>Find a Keke</h2>
-    <button onclick="requestKeke()">I need a keke 📍</button>
-    <button onclick="goBack()">⬅ Back</button>
-    <p id="studentMsg"></p>
-  </div>
+  <div id="studentUI" class="screen hidden">
+    <div id="studentMap" class="map"></div>
 
-  <!-- STUDENT MAP -->
-  <div id="studentMap" style="height: 400px;"></div>
+    <button class="fab green" onclick="requestKeke()">📍 Request Ride</button>
+    <button class="backBtn" onclick="goBack()">←</button>
+
+    <div class="bottomCard">
+      <p id="studentMsg">Waiting...</p>
+    </div>
   </div>
 
   <!-- RIDER UI -->
-  <div id="riderUI" class="container" style="display:none;">
-  <div class="box">
-    <h2>Go Online</h2>
-    <button onclick="becomeAvailable()">I am available 🚖</button>
-    <button onclick="goBack()">⬅ Back</button>
-    <p id="riderMsg"></p>
-  </div>
+  <div id="riderUI" class="screen hidden">
+    <div id="riderMap" class="map"></div>
 
-  <!-- RIDER MAP -->
-  <div id="riderMap" style="height: 400px;"></div>
+    <button class="fab yellow" onclick="becomeAvailable()">🚖 Go Live</button>
+    <button class="backBtn" onclick="goBack()">←</button>
+
+    <div class="bottomCard">
+      <p id="riderMsg">Offline</p>
+    </div>
   </div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
