@@ -205,6 +205,45 @@ onSnapshot(requestQuery, (snapshot) => {
     riderMsg.innerText = "No ride requests yet";
     return;
   }
+  const requestQuery = query(collection(db, "requests"), orderBy("time", "desc"));
+
+window.requestMarkers = [];
+
+onSnapshot(requestQuery, (snapshot) => {
+
+  if (!map) return;
+
+  // Clear old request markers
+  window.requestMarkers.forEach(marker => map.removeLayer(marker));
+  window.requestMarkers = [];
+
+  snapshot.forEach((doc) => {
+    const req = doc.data();
+
+    if (!req.lat || !req.lng) return;
+
+    // 🔴 Red marker for student
+    const marker = L.circleMarker([req.lat, req.lng], {
+      radius: 10,
+      fillColor: "red",
+      color: "#800000",
+      weight: 2,
+      fillOpacity: 0.8
+    })
+      .addTo(map)
+      .bindPopup("📍 Student requesting ride");
+
+    // 🔥 CLICK TO ACCEPT
+    marker.on("click", async () => {
+      const confirmRide = confirm("Accept this ride?");
+      if (!confirmRide) return;
+
+      await acceptRide(doc.id);
+    });
+
+    window.requestMarkers.push(marker);
+  });
+});
 
   riderMsg.innerText = "📢 New ride requests available!";
 });
