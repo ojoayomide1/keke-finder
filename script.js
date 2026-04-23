@@ -10,7 +10,7 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
-// Firebase config
+// 🔥 Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4",
   authDomain: "keke-finder-cd5fe.firebaseapp.com",
@@ -20,19 +20,21 @@ const firebaseConfig = {
   appId: "1:836112236677:web:bd2a64d87f093a3230e9ec"
 };
 
-let listenersStarted = false;
+// 🔥 Init
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// GLOBAL STATE
 let map = null;
+let listenersStarted = false;
+
 window.markers = [];
 window.requestMarkers = [];
 window.userMarker = null;
 window.rideLine = null;
 window.riderDocId = null;
 
-// INIT MAP
-window.initMap = function (mapId) {
+// ================= MAP =================
 window.initMap = function (mapId) {
   if (map) {
     map.remove();
@@ -54,13 +56,13 @@ window.initMap = function (mapId) {
 
   setTimeout(() => map.invalidateSize(), 300);
 
-  // 🔥 VERY IMPORTANT FIX
   if (!listenersStarted) {
     startListeners();
     listenersStarted = true;
   }
 };
-// ROLE SELECT
+
+// ================= UI =================
 window.selectRole = function (role) {
   document.getElementById("roleSelect").classList.add("hidden");
 
@@ -73,7 +75,6 @@ window.selectRole = function (role) {
   }
 };
 
-// GO BACK
 window.goBack = function () {
   document.getElementById("studentUI").classList.add("hidden");
   document.getElementById("riderUI").classList.add("hidden");
@@ -83,20 +84,20 @@ window.goBack = function () {
     map.remove();
     map = null;
   }
-  window.markers = [];
-  window.requestMarkers = [];
-  window.userMarker = null;
-  window.rideLine = null;
-  window.riderDocId = null;
 };
 
-// RIDER - Become Available
+// ================= RIDER =================
 window.becomeAvailable = function () {
+  if (!map) {
+    alert("Map not ready yet");
+    return;
+  }
+
   const name = prompt("Enter your name or keke number:");
   if (!name) return;
 
   const riderMsg = document.getElementById("riderMsg");
-  riderMsg.innerText = "🟢 Going Live...";
+  riderMsg.innerText = "🟢 Going live...";
 
   navigator.geolocation.watchPosition(async (pos) => {
     const lat = pos.coords.latitude;
@@ -104,25 +105,39 @@ window.becomeAvailable = function () {
 
     try {
       if (!window.riderDocId) {
-        const docRef = await addDoc(collection(db, "kekes"), { name, lat, lng, time: Date.now() });
+        const docRef = await addDoc(collection(db, "kekes"), {
+          name,
+          lat,
+          lng,
+          time: Date.now()
+        });
         window.riderDocId = docRef.id;
       } else {
-        await updateDoc(doc(db, "kekes", window.riderDocId), { lat, lng, time: Date.now() });
+        await updateDoc(doc(db, "kekes", window.riderDocId), {
+          lat,
+          lng,
+          time: Date.now()
+        });
       }
-      if (map) map.setView([lat, lng], 16);
+
+      map.setView([lat, lng], 16);
       riderMsg.innerText = `🚖 Live • ${name}`;
     } catch (e) {
       console.error(e);
       riderMsg.innerText = "Update error";
     }
-  }, (err) => {
-    console.error(err);
+  }, () => {
     alert("Location error - allow GPS");
   }, { enableHighAccuracy: true });
 };
 
-// STUDENT - Request Keke
+// ================= STUDENT =================
 window.requestKeke = function () {
+  if (!map) {
+    alert("Map not ready yet");
+    return;
+  }
+
   const studentMsg = document.getElementById("studentMsg");
   studentMsg.innerText = "📍 Getting location...";
 
@@ -137,52 +152,78 @@ window.requestKeke = function () {
         time: Date.now()
       });
 
-      if (map) map.setView([latitude, longitude], 16);
+      map.setView([latitude, longitude], 16);
 
       if (window.userMarker) map.removeLayer(window.userMarker);
-      window.userMarker = L.marker([latitude, longitude]).addTo(map).bindPopup("📍 You").openPopup();
 
-      studentMsg.innerText = "✅ Request sent! Waiting for riders...";
+      window.userMarker = L.marker([latitude, longitude])
+        .addTo(map)
+        .bindPopup("📍 You")
+        .openPopup();
+
+      studentMsg.innerText = "✅ Request sent!";
     } catch (e) {
       console.error(e);
       studentMsg.innerText = "Request error";
     }
   }, () => {
-    alert("Could not get location");
-    studentMsg.innerText = "Location failed";
+    alert("Location error");
   }, { enableHighAccuracy: true });
 };
 
-// START LISTENERS
+// ================= LISTENERS =================
 function startListeners() {
+
+  // 🚖 KEKES
   const kekeQuery = query(collection(db, "kekes"), orderBy("time", "desc"));
+
   onSnapshot(kekeQuery, (snapshot) => {
-    window.markers.forEach(m => m && map && map.removeLayer(m));
+    if (!map) return;
+
+    window.markers.forEach(m => map.removeLayer(m));
     window.markers = [];
 
     snapshot.forEach(docSnap => {
       const k = docSnap.data();
       if (!k.lat || !k.lng) return;
-      const marker = L.marker([k.lat, k.lng]).addTo(map).bindPopup(`🚖 ${k.name || 'Keke'}`);
+
+      const marker = L.marker([k.lat, k.lng])
+        .addTo(map)
+        .bindPopup(`🚖 ${k.name || "Keke"}`);
+
       window.markers.push(marker);
     });
   });
 
+  // 📍 REQUESTS
   const requestQuery = query(collection(db, "requests"), orderBy("time", "desc"));
+
   onSnapshot(requestQuery, (snapshot) => {
-    window.requestMarkers.forEach(m => m && map && map.removeLayer(m));
+    if (!map) return;
+
+    window.requestMarkers.forEach(m => map.removeLayer(m));
     window.requestMarkers = [];
 
     snapshot.forEach(docSnap => {
       const r = docSnap.data();
       if (!r.lat || !r.lng) return;
 
+      // 🔴 student marker
       const marker = L.circleMarker([r.lat, r.lng], {
-        radius: 12, fillColor: "#ef4444", color: "#991b1b", weight: 3, fillOpacity: 0.9
+        radius: 12,
+        fillColor: "#ef4444",
+        color: "#991b1b",
+        weight: 3,
+        fillOpacity: 0.9
       }).addTo(map);
 
+      // ACCEPT RIDE
       marker.on("click", async () => {
-        if (r.status !== "waiting" || !confirm("Accept ride?")) return;
+        if (r.status !== "waiting") return;
+
+        const ok = confirm("Accept ride?");
+        if (!ok) return;
+
         navigator.geolocation.getCurrentPosition(async (pos) => {
           await updateDoc(doc(db, "requests", docSnap.id), {
             status: "accepted",
@@ -193,6 +234,27 @@ function startListeners() {
       });
 
       window.requestMarkers.push(marker);
+
+      // 🟢 LINE + DISTANCE
+      if (r.status === "accepted" && r.riderLat && r.riderLng) {
+
+        if (window.rideLine) map.removeLayer(window.rideLine);
+
+        window.rideLine = L.polyline([
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        ], { color: "green", weight: 5 }).addTo(map);
+
+        const dist = map.distance(
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        );
+
+        const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
+        if (msg) {
+          msg.innerText = `🚗 ${Math.round(dist)}m away • moving...`;
+        }
+      }
     });
   });
 }
