@@ -1,5 +1,14 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  doc,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
 // 🔥 Firebase config
 const firebaseConfig = {
@@ -11,21 +20,28 @@ const firebaseConfig = {
   appId: "1:836112236677:web:bd2a64d87f093a3230e9ec"
 };
 
-// 🔥 Init Firebase
+// Init Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-console.log("Firebase connected ✅");
-
-
-// 🗺️ MAP SETUP (RUNS ON PAGE LOAD)
 let map = null;
-
-
-// GLOBAL STORAGE
 window.markers = [];
+window.requestMarkers = [];
 window.userMarker = null;
+window.rideLine = null;
 
+// 🗺️ INIT MAP
+window.initMap = function (mapId) {
+  if (map) map.remove();
+
+  map = L.map(mapId).setView([9.0579, 7.4951], 13);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19
+  }).addTo(map);
+
+  startListeners(); // 🔥 start AFTER map exists
+};
 
 // 🔘 ROLE SELECT
 window.selectRole = function (role) {
@@ -40,8 +56,7 @@ window.selectRole = function (role) {
   }
 };
 
-
-// 🔙 BACK BUTTON
+// 🔙 BACK
 window.goBack = function () {
   document.getElementById("studentUI").style.display = "none";
   document.getElementById("riderUI").style.display = "none";
@@ -53,281 +68,131 @@ window.goBack = function () {
   }
 };
 
-
-// 🚖 RIDER FUNCTION (FIXED GPS)
+// 🚖 RIDER
 window.becomeAvailable = function () {
   const name = prompt("Enter your name or keke number:");
   if (!name) return;
 
-  if (!navigator.geolocation) {
-    alert("GPS not supported");
-    return;
-  }
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const { latitude, longitude } = pos.coords;
 
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-
-      console.log("Rider GPS:", lat, lng);
-
-      await addDoc(collection(db, "kekes"), {
-        name: name,
-        lat: lat,
-        lng: lng,
-        time: Date.now()
-      });
-
-      map.setView([lat, lng], 16);
-
-      L.marker([lat, lng])
-        .addTo(map)
-        .bindPopup("🚖 You are live")
-        .openPopup();
-
-      document.getElementById("riderMsg").innerText =
-        "✅ You are now live!";
-    },
-    (error) => {
-  console.error(error);
-
-  let message = "Location error";
-
-  if (error.code === 1) {
-    message = "❌ Please allow location access";
-  } else if (error.code === 2) {
-    message = "📡 Location unavailable (turn on GPS)";
-  } else if (error.code === 3) {
-    message = "⏳ Location request timed out";
-  }
-
-  alert(message);
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 20000,
-      maximumAge: 0
-    }
-  );
-};
-
-
-// 🎯 STUDENT FUNCTION
-window.requestKeke = function () {
-  if (!navigator.geolocation) {
-    alert("GPS not supported");
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-
-      console.log("Student GPS:", lat, lng);
-
-      // 📌 Save request to database
-      await addDoc(collection(db, "requests"), {
-        lat: lat,
-        lng: lng,
-        status: "waiting",
-        time: Date.now()
-      });
-
-      map.setView([lat, lng], 16);
-
-      if (window.userMarker) {
-        map.removeLayer(window.userMarker);
-      }
-
-      window.userMarker = L.marker([lat, lng])
-        .addTo(map)
-        .bindPopup("📍 You are here")
-        .openPopup();
-
-      document.getElementById("studentMsg").innerText =
-        "📡 Request sent! Waiting for rider...";
-    },
-    (error) => {
-      console.error(error);
-      alert("Location error");
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 20000,
-      maximumAge: 0
-    }
-  );
-};
-
-
-// 🔥 REAL-TIME DATABASE LISTENER
-const q = query(collection(db, "kekes"), orderBy("time", "desc"));
-
-onSnapshot(q, (snapshot) => {
-
-  if (!map) return; // 🔥 VERY IMPORTANT FIX
-
-  console.log("Snapshot size:", snapshot.size);
-
-  window.markers.forEach(marker => map.removeLayer(marker));
-  window.markers = [];
-
-  const bounds = L.latLngBounds();
-
-  snapshot.forEach((doc) => {
-    const keke = doc.data();
-    if (!keke.lat || !keke.lng) return;
-
-    const marker = L.marker([keke.lat, keke.lng])
-      .addTo(map)
-      .bindPopup(`🚖 ${keke.name}`);
-
-    window.markers.push(marker);
-    bounds.extend([keke.lat, keke.lng]);
-  });
-
-  if (window.markers.length > 0) {
-    map.fitBounds(bounds, { padding: [50, 50] });
-
-    const msg = document.getElementById("studentMsg");
-    if (msg) msg.innerText = "🚖 Kekes available!";
-  }
-});
-window.rideLine = null;
-
-onSnapshot(requestQuery, (snapshot) => {
-
-  if (!map) return;
-
-  snapshot.forEach((doc) => {
-    const req = doc.data();
-
-    // Only for accepted rides
-    if (req.status === "accepted" && req.riderLat && req.riderLng) {
-
-      const student = [req.lat, req.lng];
-      const rider = [req.riderLat, req.riderLng];
-
-      // Remove old line
-      if (window.rideLine) {
-        map.removeLayer(window.rideLine);
-      }
-
-      // 🟢 Draw line
-      window.rideLine = L.polyline([rider, student], {
-        color: "green",
-        weight: 5
-      }).addTo(map);
-
-      // Fit map
-      const bounds = L.latLngBounds([rider, student]);
-      map.fitBounds(bounds, { padding: [50, 50] });
-
-      // Show distance
-      const distance = map.distance(rider, student); // meters
-
-      const msg = document.getElementById("riderMsg") || document.getElementById("studentMsg");
-
-      if (msg) {
-        msg.innerText = `🚗 Rider is ${Math.round(distance)} meters away`;
-      }
-    }
-  });
-});
-const requestQuery = query(collection(db, "requests"), orderBy("time", "desc"));
-
-onSnapshot(requestQuery, (snapshot) => {
-
-  const riderMsg = document.getElementById("riderMsg");
-  if (!riderMsg) return;
-
-  if (snapshot.empty) {
-    riderMsg.innerText = "No ride requests yet";
-    return;
-  }
-  const requestQuery = query(collection(db, "requests"), orderBy("time", "desc"));
-
-window.requestMarkers = [];
-
-onSnapshot(requestQuery, (snapshot) => {
-
-  if (!map) return;
-
-  // Clear old request markers
-  window.requestMarkers.forEach(marker => map.removeLayer(marker));
-  window.requestMarkers = [];
-
-  snapshot.forEach((doc) => {
-    const req = doc.data();
-
-    if (!req.lat || !req.lng) return;
-
-    // 🔴 Red marker for student
-    const marker = L.circleMarker([req.lat, req.lng], {
-      radius: 10,
-      fillColor: "red",
-      color: "#800000",
-      weight: 2,
-      fillOpacity: 0.8
-    })
-      .addTo(map)
-      .bindPopup("📍 Student requesting ride");
-
-    // 🔥 CLICK TO ACCEPT
-    marker.on("click", async () => {
-      const confirmRide = confirm("Accept this ride?");
-      if (!confirmRide) return;
-
-      await acceptRide(doc.id);
+    await addDoc(collection(db, "kekes"), {
+      name,
+      lat: latitude,
+      lng: longitude,
+      time: Date.now()
     });
 
-    window.requestMarkers.push(marker);
+    map.setView([latitude, longitude], 16);
+
+    L.marker([latitude, longitude]).addTo(map)
+      .bindPopup("🚖 You are live").openPopup();
+
+  }, () => alert("Location error"));
+};
+
+// 🎯 STUDENT
+window.requestKeke = function () {
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const { latitude, longitude } = pos.coords;
+
+    await addDoc(collection(db, "requests"), {
+      lat: latitude,
+      lng: longitude,
+      status: "waiting",
+      time: Date.now()
+    });
+
+    map.setView([latitude, longitude], 16);
+
+    if (window.userMarker) map.removeLayer(window.userMarker);
+
+    window.userMarker = L.marker([latitude, longitude])
+      .addTo(map)
+      .bindPopup("📍 You are here")
+      .openPopup();
+
+  }, () => alert("Location error"));
+};
+
+// 🔥 START ALL LISTENERS
+function startListeners() {
+
+  // 🚖 KEKES
+  const kekeQuery = query(collection(db, "kekes"), orderBy("time", "desc"));
+
+  onSnapshot(kekeQuery, (snapshot) => {
+    window.markers.forEach(m => map.removeLayer(m));
+    window.markers = [];
+
+    snapshot.forEach(doc => {
+      const k = doc.data();
+      if (!k.lat) return;
+
+      const marker = L.marker([k.lat, k.lng])
+        .addTo(map)
+        .bindPopup(`🚖 ${k.name}`);
+
+      window.markers.push(marker);
+    });
   });
-});
 
-  riderMsg.innerText = "📢 New ride requests available!";
-});
-window.initMap = function (mapId) {
-  if (map) {
-    map.remove(); // destroy old map
-  }
+  // 📍 REQUESTS
+  const requestQuery = query(collection(db, "requests"), orderBy("time", "desc"));
 
-  map = L.map(mapId).setView([9.0579, 7.4951], 13);
+  onSnapshot(requestQuery, (snapshot) => {
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19
-  }).addTo(map);
-};
+    window.requestMarkers.forEach(m => map.removeLayer(m));
+    window.requestMarkers = [];
 
-import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+    snapshot.forEach(docSnap => {
+      const r = docSnap.data();
+      if (!r.lat) return;
 
-window.acceptRide = async function (requestId) {
-  if (!navigator.geolocation) {
-    alert("GPS not supported");
-    return;
-  }
+      // 🔴 request marker
+      const marker = L.circleMarker([r.lat, r.lng], {
+        radius: 10,
+        fillColor: "red",
+        color: "#800000",
+        fillOpacity: 0.8
+      }).addTo(map);
 
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
+      // click to accept
+      marker.on("click", async () => {
+        if (r.status !== "waiting") return;
 
-      try {
-        await updateDoc(doc(db, "requests", requestId), {
-          status: "accepted",
-          riderLat: lat,
-          riderLng: lng
+        const ok = confirm("Accept ride?");
+        if (!ok) return;
+
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          await updateDoc(doc(db, "requests", docSnap.id), {
+            status: "accepted",
+            riderLat: pos.coords.latitude,
+            riderLng: pos.coords.longitude
+          });
         });
+      });
 
-        alert("✅ Ride accepted!");
-      } catch (err) {
-        console.error(err);
-        alert("Error accepting ride");
+      window.requestMarkers.push(marker);
+
+      // 🟢 draw line if accepted
+      if (r.status === "accepted" && r.riderLat) {
+
+        if (window.rideLine) map.removeLayer(window.rideLine);
+
+        window.rideLine = L.polyline([
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        ], { color: "green", weight: 5 }).addTo(map);
+
+        const dist = map.distance(
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        );
+
+        const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
+        if (msg) msg.innerText = `🚗 ${Math.round(dist)} meters away`;
       }
-    },
-    () => {
-      alert("Location error");
-    }
-  );
-};
+    });
+  });
+}
