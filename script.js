@@ -161,7 +161,7 @@ window.requestKeke = function () {
         .bindPopup("📍 You")
         .openPopup();
 
-      studentMsg.innerText = "✅ Request sent!";
+      studentMsg.innerText = "🔍 Searching for rider...";
     } catch (e) {
       console.error(e);
       studentMsg.innerText = "Request error";
@@ -184,7 +184,6 @@ function startListeners() {
     window.markers = [];
 
     snapshot.forEach(docSnap => {
-      window.currentRequestId = docSnap.id;
       const k = docSnap.data();
       if (!k.lat || !k.lng) return;
 
@@ -236,23 +235,9 @@ function startListeners() {
 
       window.requestMarkers.push(marker);
 
-      // 🟢 LINE + DISTANCE
-      const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
+      // 🟢 DRAW LINE + DISTANCE (ONLY IF ACCEPTED)
+      if (r.status === "accepted" && r.riderLat && r.riderLng) {
 
-if (msg) {
-  if (r.status === "waiting") {
-    msg.innerText = "🔍 Searching for rider...";
-  } 
-  else if (r.status === "accepted") {
-    msg.innerText = `🚗 Rider accepted • ${Math.round(dist)}m away`;
-  } 
-  else if (r.status === "arriving") {
-    msg.innerText = "📍 Rider is arriving...";
-  } 
-  else if (r.status === "completed") {
-    msg.innerText = "✅ Ride completed";
-  }
-}
         if (window.rideLine) map.removeLayer(window.rideLine);
 
         window.rideLine = L.polyline([
@@ -266,22 +251,11 @@ if (msg) {
         );
 
         const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
+
         if (msg) {
-          msg.innerText = `🚗 ${Math.round(dist)}m away • moving...`;
+          msg.innerText = `🚗 Rider is ${Math.round(dist)}m away`;
         }
       }
     });
   });
 }
-window.setArriving = async function () {
-  if (!window.currentRequestId) {
-    alert("No active ride");
-    return;
-  }
-
-  await updateDoc(doc(db, "requests", window.currentRequestId), {
-    status: "arriving"
-  });
-
-  alert("Marked as arriving");
-};
