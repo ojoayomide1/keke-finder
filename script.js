@@ -66,21 +66,31 @@ window.initMap = function (mapId) {
   startListeners();
 };
 
-// 🔘 ROLE SELECT
+// 🔘 ROLE SELECT - Improved with better timing
 window.selectRole = function (role) {
-  // Hide everything first
+  // Hide everything
   document.getElementById("roleSelect").style.display = "none";
   document.getElementById("studentUI").style.display = "none";
   document.getElementById("riderUI").style.display = "none";
 
-  window.riderDocId = null; // Reset rider doc
+  window.riderDocId = null;
 
   if (role === "student") {
-    document.getElementById("studentUI").style.display = "block";
-    setTimeout(() => initMap("studentMap"), 50);
+    const studentUI = document.getElementById("studentUI");
+    studentUI.style.display = "block";
+    
+    // Give the browser time to render the div before initializing map
+    setTimeout(() => {
+      initMap("studentMap");
+    }, 100);   // Increased delay
+
   } else {
-    document.getElementById("riderUI").style.display = "block";
-    setTimeout(() => initMap("riderMap"), 50);
+    const riderUI = document.getElementById("riderUI");
+    riderUI.style.display = "block";
+    
+    setTimeout(() => {
+      initMap("riderMap");
+    }, 100);
   }
 };
 
