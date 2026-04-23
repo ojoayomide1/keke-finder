@@ -262,14 +262,31 @@ window.initMap = function (mapId) {
 import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
 window.acceptRide = async function (requestId) {
-  try {
-    await updateDoc(doc(db, "requests", requestId), {
-      status: "accepted"
-    });
-
-    alert("✅ Ride accepted!");
-  } catch (err) {
-    console.error(err);
-    alert("Error accepting ride");
+  if (!navigator.geolocation) {
+    alert("GPS not supported");
+    return;
   }
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      try {
+        await updateDoc(doc(db, "requests", requestId), {
+          status: "accepted",
+          riderLat: lat,
+          riderLng: lng
+        });
+
+        alert("✅ Ride accepted!");
+      } catch (err) {
+        console.error(err);
+        alert("Error accepting ride");
+      }
+    },
+    () => {
+      alert("Location error");
+    }
+  );
 };
