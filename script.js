@@ -12,7 +12,7 @@ import {
 
 // 🔥 Firebase config
 const firebaseConfig = {
-  apiKey: "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4",
+  apiKey: "AIzaSy...",
   authDomain: "keke-finder-cd5fe.firebaseapp.com",
   projectId: "keke-finder-cd5fe",
   storageBucket: "keke-finder-cd5fe.firebasestorage.app",
@@ -23,7 +23,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// GLOBAL STATE
+// ================= GLOBAL STATE =================
 let map = null;
 let listenersStarted = false;
 
@@ -92,7 +92,6 @@ window.becomeAvailable = function () {
     const lng = pos.coords.longitude;
 
     try {
-      // Save/update rider location
       if (!window.riderDocId) {
         const ref = await addDoc(collection(db, "kekes"), {
           name,
@@ -109,7 +108,7 @@ window.becomeAvailable = function () {
         });
       }
 
-      // 🔥 ALSO update active ride (THIS FIXES DISTANCE)
+      // 🔥 update ride position
       if (window.currentRideId) {
         await updateDoc(doc(db, "requests", window.currentRideId), {
           riderLat: lat,
@@ -117,9 +116,9 @@ window.becomeAvailable = function () {
         });
       }
 
-      if (map) map.setView([lat, lng], 16);
-
+      map.setView([lat, lng], 16);
       riderMsg.innerText = `🚖 Live • ${name}`;
+
     } catch (e) {
       console.error(e);
     }
@@ -157,6 +156,7 @@ window.requestKeke = function () {
         .openPopup();
 
       studentMsg.innerText = "🔍 Searching for rider...";
+
     } catch (e) {
       console.error(e);
       studentMsg.innerText = "Request failed";
@@ -166,9 +166,10 @@ window.requestKeke = function () {
   }, { enableHighAccuracy: true });
 };
 
-// ================= STATUS BUTTONS =================
+// ================= STATUS =================
 window.setArriving = async function () {
   if (!window.currentRideId) return;
+
   await updateDoc(doc(db, "requests", window.currentRideId), {
     status: "arriving"
   });
@@ -176,6 +177,7 @@ window.setArriving = async function () {
 
 window.completeRide = async function () {
   if (!window.currentRideId) return;
+
   await updateDoc(doc(db, "requests", window.currentRideId), {
     status: "completed"
   });
@@ -189,6 +191,7 @@ function startListeners() {
   onSnapshot(requestQuery, (snapshot) => {
     if (!map) return;
 
+    // clear markers
     window.requestMarkers.forEach(m => map.removeLayer(m));
     window.requestMarkers = [];
 
@@ -196,6 +199,7 @@ function startListeners() {
       const r = docSnap.data();
       if (!r.lat || !r.lng) return;
 
+      // 🔴 student marker
       const marker = L.circleMarker([r.lat, r.lng], {
         radius: 10,
         fillColor: "red",
@@ -204,7 +208,7 @@ function startListeners() {
         fillOpacity: 0.9
       }).addTo(map);
 
-      // ACCEPT
+      // accept ride
       marker.on("click", async () => {
         if (r.status !== "waiting") return;
 
@@ -224,59 +228,50 @@ function startListeners() {
 
       window.requestMarkers.push(marker);
 
-      // 🚀 LIVE TRACKING
+      // ================= LIVE TRACKING =================
       if (r.status === "accepted" && r.riderLat && r.riderLng) {
-if (r.status === "accepted" && r.riderLat && r.riderLng) {
 
-  // Clear old line
-  if (window.rideLine) map.removeLayer(window.rideLine);
+        // remove old line
+        if (window.rideLine) map.removeLayer(window.rideLine);
 
-  // Draw line
-  window.rideLine = L.polyline([
-    [r.riderLat, r.riderLng],
-    [r.lat, r.lng]
-  ], { color: "green", weight: 5 }).addTo(map);
+        // draw line
+        window.rideLine = L.polyline([
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        ], { color: "green", weight: 5 }).addTo(map);
 
-  // 🔥 ADD RIDER MARKER (YOU WERE MISSING THIS)
-  const riderMarker = L.marker([r.riderLat, r.riderLng])
-    .addTo(map)
-    .bindPopup("🚖 Rider");
+        // rider marker
+        const riderMarker = L.marker([r.riderLat, r.riderLng])
+          .addTo(map)
+          .bindPopup("🚖 Rider");
 
-  window.markers.push(riderMarker);
+        window.markers.push(riderMarker);
 
-  // Distance
-  const dist = map.distance(
-    [r.riderLat, r.riderLng],
-    [r.lat, r.lng]
-  );
+        // distance
+        const dist = map.distance(
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        );
 
-  const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
+        const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
 
-  if (msg) {
-    if (r.status === "accepted") {
-      msg.innerText = `🚗 ${Math.round(dist)}m away`;
-    }
-    if (r.status === "arriving") {
-      msg.innerText = "📍 Rider is arriving...";
-    }
-    if (r.status === "completed") {
-      msg.innerText = "✅ Ride completed";
-    }
-  }
-  const controls = document.getElementById("rideControls");
+        if (msg) {
+          if (r.status === "accepted") {
+            msg.innerText = `🚗 ${Math.round(dist)}m away`;
+          } else if (r.status === "arriving") {
+            msg.innerText = "📍 Rider is arriving...";
+          } else if (r.status === "completed") {
+            msg.innerText = "✅ Ride completed";
+          }
+        }
 
-if (controls) {
-  if (r.status === "accepted" || r.status === "arriving") {
-    controls.style.display = "block";
-  } else {
-    controls.style.display = "none";
-  }
-}
-
-  // Fit map nicely
-  const bounds = L.latLngBounds([
-    [r.riderLat, r.riderLng],
-    [r.lat, r.lng]
-  ]);
-  map.fitBounds(bounds, { padding: [50, 50] });
+        // fit map
+        const bounds = L.latLngBounds([
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        ]);
+        map.fitBounds(bounds, { padding: [50, 50] });
+      }
+    });
+  });
 }
