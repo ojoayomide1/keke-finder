@@ -194,6 +194,47 @@ onSnapshot(q, (snapshot) => {
     if (msg) msg.innerText = "🚖 Kekes available!";
   }
 });
+window.rideLine = null;
+
+onSnapshot(requestQuery, (snapshot) => {
+
+  if (!map) return;
+
+  snapshot.forEach((doc) => {
+    const req = doc.data();
+
+    // Only for accepted rides
+    if (req.status === "accepted" && req.riderLat && req.riderLng) {
+
+      const student = [req.lat, req.lng];
+      const rider = [req.riderLat, req.riderLng];
+
+      // Remove old line
+      if (window.rideLine) {
+        map.removeLayer(window.rideLine);
+      }
+
+      // 🟢 Draw line
+      window.rideLine = L.polyline([rider, student], {
+        color: "green",
+        weight: 5
+      }).addTo(map);
+
+      // Fit map
+      const bounds = L.latLngBounds([rider, student]);
+      map.fitBounds(bounds, { padding: [50, 50] });
+
+      // Show distance
+      const distance = map.distance(rider, student); // meters
+
+      const msg = document.getElementById("riderMsg") || document.getElementById("studentMsg");
+
+      if (msg) {
+        msg.innerText = `🚗 Rider is ${Math.round(distance)} meters away`;
+      }
+    }
+  });
+});
 const requestQuery = query(collection(db, "requests"), orderBy("time", "desc"));
 
 onSnapshot(requestQuery, (snapshot) => {
