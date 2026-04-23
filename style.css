@@ -268,7 +268,3 @@ button {
   50% { opacity: 1; }
   100% { opacity: 0.6; }
 }
-
-.bottomSheet.expanded {
-  height: 300px;
-}
