@@ -120,11 +120,19 @@ window.requestKeke = function () {
   }
 
   navigator.geolocation.getCurrentPosition(
-    (position) => {
+    async (position) => {
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
 
       console.log("Student GPS:", lat, lng);
+
+      // 📌 Save request to database
+      await addDoc(collection(db, "requests"), {
+        lat: lat,
+        lng: lng,
+        status: "waiting",
+        time: Date.now()
+      });
 
       map.setView([lat, lng], 16);
 
@@ -138,22 +146,11 @@ window.requestKeke = function () {
         .openPopup();
 
       document.getElementById("studentMsg").innerText =
-        "🔍 Searching...";
+        "📡 Request sent! Waiting for rider...";
     },
     (error) => {
-  console.error(error);
-
-  let message = "Location error";
-
-  if (error.code === 1) {
-    message = "❌ Please allow location access";
-  } else if (error.code === 2) {
-    message = "📡 Location unavailable (turn on GPS)";
-  } else if (error.code === 3) {
-    message = "⏳ Location request timed out";
-  }
-
-  alert(message);
+      console.error(error);
+      alert("Location error");
     },
     {
       enableHighAccuracy: true,
