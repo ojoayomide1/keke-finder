@@ -211,7 +211,7 @@ function startListeners() {
         );
 
         const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
-        if (msg) msg.innerText = `🚗 ${Math.round(dist)} meters away`;
+        msg.innerText = `🚗 ${Math.round(dist)}m away • moving...`;
       }
     });
   });
