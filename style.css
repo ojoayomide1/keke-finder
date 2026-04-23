@@ -2,22 +2,24 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
 body {
   background: #111;
+  overflow: hidden; /* Prevents body scroll on mobile */
 }
 
 /* Screens */
 .screen {
-  width: 100%;
+  width: 100vw;
   height: 100vh;
   position: relative;
+  overflow: hidden;
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 .center {
@@ -26,32 +28,66 @@ body {
   justify-content: center;
   align-items: center;
   gap: 20px;
+  text-align: center;
+  color: white;
+}
+
+/* Homepage - Role Select (Big improvement) */
+#roleSelect {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: white;
+}
+
+#roleSelect h1 {
+  font-size: 2.8rem;
+  margin-bottom: 10px;
+  text-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+
+#roleSelect p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  max-width: 280px;
+  margin-bottom: 40px;
 }
 
 /* Buttons */
 button {
-  padding: 15px 25px;
+  padding: 16px 32px;
   font-size: 18px;
+  font-weight: 600;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+button:active {
+  transform: scale(0.95);
 }
 
 /* Map full screen */
 .map {
   width: 100%;
   height: 100%;
+  z-index: 1; /* Important base */
 }
 
-/* Floating button */
+/* Floating Action Button (FAB) - Much more visible */
 .fab {
   position: absolute;
-  bottom: 90px;
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
   border-radius: 50px;
-  padding: 18px 25px;
-  font-weight: bold;
+  padding: 16px 28px;
+  font-weight: 700;
+  font-size: 17px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+  z-index: 1000;           /* High enough to stay on top */
+  min-width: 180px;
+  text-align: center;
 }
 
 .green {
@@ -61,6 +97,7 @@ button {
 
 .yellow {
   background: #facc15;
+  color: #111;
 }
 
 /* Back button */
@@ -68,18 +105,57 @@ button {
   position: absolute;
   top: 20px;
   left: 15px;
-  font-size: 20px;
-  padding: 10px 15px;
+  font-size: 28px;
+  padding: 8px 14px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  z-index: 1000;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Bottom card */
 .bottomCard {
   position: absolute;
   bottom: 0;
+  left: 0;
   width: 100%;
-  background: white;
-  padding: 20px;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(10px);
+  padding: 20px 15px;
   border-radius: 20px 20px 0 0;
   text-align: center;
-  font-weight: bold;
+  font-weight: 600;
+  box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
+  z-index: 900;
+}
+
+/* Leaflet fixes - This is the key part for buttons visibility + glitch */
+.leaflet-container {
+  z-index: 1;
+}
+
+.leaflet-control {
+  z-index: 800 !important;   /* Leaflet zoom/attribution stays below your buttons */
+}
+
+.leaflet-top, .leaflet-bottom {
+  z-index: 800 !important;
+}
+
+/* Make sure your custom overlays always win */
+#studentUI .fab,
+#riderUI .fab,
+.backBtn {
+  z-index: 1000;
+}
+
+/* Small polish */
+h1, p {
+  user-select: none;
 }
