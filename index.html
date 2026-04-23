@@ -25,14 +25,22 @@
 
   <!-- STUDENT UI -->
   <div id="studentUI" class="screen hidden">
-    <div id="studentMap" class="map"></div>
+  <div id="studentMap" class="map"></div>
 
-    <button class="fab green" onclick="requestKeke()">📍 Request Ride</button>
-    <button class="backBtn" onclick="goBack()">←</button>
+  <button class="fab green" onclick="requestKeke()">🚖 Request Ride</button>
+  <button class="backBtn" onclick="goBack()">←</button>
 
-    <div class="bottomCard">
-      <p id="studentMsg">Waiting...</p>
+  <!-- ✅ ADD THIS -->
+  <div class="bottomSheet">
+    <div class="handle"></div>
+    <h3 id="rideTitle">Waiting...</h3>
+    <p id="rideSub">No active ride</p>
+
+    <div id="rideControls" class="controls hidden">
+      <button onclick="setArriving()" class="yellow">📍 Arriving</button>
+      <button onclick="completeRide()" class="green">✅ Complete</button>
     </div>
+  </div>
   </div>
 
   <!-- RIDER UI -->
