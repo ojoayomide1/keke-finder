@@ -27,10 +27,10 @@ const db = getFirestore(app);
 let map = null;
 let listenersStarted = false;
 
-window.markers = [];
 window.requestMarkers = [];
-window.userMarker = null;
+window.riderMarker = null;
 window.rideLine = null;
+window.userMarker = null;
 window.riderDocId = null;
 window.currentRideId = null;
 
@@ -84,14 +84,12 @@ window.becomeAvailable = function () {
   const name = prompt("Enter your name or keke number:");
   if (!name) return;
 
-  const riderMsg = document.getElementById("riderMsg");
-  riderMsg.innerText = "🟢 Going live...";
-
   navigator.geolocation.watchPosition(async (pos) => {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
 
     try {
+      // Save rider
       if (!window.riderDocId) {
         const ref = await addDoc(collection(db, "kekes"), {
           name,
@@ -108,7 +106,7 @@ window.becomeAvailable = function () {
         });
       }
 
-      // 🔥 update ride position
+      // Update active ride
       if (window.currentRideId) {
         await updateDoc(doc(db, "requests", window.currentRideId), {
           riderLat: lat,
@@ -116,23 +114,19 @@ window.becomeAvailable = function () {
         });
       }
 
-      map.setView([lat, lng], 16);
-      riderMsg.innerText = `🚖 Live • ${name}`;
+      if (map) map.setView([lat, lng], 16);
 
     } catch (e) {
       console.error(e);
     }
 
   }, () => {
-    alert("Location error - allow GPS");
+    alert("Enable location");
   }, { enableHighAccuracy: true });
 };
 
 // ================= STUDENT =================
 window.requestKeke = function () {
-  const studentMsg = document.getElementById("studentMsg");
-  studentMsg.innerText = "📍 Getting location...";
-
   navigator.geolocation.getCurrentPosition(async (pos) => {
     const { latitude, longitude } = pos.coords;
 
@@ -155,15 +149,10 @@ window.requestKeke = function () {
         .bindPopup("📍 You")
         .openPopup();
 
-      studentMsg.innerText = "🔍 Searching for rider...";
-
     } catch (e) {
       console.error(e);
-      studentMsg.innerText = "Request failed";
     }
-  }, () => {
-    alert("Location error");
-  }, { enableHighAccuracy: true });
+  });
 };
 
 // ================= STATUS =================
@@ -208,7 +197,7 @@ function startListeners() {
         fillOpacity: 0.9
       }).addTo(map);
 
-      // accept ride
+      // ACCEPT RIDE
       marker.on("click", async () => {
         if (r.status !== "waiting") return;
 
@@ -228,7 +217,7 @@ function startListeners() {
 
       window.requestMarkers.push(marker);
 
-      // ================= LIVE TRACKING =================
+      // ================= TRACKING =================
       if (r.status === "accepted" && r.riderLat && r.riderLng) {
 
         // remove old line
@@ -241,11 +230,11 @@ function startListeners() {
         ], { color: "green", weight: 5 }).addTo(map);
 
         // rider marker
-        const riderMarker = L.marker([r.riderLat, r.riderLng])
+        if (window.riderMarker) map.removeLayer(window.riderMarker);
+
+        window.riderMarker = L.marker([r.riderLat, r.riderLng])
           .addTo(map)
           .bindPopup("🚖 Rider");
-
-        window.markers.push(riderMarker);
 
         // distance
         const dist = map.distance(
@@ -253,50 +242,29 @@ function startListeners() {
           [r.lat, r.lng]
         );
 
+        // UI UPDATE (bottom sheet)
         const title = document.getElementById("rideTitle");
-const sub = document.getElementById("rideSub");
-const controls = document.getElementById("rideControls");
+        const sub = document.getElementById("rideSub");
+        const controls = document.getElementById("rideControls");
 
-if (title && sub) {
+        if (title && sub && controls) {
 
-  if (r.status === "waiting") {
-    title.innerText = "🔍 Searching for rider";
-    sub.innerText = "Please wait...";
-    controls.classList.add("hidden");
-  }
-
-  else if (r.status === "accepted") {
-    title.innerText = "🚗 Rider on the way";
-
-    const dist = map.distance(
-      [r.riderLat, r.riderLng],
-      [r.lat, r.lng]
-    );
-
-    sub.innerText = `${Math.round(dist)} meters away`;
-
-    controls.classList.remove("hidden");
-  }
-
-  else if (r.status === "arriving") {
-    title.innerText = "📍 Rider arriving";
-    sub.innerText = "Get ready!";
-    controls.classList.remove("hidden");
-  }
-
-  else if (r.status === "completed") {
-    title.innerText = "✅ Ride completed";
-    sub.innerText = "Thanks for using Keke Finder!";
-    controls.classList.add("hidden");
-  }
-}
-        if (msg) {
           if (r.status === "accepted") {
-            msg.innerText = `🚗 ${Math.round(dist)}m away`;
-          } else if (r.status === "arriving") {
-            msg.innerText = "📍 Rider is arriving...";
-          } else if (r.status === "completed") {
-            msg.innerText = "✅ Ride completed";
+            title.innerText = "🚗 Rider on the way";
+            sub.innerText = `${Math.round(dist)} meters away`;
+            controls.classList.remove("hidden");
+          }
+
+          else if (r.status === "arriving") {
+            title.innerText = "📍 Rider arriving";
+            sub.innerText = "Get ready!";
+            controls.classList.remove("hidden");
+          }
+
+          else if (r.status === "completed") {
+            title.innerText = "✅ Ride completed";
+            sub.innerText = "Thanks for using Keke Finder!";
+            controls.classList.add("hidden");
           }
         }
 
