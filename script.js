@@ -184,6 +184,7 @@ function startListeners() {
     window.markers = [];
 
     snapshot.forEach(docSnap => {
+      window.currentRequestId = docSnap.id;
       const k = docSnap.data();
       if (!k.lat || !k.lng) return;
 
