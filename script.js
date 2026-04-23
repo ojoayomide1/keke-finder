@@ -20,7 +20,6 @@ const firebaseConfig = {
   appId: "1:836112236677:web:bd2a64d87f093a3230e9ec"
 };
 
-// 🔥 Init
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -33,6 +32,7 @@ window.requestMarkers = [];
 window.userMarker = null;
 window.rideLine = null;
 window.riderDocId = null;
+window.currentRideId = null;
 
 // ================= MAP =================
 window.initMap = function (mapId) {
@@ -41,17 +41,10 @@ window.initMap = function (mapId) {
     map = null;
   }
 
-  const container = document.getElementById(mapId);
-  if (!container) {
-    console.error("Map container not found:", mapId);
-    return;
-  }
-
   map = L.map(mapId).setView([9.0579, 7.4951], 13);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors'
+    maxZoom: 19
   }).addTo(map);
 
   setTimeout(() => map.invalidateSize(), 300);
@@ -88,11 +81,6 @@ window.goBack = function () {
 
 // ================= RIDER =================
 window.becomeAvailable = function () {
-  if (!map) {
-    alert("Map not ready yet");
-    return;
-  }
-
   const name = prompt("Enter your name or keke number:");
   if (!name) return;
 
@@ -105,13 +93,13 @@ window.becomeAvailable = function () {
 
     try {
       if (!window.riderDocId) {
-        const docRef = await addDoc(collection(db, "kekes"), {
+        const ref = await addDoc(collection(db, "kekes"), {
           name,
           lat,
           lng,
           time: Date.now()
         });
-        window.riderDocId = docRef.id;
+        window.riderDocId = ref.id;
       } else {
         await updateDoc(doc(db, "kekes", window.riderDocId), {
           lat,
@@ -124,7 +112,7 @@ window.becomeAvailable = function () {
       riderMsg.innerText = `🚖 Live • ${name}`;
     } catch (e) {
       console.error(e);
-      riderMsg.innerText = "Update error";
+      riderMsg.innerText = "Error updating";
     }
   }, () => {
     alert("Location error - allow GPS");
@@ -133,11 +121,6 @@ window.becomeAvailable = function () {
 
 // ================= STUDENT =================
 window.requestKeke = function () {
-  if (!map) {
-    alert("Map not ready yet");
-    return;
-  }
-
   const studentMsg = document.getElementById("studentMsg");
   studentMsg.innerText = "📍 Getting location...";
 
@@ -145,12 +128,14 @@ window.requestKeke = function () {
     const { latitude, longitude } = pos.coords;
 
     try {
-      await addDoc(collection(db, "requests"), {
+      const ref = await addDoc(collection(db, "requests"), {
         lat: latitude,
         lng: longitude,
         status: "waiting",
         time: Date.now()
       });
+
+      window.currentRideId = ref.id;
 
       map.setView([latitude, longitude], 16);
 
@@ -164,38 +149,31 @@ window.requestKeke = function () {
       studentMsg.innerText = "🔍 Searching for rider...";
     } catch (e) {
       console.error(e);
-      studentMsg.innerText = "Request error";
+      studentMsg.innerText = "Request failed";
     }
   }, () => {
     alert("Location error");
   }, { enableHighAccuracy: true });
 };
 
+// ================= STATUS BUTTONS =================
+window.setArriving = async function () {
+  if (!window.currentRideId) return;
+  await updateDoc(doc(db, "requests", window.currentRideId), {
+    status: "arriving"
+  });
+};
+
+window.completeRide = async function () {
+  if (!window.currentRideId) return;
+  await updateDoc(doc(db, "requests", window.currentRideId), {
+    status: "completed"
+  });
+};
+
 // ================= LISTENERS =================
 function startListeners() {
 
-  // 🚖 KEKES
-  const kekeQuery = query(collection(db, "kekes"), orderBy("time", "desc"));
-
-  onSnapshot(kekeQuery, (snapshot) => {
-    if (!map) return;
-
-    window.markers.forEach(m => map.removeLayer(m));
-    window.markers = [];
-
-    snapshot.forEach(docSnap => {
-      const k = docSnap.data();
-      if (!k.lat || !k.lng) return;
-
-      const marker = L.marker([k.lat, k.lng])
-        .addTo(map)
-        .bindPopup(`🚖 ${k.name || "Keke"}`);
-
-      window.markers.push(marker);
-    });
-  });
-
-  // 📍 REQUESTS
   const requestQuery = query(collection(db, "requests"), orderBy("time", "desc"));
 
   onSnapshot(requestQuery, (snapshot) => {
@@ -208,16 +186,15 @@ function startListeners() {
       const r = docSnap.data();
       if (!r.lat || !r.lng) return;
 
-      // 🔴 student marker
       const marker = L.circleMarker([r.lat, r.lng], {
-        radius: 12,
-        fillColor: "#ef4444",
-        color: "#991b1b",
-        weight: 3,
+        radius: 10,
+        fillColor: "red",
+        color: "darkred",
+        weight: 2,
         fillOpacity: 0.9
       }).addTo(map);
 
-      // ACCEPT RIDE
+      // ACCEPT
       marker.on("click", async () => {
         if (r.status !== "waiting") return;
 
@@ -230,12 +207,14 @@ function startListeners() {
             riderLat: pos.coords.latitude,
             riderLng: pos.coords.longitude
           });
+
+          window.currentRideId = docSnap.id;
         });
       });
 
       window.requestMarkers.push(marker);
 
-      // 🟢 DRAW LINE + DISTANCE (ONLY IF ACCEPTED)
+      // 🚀 LIVE TRACKING
       if (r.status === "accepted" && r.riderLat && r.riderLng) {
 
         if (window.rideLine) map.removeLayer(window.rideLine);
@@ -253,7 +232,15 @@ function startListeners() {
         const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
 
         if (msg) {
-          msg.innerText = `🚗 Rider is ${Math.round(dist)}m away`;
+          if (r.status === "accepted") {
+            msg.innerText = `🚗 ${Math.round(dist)}m away`;
+          }
+          if (r.status === "arriving") {
+            msg.innerText = "📍 Rider is arriving...";
+          }
+          if (r.status === "completed") {
+            msg.innerText = "✅ Ride completed";
+          }
         }
       }
     });
