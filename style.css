@@ -235,3 +235,19 @@ h1, p {
 .hidden {
   display: none;
 }
+
+button {
+  position: relative;
+  z-index: 2000;
+}
+
+.fab,
+.backBtn,
+.bottomSheet {
+  pointer-events: auto;
+  z-index: 2000;
+}
+
+.map {
+  z-index: 1;
+}
