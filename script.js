@@ -236,8 +236,22 @@ function startListeners() {
       window.requestMarkers.push(marker);
 
       // 🟢 LINE + DISTANCE
-      if (r.status === "accepted" && r.riderLat && r.riderLng) {
+      const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
 
+if (msg) {
+  if (r.status === "waiting") {
+    msg.innerText = "🔍 Searching for rider...";
+  } 
+  else if (r.status === "accepted") {
+    msg.innerText = `🚗 Rider accepted • ${Math.round(dist)}m away`;
+  } 
+  else if (r.status === "arriving") {
+    msg.innerText = "📍 Rider is arriving...";
+  } 
+  else if (r.status === "completed") {
+    msg.innerText = "✅ Ride completed";
+  }
+}
         if (window.rideLine) map.removeLayer(window.rideLine);
 
         window.rideLine = L.polyline([
