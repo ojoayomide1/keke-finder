@@ -194,6 +194,20 @@ onSnapshot(q, (snapshot) => {
     if (msg) msg.innerText = "🚖 Kekes available!";
   }
 });
+const requestQuery = query(collection(db, "requests"), orderBy("time", "desc"));
+
+onSnapshot(requestQuery, (snapshot) => {
+
+  const riderMsg = document.getElementById("riderMsg");
+  if (!riderMsg) return;
+
+  if (snapshot.empty) {
+    riderMsg.innerText = "No ride requests yet";
+    return;
+  }
+
+  riderMsg.innerText = "📢 New ride requests available!";
+});
 window.initMap = function (mapId) {
   if (map) {
     map.remove(); // destroy old map
