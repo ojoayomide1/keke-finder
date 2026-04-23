@@ -31,9 +31,8 @@ window.userMarker = null;
 window.rideLine = null;
 window.riderDocId = null;   // Important: reset on role change
 
-// 🗺️ INIT MAP - Fixed for hidden containers
+// 🗺️ INIT MAP - Stronger fix for black screen
 window.initMap = function (mapId) {
-  // Clean up old map if exists
   if (map) {
     map.remove();
     map = null;
@@ -41,25 +40,28 @@ window.initMap = function (mapId) {
 
   const container = document.getElementById(mapId);
   if (!container) {
-    console.error(`Map container #${mapId} not found!`);
+    console.error(`Map container #${mapId} not found`);
     return;
   }
 
-  // Create map
   map = L.map(mapId, {
     zoomControl: true,
     attributionControl: true
-  }).setView([9.0579, 7.4951], 13);   // Abuja center
+  }).setView([9.0579, 7.4951], 13);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // Force Leaflet to recalculate size (this fixes black screen)
+  // Multiple attempts to fix size (this usually solves it)
   setTimeout(() => {
     if (map) map.invalidateSize(true);
-  }, 150);
+  }, 200);
+
+  setTimeout(() => {
+    if (map) map.invalidateSize(true);
+  }, 500);
 
   startListeners();
 };
