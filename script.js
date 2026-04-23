@@ -243,29 +243,36 @@ function startListeners() {
         );
 
         // UI UPDATE (bottom sheet)
-        const title = document.getElementById("rideTitle");
-        const sub = document.getElementById("rideSub");
-        const controls = document.getElementById("rideControls");
+        function updateUI(r, dist) {
+  const title = document.getElementById("rideTitle");
+  const sub = document.getElementById("rideSub");
+  const controls = document.getElementById("rideControls");
 
-        if (title && sub && controls) {
+  if (!title || !sub || !controls) return;
 
-          if (r.status === "accepted") {
-            title.innerText = "🚗 Rider on the way";
-            sub.innerText = `${Math.round(dist)} meters away`;
-            controls.classList.remove("hidden");
-          }
+  if (r.status === "waiting") {
+    title.innerText = "🔍 Searching for rider";
+    sub.innerText = "Connecting you...";
+    controls.classList.add("hidden");
+  }
 
-          else if (r.status === "arriving") {
-            title.innerText = "📍 Rider arriving";
-            sub.innerText = "Get ready!";
-            controls.classList.remove("hidden");
-          }
+  if (r.status === "accepted") {
+    title.innerText = "🚗 Rider on the way";
+    sub.innerText = `${Math.round(dist)}m away • arriving soon`;
+    controls.classList.remove("hidden");
+  }
 
-          else if (r.status === "completed") {
-            title.innerText = "✅ Ride completed";
-            sub.innerText = "Thanks for using Keke Finder!";
-            controls.classList.add("hidden");
-          }
+  if (r.status === "arriving") {
+    title.innerText = "📍 Rider is here";
+    sub.innerText = "Step outside now";
+    controls.classList.remove("hidden");
+  }
+
+  if (r.status === "completed") {
+    title.innerText = "✅ Trip completed";
+    sub.innerText = "Thanks for riding!";
+    controls.classList.add("hidden");
+  }
         }
 
         // fit map
