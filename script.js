@@ -73,22 +73,42 @@ window.becomeAvailable = function () {
   const name = prompt("Enter your name or keke number:");
   if (!name) return;
 
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    const { latitude, longitude } = pos.coords;
+  if (!navigator.geolocation) {
+    alert("GPS not supported");
+    return;
+  }
 
-    await addDoc(collection(db, "kekes"), {
-      name,
-      lat: latitude,
-      lng: longitude,
-      time: Date.now()
-    });
+  navigator.geolocation.watchPosition(async (pos) => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
 
-    map.setView([latitude, longitude], 16);
+    console.log("Live rider:", lat, lng);
 
-    L.marker([latitude, longitude]).addTo(map)
-      .bindPopup("🚖 You are live").openPopup();
+    // 🔥 Update instead of adding new docs every time
+    if (!window.riderDocId) {
+      const docRef = await addDoc(collection(db, "kekes"), {
+        name,
+        lat,
+        lng,
+        time: Date.now()
+      });
+      window.riderDocId = docRef.id;
+    } else {
+      await updateDoc(doc(db, "kekes", window.riderDocId), {
+        lat,
+        lng,
+        time: Date.now()
+      });
+    }
 
-  }, () => alert("Location error"));
+    map.setView([lat, lng], 16);
+
+  }, () => {
+    alert("Location error");
+  }, {
+    enableHighAccuracy: true,
+    maximumAge: 0
+  });
 };
 
 // 🎯 STUDENT
