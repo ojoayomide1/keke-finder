@@ -188,3 +188,50 @@ button:active {
 h1, p {
   user-select: none;
 }
+
+/* ===== UBER STYLE BOTTOM SHEET ===== */
+.bottomSheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 15px;
+  box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
+  z-index: 1000;
+  text-align: center;
+}
+
+.handle {
+  width: 50px;
+  height: 5px;
+  background: #ccc;
+  border-radius: 10px;
+  margin: 0 auto 10px;
+}
+
+.bottomSheet h3 {
+  font-size: 20px;
+  margin-bottom: 5px;
+}
+
+.bottomSheet p {
+  font-size: 14px;
+  color: #666;
+}
+
+.controls {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.controls button {
+  flex: 1;
+}
+
+.hidden {
+  display: none;
+}
