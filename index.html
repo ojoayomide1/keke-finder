@@ -45,22 +45,22 @@
 
   <!-- RIDER UI -->
   <div id="riderUI" class="screen hidden">
-    <div id="riderMap" class="map"></div>
+  <div id="riderMap" class="map"></div>
 
-    <button class="fab yellow" onclick="becomeAvailable()">🚖 Go Live</button>
-    <button class="backBtn" onclick="goBack()">←</button>
-    <button onclick="setArriving()">📍 Arriving</button>
-    <button onclick="setArriving()">📍 Arrived</button>
-<button onclick="completeRide()">✅ Complete Ride</button>
+  <button class="fab yellow" onclick="becomeAvailable()">🟢 Go Live</button>
+  <button class="backBtn" onclick="goBack()">←</button>
 
-    <div class="bottomCard">
-  <p id="riderMsg">Offline</p>
+  <!-- ✅ SAME bottom sheet -->
+  <div class="bottomSheet">
+    <div class="handle"></div>
+    <h3 id="rideTitle">Offline</h3>
+    <p id="rideSub">Go live to start</p>
 
-  <div id="rideControls" style="margin-top:10px; display:none;">
-    <button onclick="setArriving()">📍 Arrived</button>
-    <button onclick="completeRide()">✅ Complete</button>
-  </div>
+    <div id="rideControls" class="controls hidden">
+      <button onclick="setArriving()" class="yellow">📍 Arriving</button>
+      <button onclick="completeRide()" class="green">✅ Complete</button>
     </div>
+  </div>
   </div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
