@@ -66,44 +66,35 @@ window.initMap = function (mapId) {
   startListeners();
 };
 
-// 🔘 ROLE SELECT - Improved with better timing
+// 🔘 ROLE SELECT
 window.selectRole = function (role) {
-  // Hide everything
-  document.getElementById("roleSelect").style.display = "none";
-  document.getElementById("studentUI").style.display = "none";
-  document.getElementById("riderUI").style.display = "none";
-
-  window.riderDocId = null;
+  document.getElementById("roleSelect").classList.add("hidden");
 
   if (role === "student") {
-    const studentUI = document.getElementById("studentUI");
-    studentUI.style.display = "block";
-    
-    // Give the browser time to render the div before initializing map
-    setTimeout(() => {
-      initMap("studentMap");
-    }, 100);   // Increased delay
-
+    document.getElementById("studentUI").classList.remove("hidden");
+    setTimeout(() => initMap("studentMap"), 150);
   } else {
-    const riderUI = document.getElementById("riderUI");
-    riderUI.style.display = "block";
-    
-    setTimeout(() => {
-      initMap("riderMap");
-    }, 100);
+    document.getElementById("riderUI").classList.remove("hidden");
+    setTimeout(() => initMap("riderMap"), 150);
   }
 };
 
 // 🔙 BACK
 window.goBack = function () {
-  document.getElementById("studentUI").style.display = "none";
-  document.getElementById("riderUI").style.display = "none";
-  document.getElementById("roleSelect").style.display = "block";
+  document.getElementById("studentUI").classList.add("hidden");
+  document.getElementById("riderUI").classList.add("hidden");
+  document.getElementById("roleSelect").classList.remove("hidden");
 
   if (map) {
     map.remove();
     map = null;
   }
+  window.markers = [];
+  window.requestMarkers = [];
+  window.userMarker = null;
+  window.rideLine = null;
+  window.riderDocId = null;
+};
 
   // Clear markers
   window.markers = [];
