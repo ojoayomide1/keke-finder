@@ -10,11 +10,18 @@
 <body>
 
   <!-- ROLE SELECT -->
-  <div id="roleSelect" class="screen center">
-    <h1>🚖 Keke Finder</h1>
-    <button onclick="selectRole('student')">Find a Keke</button>
-    <button onclick="selectRole('rider')">Go Online</button>
-  </div>
+<div id="roleSelect" class="screen center">
+  <h1>🚖 Keke Finder</h1>
+  <p>Connect students with keke riders in Abuja instantly</p>
+  
+  <button onclick="selectRole('student')" style="background:#22c55e; color:white; width:80%; max-width:280px;">
+    👤 I'm a Student - Find Keke
+  </button>
+  
+  <button onclick="selectRole('rider')" style="background:#facc15; color:#111; width:80%; max-width:280px;">
+    🛵 I'm a Rider - Go Online
+  </button>
+</div>
 
   <!-- STUDENT UI -->
   <div id="studentUI" class="screen hidden">
