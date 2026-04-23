@@ -44,24 +44,29 @@ window.initMap = function (mapId) {
     return;
   }
 
-  map = L.map(mapId, {
-    zoomControl: true,
-    attributionControl: true
-  }).setView([9.0579, 7.4951], 13);
+  map = L.map(mapId, { zoomControl: true }).setView([9.0579, 7.4951], 13);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // Multiple attempts to fix size (this usually solves it)
-  setTimeout(() => {
-    if (map) map.invalidateSize(true);
-  }, 200);
+  // Multiple invalidate attempts + resize trigger (very effective)
+  const forceRender = () => {
+    if (map) {
+      map.invalidateSize(true);
+      map.invalidateSize(true);
+    }
+  };
 
+  setTimeout(forceRender, 100);
+  setTimeout(forceRender, 300);
+  setTimeout(forceRender, 600);
+
+  // Extra safety: trigger window resize event
   setTimeout(() => {
-    if (map) map.invalidateSize(true);
-  }, 500);
+    window.dispatchEvent(new Event('resize'));
+  }, 400);
 
   startListeners();
 };
