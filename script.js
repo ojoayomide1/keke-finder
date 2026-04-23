@@ -92,6 +92,7 @@ window.becomeAvailable = function () {
     const lng = pos.coords.longitude;
 
     try {
+      // Save/update rider location
       if (!window.riderDocId) {
         const ref = await addDoc(collection(db, "kekes"), {
           name,
@@ -108,12 +109,21 @@ window.becomeAvailable = function () {
         });
       }
 
-      map.setView([lat, lng], 16);
+      // 🔥 ALSO update active ride (THIS FIXES DISTANCE)
+      if (window.currentRideId) {
+        await updateDoc(doc(db, "requests", window.currentRideId), {
+          riderLat: lat,
+          riderLng: lng
+        });
+      }
+
+      if (map) map.setView([lat, lng], 16);
+
       riderMsg.innerText = `🚖 Live • ${name}`;
     } catch (e) {
       console.error(e);
-      riderMsg.innerText = "Error updating";
     }
+
   }, () => {
     alert("Location error - allow GPS");
   }, { enableHighAccuracy: true });
