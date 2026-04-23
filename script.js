@@ -298,3 +298,35 @@ function startListeners() {
     });
   });
 }
+
+// ================= DRAGGABLE BOTTOM SHEET =================
+const sheet = document.querySelector(".bottomSheet");
+
+if (sheet) {
+  let startY = 0;
+  let currentY = 0;
+  let isDragging = false;
+
+  sheet.addEventListener("touchstart", (e) => {
+    startY = e.touches[0].clientY;
+    isDragging = true;
+  });
+
+  sheet.addEventListener("touchmove", (e) => {
+    if (!isDragging) return;
+
+    currentY = e.touches[0].clientY;
+    const diff = currentY - startY;
+
+    if (diff > 0) {
+      sheet.style.transform = `translateY(${diff}px)`;
+    }
+  });
+
+  sheet.addEventListener("touchend", () => {
+    isDragging = false;
+
+    // snap back
+    sheet.style.transform = `translateY(0px)`;
+  });
+}
