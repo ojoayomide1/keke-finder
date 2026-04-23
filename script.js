@@ -263,6 +263,15 @@ if (r.status === "accepted" && r.riderLat && r.riderLng) {
       msg.innerText = "✅ Ride completed";
     }
   }
+  const controls = document.getElementById("rideControls");
+
+if (controls) {
+  if (r.status === "accepted" || r.status === "arriving") {
+    controls.style.display = "block";
+  } else {
+    controls.style.display = "none";
+  }
+}
 
   // Fit map nicely
   const bounds = L.latLngBounds([
