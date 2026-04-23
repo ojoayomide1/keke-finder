@@ -226,33 +226,48 @@ function startListeners() {
 
       // 🚀 LIVE TRACKING
       if (r.status === "accepted" && r.riderLat && r.riderLng) {
+if (r.status === "accepted" && r.riderLat && r.riderLng) {
 
-        if (window.rideLine) map.removeLayer(window.rideLine);
+  // Clear old line
+  if (window.rideLine) map.removeLayer(window.rideLine);
 
-        window.rideLine = L.polyline([
-          [r.riderLat, r.riderLng],
-          [r.lat, r.lng]
-        ], { color: "green", weight: 5 }).addTo(map);
+  // Draw line
+  window.rideLine = L.polyline([
+    [r.riderLat, r.riderLng],
+    [r.lat, r.lng]
+  ], { color: "green", weight: 5 }).addTo(map);
 
-        const dist = map.distance(
-          [r.riderLat, r.riderLng],
-          [r.lat, r.lng]
-        );
+  // 🔥 ADD RIDER MARKER (YOU WERE MISSING THIS)
+  const riderMarker = L.marker([r.riderLat, r.riderLng])
+    .addTo(map)
+    .bindPopup("🚖 Rider");
 
-        const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
+  window.markers.push(riderMarker);
 
-        if (msg) {
-          if (r.status === "accepted") {
-            msg.innerText = `🚗 ${Math.round(dist)}m away`;
-          }
-          if (r.status === "arriving") {
-            msg.innerText = "📍 Rider is arriving...";
-          }
-          if (r.status === "completed") {
-            msg.innerText = "✅ Ride completed";
-          }
-        }
-      }
-    });
-  });
+  // Distance
+  const dist = map.distance(
+    [r.riderLat, r.riderLng],
+    [r.lat, r.lng]
+  );
+
+  const msg = document.getElementById("studentMsg") || document.getElementById("riderMsg");
+
+  if (msg) {
+    if (r.status === "accepted") {
+      msg.innerText = `🚗 ${Math.round(dist)}m away`;
+    }
+    if (r.status === "arriving") {
+      msg.innerText = "📍 Rider is arriving...";
+    }
+    if (r.status === "completed") {
+      msg.innerText = "✅ Ride completed";
+    }
+  }
+
+  // Fit map nicely
+  const bounds = L.latLngBounds([
+    [r.riderLat, r.riderLng],
+    [r.lat, r.lng]
+  ]);
+  map.fitBounds(bounds, { padding: [50, 50] });
 }
