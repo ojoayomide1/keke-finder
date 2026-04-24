@@ -188,3 +188,17 @@ h1, p {
   50% { opacity: 1; }
   100% { opacity: 0.6; }
 }
+
+.bottomSheet {
+  touch-action: none;
+}
+
+/* 🔥 Bigger drag zone */
+.dragZone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 80px; /* 👈 BIGGER AREA */
+  z-index: 10;
+}
