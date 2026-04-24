@@ -4,26 +4,17 @@
   box-sizing: border-box;
   font-family: system-ui, -apple-system, sans-serif;
 }
+
 html, body {
   height: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-}
-
-.screen {
-  width: 100vw;
-  height: 100vh;        /* Use vh instead of 100% */
-  position: relative;
   overflow: hidden;
 }
 
 body {
   background: #111;
-  overflow: hidden; /* Prevents body scroll on mobile */
 }
 
-/* Screens */
+/* ================= SCREENS ================= */
 .screen {
   width: 100vw;
   height: 100vh;
@@ -32,23 +23,7 @@ body {
 }
 
 .hidden {
-  visibility: hidden;
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* When visible */
-.screen:not(.hidden) {
-  visibility: visible;
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  opacity: 1;
-  pointer-events: auto;
+  display: none !important;
 }
 
 .center {
@@ -61,15 +36,13 @@ body {
   color: white;
 }
 
-/* Homepage - Role Select (Big improvement) */
+/* ================= HOME ================= */
 #roleSelect {
   background: linear-gradient(135deg, #1a1a2e, #16213e);
-  color: white;
 }
 
 #roleSelect h1 {
   font-size: 2.8rem;
-  margin-bottom: 10px;
   text-shadow: 0 4px 15px rgba(0,0,0,0.5);
 }
 
@@ -77,43 +50,21 @@ body {
   font-size: 1.1rem;
   opacity: 0.9;
   max-width: 280px;
-  margin-bottom: 40px;
 }
 
-/* Buttons */
+/* ================= BUTTONS ================= */
 button {
-  padding: 16px 32px;
-  font-size: 18px;
+  padding: 16px 28px;
+  font-size: 17px;
   font-weight: 600;
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  transition: 0.2s;
 }
 
 button:active {
   transform: scale(0.95);
-}
-
-/* Map full screen */
-.map {
-  width: 100%;
-  height: 100%;
-  z-index: 1; /* Important base */
-}
-
-/* Floating Action Button (FAB) - Much more visible */
-.fab {
-  position: absolute;
-  bottom: 180px; /* 🔥 push it ABOVE bottom sheet */
-  left: 50%;
-  transform: translateX(-50%);
-  border-radius: 50px;
-  padding: 16px 28px;
-  font-weight: 700;
-  font-size: 17px;
-  z-index: 2000;
 }
 
 .green {
@@ -126,67 +77,51 @@ button:active {
   color: #111;
 }
 
-/* Back button */
+/* ================= MAP ================= */
+.map {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* ================= FAB ================= */
+.fab {
+  position: absolute;
+  bottom: 160px; /* stays above sheet */
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50px;
+  padding: 16px 28px;
+  font-weight: 700;
+  z-index: 2000;
+}
+
+/* ================= BACK BUTTON ================= */
 .backBtn {
   position: absolute;
   top: 20px;
   left: 15px;
-  font-size: 28px;
-  padding: 8px 14px;
+  font-size: 26px;
   background: rgba(0,0,0,0.6);
   color: white;
-  border: none;
   border-radius: 50%;
-  z-index: 1000;
   width: 50px;
   height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  z-index: 2000;
 }
 
-/* Bottom card */
-.bottomCard {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  background: rgba(255,255,255,0.95);
-  backdrop-filter: blur(10px);
-  padding: 20px 15px;
-  border-radius: 20px 20px 0 0;
-  text-align: center;
-  font-weight: 600;
-  box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
-  z-index: 900;
-}
-
-/* Leaflet fixes - This is the key part for buttons visibility + glitch */
+/* ================= LEAFLET FIX ================= */
 .leaflet-container {
   z-index: 1;
 }
 
-.leaflet-control {
-  z-index: 800 !important;   /* Leaflet zoom/attribution stays below your buttons */
-}
-
-.leaflet-top, .leaflet-bottom {
+.leaflet-control,
+.leaflet-top,
+.leaflet-bottom {
   z-index: 800 !important;
 }
 
-/* Make sure your custom overlays always win */
-#studentUI .fab,
-#riderUI .fab,
-.backBtn {
-  z-index: 1000;
-}
-
-/* Small polish */
-h1, p {
-  user-select: none;
-}
-
-/* ===== UBER STYLE BOTTOM SHEET ===== */
+/* ================= BOTTOM SHEET ================= */
 .bottomSheet {
   position: absolute;
   bottom: 0;
@@ -197,16 +132,16 @@ h1, p {
   border-radius: 20px 20px 0 0;
   padding: 15px;
   box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
-  z-index: 1500;
-  transition: all 0.3s ease;
-  overflow: hidden;
+  z-index: 2000;
+
+  transform: translateY(0);
+  transition: transform 0.25s ease;
+
+  touch-action: none;
+  user-select: none;
 }
 
-/* Expanded state */
-.bottomSheet.expanded {
-  height: 320px; /* 🔥 bigger so buttons show */
-}
-
+/* HANDLE */
 .handle {
   width: 50px;
   height: 5px;
@@ -216,6 +151,7 @@ h1, p {
   cursor: grab;
 }
 
+/* TEXT */
 .bottomSheet h3 {
   font-size: 20px;
   margin-bottom: 5px;
@@ -226,37 +162,23 @@ h1, p {
   color: #666;
 }
 
+/* CONTROLS */
 .controls {
   margin-top: 15px;
   display: flex;
   gap: 10px;
-  justify-content: center;
 }
 
 .controls button {
   flex: 1;
 }
 
-.hidden {
-  display: none !important;
+/* ================= SMALL POLISH ================= */
+h1, p {
+  user-select: none;
 }
 
-button {
-  position: relative;
-  z-index: 2000;
-}
-
-.fab,
-.backBtn,
-.bottomSheet {
-  pointer-events: auto;
-  z-index: 2000;
-}
-
-.map {
-  z-index: 1;
-}
-
+/* ================= LOADING ANIMATION ================= */
 .loadingPulse {
   animation: pulse 1.2s infinite;
 }
@@ -265,32 +187,4 @@ button {
   0% { opacity: 0.6; }
   50% { opacity: 1; }
   100% { opacity: 0.6; }
-}
-
-.controls {
-  margin-top: 15px;
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  opacity: 1;
-}
-
-.bottomSheet {
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.bottomSheet {
-  touch-action: none;
-}
-
-.bottomSheet {
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  transition: transform 0.25s ease;
-}
-
-.bottomSheet {
-  z-index: 9999;
 }
