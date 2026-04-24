@@ -170,31 +170,54 @@ window.completeRide = async function () {
 };
 
 // ================= UI =================
-function updateBottomSheet(title, sub) {
-  document.getElementById("rideTitle").innerText = title;
-  document.getElementById("rideSub").innerText = sub;
-}
-
 function updateUI(r, dist) {
   const controls = document.getElementById("rideControls");
 
-  if (r.status === "waiting") {
-    updateBottomSheet("🔍 Searching...", "Connecting...");
-    controls.classList.add("hidden");
+  // ================= STUDENT =================
+  if (window.currentRole === "student") {
+
+    if (r.status === "waiting") {
+      updateBottomSheet("🔍 Searching for rider", "Connecting...");
+      controls.classList.add("hidden");
+    }
+
+    else if (r.status === "accepted") {
+      updateBottomSheet("🚗 Rider on the way", `${Math.round(dist)}m away`);
+      controls.classList.remove("hidden");
+    }
+
+    else if (r.status === "arriving") {
+      updateBottomSheet("📍 Rider arriving", "Get ready");
+    }
+
+    else if (r.status === "completed") {
+      updateBottomSheet("✅ Ride completed", "Thanks!");
+      controls.classList.add("hidden");
+    }
   }
 
-  else if (r.status === "accepted") {
-    updateBottomSheet("🚗 Rider coming", `${Math.round(dist)}m away`);
-    controls.classList.remove("hidden");
-  }
+  // ================= RIDER =================
+  if (window.currentRole === "rider") {
 
-  else if (r.status === "arriving") {
-    updateBottomSheet("📍 Rider arriving", "Get ready");
-  }
+    if (r.status === "waiting") {
+      updateBottomSheet("📥 New ride request", "Tap student to accept");
+      controls.classList.add("hidden");
+    }
 
-  else if (r.status === "completed") {
-    updateBottomSheet("✅ Completed", "Thanks!");
-    controls.classList.add("hidden");
+    else if (r.status === "accepted") {
+      updateBottomSheet("🚗 Heading to pickup", `${Math.round(dist)}m away`);
+      controls.classList.remove("hidden");
+    }
+
+    else if (r.status === "arriving") {
+      updateBottomSheet("📍 Arrived", "Waiting for student");
+      controls.classList.remove("hidden");
+    }
+
+    else if (r.status === "completed") {
+      updateBottomSheet("✅ Ride completed", "Nice work!");
+      controls.classList.add("hidden");
+    }
   }
 }
 
