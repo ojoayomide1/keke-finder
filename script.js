@@ -299,16 +299,16 @@ function startListeners() {
   });
 }
 
-// ================= DRAGGABLE BOTTOM SHEET =================
-const sheet = document.querySelector(".bottomSheet");
+// ================= FIXED DRAGGABLE BOTTOM SHEET =================
+document.querySelectorAll(".bottomSheet").forEach((sheet) => {
 
-if (sheet) {
   let startY = 0;
   let currentY = 0;
   let isDragging = false;
+  let offsetY = 0;
 
   sheet.addEventListener("touchstart", (e) => {
-    startY = e.touches[0].clientY;
+    startY = e.touches[0].clientY - offsetY;
     isDragging = true;
   });
 
@@ -316,17 +316,26 @@ if (sheet) {
     if (!isDragging) return;
 
     currentY = e.touches[0].clientY;
-    const diff = currentY - startY;
+    offsetY = currentY - startY;
 
-    if (diff > 0) {
-      sheet.style.transform = `translateY(${diff}px)`;
-    }
+    // 🔥 LIMIT movement (so it doesn't fly away)
+    if (offsetY < -200) offsetY = -200; // max up
+    if (offsetY > 150) offsetY = 150;   // max down
+
+    sheet.style.transform = `translateY(${offsetY}px)`;
   });
 
   sheet.addEventListener("touchend", () => {
     isDragging = false;
 
-    // snap back
-    sheet.style.transform = `translateY(0px)`;
+    // snap positions
+    if (offsetY < -100) {
+      offsetY = -200; // fully open
+    } else {
+      offsetY = 0; // closed
+    }
+
+    sheet.style.transform = `translateY(${offsetY}px)`;
   });
-}
+
+});
