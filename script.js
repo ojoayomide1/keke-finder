@@ -179,6 +179,7 @@ function updateUI(r, dist) {
   const title = document.getElementById("rideTitle");
   const sub = document.getElementById("rideSub");
   const controls = document.getElementById("rideControls");
+  const fab = document.querySelector(".fab");
 
   if (!title || !sub || !controls) return;
 
@@ -186,24 +187,28 @@ function updateUI(r, dist) {
     title.innerText = "🔍 Searching for rider";
     sub.innerText = "Connecting you...";
     controls.classList.add("hidden");
+    if (fab) fab.style.display = "none";
   }
 
-  if (r.status === "accepted") {
+  else if (r.status === "accepted") {
     title.innerText = "🚗 Rider on the way";
     sub.innerText = `${Math.round(dist)}m away`;
     controls.classList.remove("hidden");
+    if (fab) fab.style.display = "none";
   }
 
-  if (r.status === "arriving") {
+  else if (r.status === "arriving") {
     title.innerText = "📍 Rider is here";
     sub.innerText = "Step outside";
     controls.classList.remove("hidden");
+    if (fab) fab.style.display = "none";
   }
 
-  if (r.status === "completed") {
+  else if (r.status === "completed") {
     title.innerText = "✅ Trip completed";
     sub.innerText = "Thanks for riding!";
     controls.classList.add("hidden");
+    if (fab) fab.style.display = "block";
   }
 }
 
