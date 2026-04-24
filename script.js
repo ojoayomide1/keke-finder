@@ -47,6 +47,8 @@ window.initMap = function (mapId) {
     maxZoom: 19
   }).addTo(map);
 
+  map.dragging.disable();
+
   setTimeout(() => map.invalidateSize(), 300);
 
   if (!listenersStarted) {
