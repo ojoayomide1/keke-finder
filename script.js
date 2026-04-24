@@ -27,6 +27,7 @@ const db = getFirestore(app);
 let map = null;
 let listenersStarted = false;
 
+window.currentRole = null;
 window.requestMarkers = [];
 window.riderMarker = null;
 window.rideLine = null;
