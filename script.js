@@ -299,38 +299,39 @@ function startListeners() {
   });
 }
 
-// ================= FIXED DRAGGABLE BOTTOM SHEET =================
-document.addEventListener("DOMContentLoaded", () => {
+// ================= ULTRA FIXED DRAG (MOBILE + DESKTOP) =================
+function initBottomSheetDrag() {
+  const sheets = document.querySelectorAll(".bottomSheet");
 
-  document.querySelectorAll(".bottomSheet").forEach((sheet) => {
+  sheets.forEach((sheet) => {
 
     let startY = 0;
     let currentY = 0;
-    let isDragging = false;
     let offsetY = 0;
+    let isDragging = false;
 
-    sheet.addEventListener("touchstart", (e) => {
-      startY = e.touches[0].clientY - offsetY;
+    const start = (clientY) => {
       isDragging = true;
-    });
+      startY = clientY - offsetY;
+    };
 
-    sheet.addEventListener("touchmove", (e) => {
+    const move = (clientY) => {
       if (!isDragging) return;
 
-      currentY = e.touches[0].clientY;
+      currentY = clientY;
       offsetY = currentY - startY;
 
-      // allow UP and DOWN
+      // limits
       if (offsetY < -250) offsetY = -250;
       if (offsetY > 150) offsetY = 150;
 
       sheet.style.transform = `translateY(${offsetY}px)`;
-    });
+    };
 
-    sheet.addEventListener("touchend", () => {
+    const end = () => {
       isDragging = false;
 
-      // snap behavior
+      // snap positions
       if (offsetY < -120) {
         offsetY = -250; // open
       } else {
@@ -338,8 +339,20 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       sheet.style.transform = `translateY(${offsetY}px)`;
-    });
+    };
+
+    // TOUCH EVENTS
+    sheet.addEventListener("touchstart", (e) => start(e.touches[0].clientY));
+    sheet.addEventListener("touchmove", (e) => move(e.touches[0].clientY));
+    sheet.addEventListener("touchend", end);
+
+    // MOUSE EVENTS (for laptop testing)
+    sheet.addEventListener("mousedown", (e) => start(e.clientY));
+    window.addEventListener("mousemove", (e) => move(e.clientY));
+    window.addEventListener("mouseup", end);
 
   });
+}
 
-});
+// 🔥 ENSURE DOM IS READY
+window.addEventListener("load", initBottomSheetDrag);
