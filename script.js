@@ -48,6 +48,10 @@ window.initMap = function (mapId) {
   }).addTo(map);
 
   map.dragging.disable();
+  map = L.map(mapId, {
+  dragging: true,
+  tap: false   // 🔥 THIS FIXES TOUCH CONFLICT
+}).setView([9.0579, 7.4951], 13);
 
   setTimeout(() => map.invalidateSize(), 300);
 
