@@ -32,17 +32,18 @@
 
   <!-- ✅ ADD THIS -->
   <div class="bottomSheet">
+    <div class="dragZone"></div> <!-- 🔥 ADD THIS -->
     <div class="handle"></div>
     <h3 id="rideTitle">Waiting...</h3>
     <p id="rideSub">No active ride</p>
-
+  
     <div id="rideControls" class="controls hidden">
       <button onclick="setArriving()" class="yellow">📍 Arriving</button>
       <button onclick="completeRide()" class="green">✅ Complete</button>
     </div>
   </div>
   </div>
-
+  
   <!-- RIDER UI -->
   <div id="riderUI" class="screen hidden">
   <div id="riderMap" class="map"></div>
@@ -52,6 +53,7 @@
 
   <!-- ✅ SAME bottom sheet -->
   <div class="bottomSheet">
+    <div class="dragZone"></div> <!-- 🔥 ADD THIS -->
     <div class="handle"></div>
     <h3 id="rideTitle">Offline</h3>
     <p id="rideSub">Go live to start</p>
