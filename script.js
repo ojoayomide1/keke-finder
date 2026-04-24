@@ -300,42 +300,46 @@ function startListeners() {
 }
 
 // ================= FIXED DRAGGABLE BOTTOM SHEET =================
-document.querySelectorAll(".bottomSheet").forEach((sheet) => {
+document.addEventListener("DOMContentLoaded", () => {
 
-  let startY = 0;
-  let currentY = 0;
-  let isDragging = false;
-  let offsetY = 0;
+  document.querySelectorAll(".bottomSheet").forEach((sheet) => {
 
-  sheet.addEventListener("touchstart", (e) => {
-    startY = e.touches[0].clientY - offsetY;
-    isDragging = true;
-  });
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+    let offsetY = 0;
 
-  sheet.addEventListener("touchmove", (e) => {
-    if (!isDragging) return;
+    sheet.addEventListener("touchstart", (e) => {
+      startY = e.touches[0].clientY - offsetY;
+      isDragging = true;
+    });
 
-    currentY = e.touches[0].clientY;
-    offsetY = currentY - startY;
+    sheet.addEventListener("touchmove", (e) => {
+      if (!isDragging) return;
 
-    // 🔥 LIMIT movement (so it doesn't fly away)
-    if (offsetY < -200) offsetY = -200; // max up
-    if (offsetY > 150) offsetY = 150;   // max down
+      currentY = e.touches[0].clientY;
+      offsetY = currentY - startY;
 
-    sheet.style.transform = `translateY(${offsetY}px)`;
-  });
+      // allow UP and DOWN
+      if (offsetY < -250) offsetY = -250;
+      if (offsetY > 150) offsetY = 150;
 
-  sheet.addEventListener("touchend", () => {
-    isDragging = false;
+      sheet.style.transform = `translateY(${offsetY}px)`;
+    });
 
-    // snap positions
-    if (offsetY < -100) {
-      offsetY = -200; // fully open
-    } else {
-      offsetY = 0; // closed
-    }
+    sheet.addEventListener("touchend", () => {
+      isDragging = false;
 
-    sheet.style.transform = `translateY(${offsetY}px)`;
+      // snap behavior
+      if (offsetY < -120) {
+        offsetY = -250; // open
+      } else {
+        offsetY = 0; // closed
+      }
+
+      sheet.style.transform = `translateY(${offsetY}px)`;
+    });
+
   });
 
 });
