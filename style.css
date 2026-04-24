@@ -274,3 +274,12 @@ button {
   justify-content: center;
   opacity: 1;
 }
+
+.bottomSheet {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.bottomSheet {
+  touch-action: none;
+}
