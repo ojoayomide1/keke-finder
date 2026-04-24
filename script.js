@@ -264,34 +264,83 @@ function startListeners() {
 // ================= 🔥 DRAG FIX =================
 function initBottomSheetDrag() {
   document.querySelectorAll(".bottomSheet").forEach(sheet => {
-    const handle = sheet.querySelector(".handle");
+
+    const dragZone = sheet.querySelector(".dragZone");
 
     let startY = 0;
     let currentY = 0;
     let offsetY = 0;
+    let velocity = 0;
+    let lastY = 0;
+    let lastTime = 0;
     let dragging = false;
 
-    handle.addEventListener("touchstart", e => {
-      dragging = true;
-      startY = e.touches[0].clientY - offsetY;
-    });
+    const MAX_UP = -320;  // fully open
+    const MID = -160;     // mid snap
+    const CLOSED = 0;
 
-    handle.addEventListener("touchmove", e => {
+    const start = (y) => {
+      dragging = true;
+      startY = y - offsetY;
+      lastY = y;
+      lastTime = Date.now();
+    };
+
+    const move = (y) => {
       if (!dragging) return;
-      currentY = e.touches[0].clientY;
+
+      currentY = y;
       offsetY = currentY - startY;
 
-      if (offsetY < -250) offsetY = -250;
-      if (offsetY > 0) offsetY = 0;
+      // clamp
+      if (offsetY < MAX_UP) offsetY = MAX_UP;
+      if (offsetY > CLOSED) offsetY = CLOSED;
 
+      // velocity calculation
+      const now = Date.now();
+      velocity = (y - lastY) / (now - lastTime);
+
+      lastY = y;
+      lastTime = now;
+
+      sheet.style.transition = "none";
       sheet.style.transform = `translateY(${offsetY}px)`;
-    });
+    };
 
-    handle.addEventListener("touchend", () => {
+    const end = () => {
       dragging = false;
-      offsetY = offsetY < -120 ? -250 : 0;
+
+      sheet.style.transition = "transform 0.25s ease";
+
+      // 🔥 VELOCITY SNAP (this is Uber feel)
+      if (velocity < -0.5) {
+        offsetY = MAX_UP;
+      } else if (velocity > 0.5) {
+        offsetY = CLOSED;
+      } else {
+        // normal snap
+        if (offsetY < -220) {
+          offsetY = MAX_UP;
+        } else if (offsetY < -80) {
+          offsetY = MID;
+        } else {
+          offsetY = CLOSED;
+        }
+      }
+
       sheet.style.transform = `translateY(${offsetY}px)`;
-    });
+    };
+
+    // TOUCH
+    dragZone.addEventListener("touchstart", e => start(e.touches[0].clientY));
+    dragZone.addEventListener("touchmove", e => move(e.touches[0].clientY));
+    dragZone.addEventListener("touchend", end);
+
+    // MOUSE (for laptop testing)
+    dragZone.addEventListener("mousedown", e => start(e.clientY));
+    window.addEventListener("mousemove", e => move(e.clientY));
+    window.addEventListener("mouseup", end);
+
   });
 }
 
