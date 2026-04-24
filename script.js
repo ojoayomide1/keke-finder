@@ -10,7 +10,7 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
-// 🔥 Firebase config (KEEP FULL KEY)
+// 🔥 Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4",
   authDomain: "keke-finder-cd5fe.firebaseapp.com",
@@ -84,12 +84,14 @@ window.becomeAvailable = function () {
   const name = prompt("Enter your name or keke number:");
   if (!name) return;
 
+  // 🔥 Update rider UI
+  updateBottomSheet("🟢 You're Online", "Waiting for ride requests...");
+
   navigator.geolocation.watchPosition(async (pos) => {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
 
     try {
-      // Save rider
       if (!window.riderDocId) {
         const ref = await addDoc(collection(db, "kekes"), {
           name,
@@ -106,7 +108,7 @@ window.becomeAvailable = function () {
         });
       }
 
-      // Update ride location
+      // update ride location
       if (window.currentRideId) {
         await updateDoc(doc(db, "requests", window.currentRideId), {
           riderLat: lat,
@@ -122,11 +124,17 @@ window.becomeAvailable = function () {
 
   }, () => {
     alert("Enable location");
-  }, { enableHighAccuracy: true });
+  }, {
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 5000
+  });
 };
 
 // ================= STUDENT =================
 window.requestKeke = function () {
+  updateBottomSheet("📍 Getting location...", "Please wait");
+
   navigator.geolocation.getCurrentPosition(async (pos) => {
     const { latitude, longitude } = pos.coords;
 
@@ -174,39 +182,38 @@ window.completeRide = async function () {
   });
 };
 
-// ================= UI UPDATE =================
-function updateUI(r, dist) {
+// ================= UI =================
+function updateBottomSheet(titleText, subText) {
   const title = document.getElementById("rideTitle");
   const sub = document.getElementById("rideSub");
+
+  if (title) title.innerText = titleText;
+  if (sub) sub.innerText = subText;
+}
+
+function updateUI(r, dist) {
   const controls = document.getElementById("rideControls");
   const fab = document.querySelector(".fab");
 
-  if (!title || !sub || !controls) return;
-
   if (r.status === "waiting") {
-    title.innerText = "🔍 Searching for rider";
-    sub.innerText = "Connecting you...";
+    updateBottomSheet("🔍 Searching for rider", "Connecting...");
     controls.classList.add("hidden");
     if (fab) fab.style.display = "none";
   }
 
   else if (r.status === "accepted") {
-    title.innerText = "🚗 Rider on the way";
-    sub.innerText = `${Math.round(dist)}m away`;
+    updateBottomSheet("🚗 Rider on the way", `${Math.round(dist)}m away`);
     controls.classList.remove("hidden");
     if (fab) fab.style.display = "none";
   }
 
   else if (r.status === "arriving") {
-    title.innerText = "📍 Rider is here";
-    sub.innerText = "Step outside";
+    updateBottomSheet("📍 Rider arriving", "Get ready");
     controls.classList.remove("hidden");
-    if (fab) fab.style.display = "none";
   }
 
   else if (r.status === "completed") {
-    title.innerText = "✅ Trip completed";
-    sub.innerText = "Thanks for riding!";
+    updateBottomSheet("✅ Ride completed", "Thanks for riding!");
     controls.classList.add("hidden");
     if (fab) fab.style.display = "block";
   }
@@ -256,10 +263,9 @@ function startListeners() {
 
       window.requestMarkers.push(marker);
 
-      // tracking
-      if (r.status === "accepted" && r.riderLat && r.riderLng) {
+      // ================= TRACKING =================
+      if (r.riderLat && r.riderLng) {
 
-        // line
         if (window.rideLine) map.removeLayer(window.rideLine);
 
         window.rideLine = L.polyline([
@@ -267,7 +273,6 @@ function startListeners() {
           [r.lat, r.lng]
         ], { color: "green", weight: 5 }).addTo(map);
 
-        // smooth rider movement
         if (window.riderMarker) {
           window.riderMarker.setLatLng([r.riderLat, r.riderLng]);
         } else {
@@ -293,78 +298,3 @@ function startListeners() {
     });
   });
 }
-
-// ================= PERFECT DRAG (LIKE UBER) =================
-function initBottomSheetDrag() {
-  const sheets = document.querySelectorAll(".bottomSheet");
-
-  sheets.forEach((sheet) => {
-
-    const handle = sheet.querySelector(".handle"); // 👈 ONLY DRAG HANDLE
-    if (!handle) return;
-
-    let startY = 0;
-    let currentY = 0;
-    let offsetY = 0;
-    let isDragging = false;
-
-    const start = (y) => {
-      isDragging = true;
-      startY = y - offsetY;
-    };
-
-    const move = (y) => {
-      if (!isDragging) return;
-
-      currentY = y;
-      offsetY = currentY - startY;
-
-      // LIMITS (smooth Uber feel)
-      if (offsetY < -260) offsetY = -260;
-      if (offsetY > 80) offsetY = 80;
-
-      sheet.style.transform = `translateY(${offsetY}px)`;
-    };
-
-    const end = () => {
-      isDragging = false;
-
-      // SNAP LOGIC
-      if (offsetY < -120) {
-        offsetY = -260; // fully open
-      } else {
-        offsetY = 0; // closed
-      }
-
-      sheet.style.transform = `translateY(${offsetY}px)`;
-    };
-
-    // 🔥 TOUCH (MOBILE)
-    handle.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      start(e.touches[0].clientY);
-    });
-
-    window.addEventListener("touchmove", (e) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      move(e.touches[0].clientY);
-    }, { passive: false });
-
-    window.addEventListener("touchend", end);
-
-    // 🖱️ MOUSE (DESKTOP)
-    handle.addEventListener("mousedown", (e) => {
-      start(e.clientY);
-    });
-
-    window.addEventListener("mousemove", (e) => move(e.clientY));
-    window.addEventListener("mouseup", end);
-
-  });
-}
-
-// ✅ RUN AFTER PAGE LOAD
-window.addEventListener("load", () => {
-  setTimeout(initBottomSheetDrag, 300);
-});
