@@ -61,6 +61,8 @@ window.initMap = function (mapId) {
 
 // ================= UI =================
 window.selectRole = function (role) {
+  window.currentRole = role; // ✅ ADD THIS LINE
+
   document.getElementById("roleSelect").classList.add("hidden");
 
   if (role === "student") {
