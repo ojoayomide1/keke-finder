@@ -299,31 +299,34 @@ function startListeners() {
   });
 }
 
-// ================= ULTRA FIXED DRAG (MOBILE + DESKTOP) =================
+// ================= PERFECT DRAG (LIKE UBER) =================
 function initBottomSheetDrag() {
   const sheets = document.querySelectorAll(".bottomSheet");
 
   sheets.forEach((sheet) => {
+
+    const handle = sheet.querySelector(".handle"); // 👈 ONLY DRAG HANDLE
+    if (!handle) return;
 
     let startY = 0;
     let currentY = 0;
     let offsetY = 0;
     let isDragging = false;
 
-    const start = (clientY) => {
+    const start = (y) => {
       isDragging = true;
-      startY = clientY - offsetY;
+      startY = y - offsetY;
     };
 
-    const move = (clientY) => {
+    const move = (y) => {
       if (!isDragging) return;
 
-      currentY = clientY;
+      currentY = y;
       offsetY = currentY - startY;
 
-      // limits
-      if (offsetY < -250) offsetY = -250;
-      if (offsetY > 150) offsetY = 150;
+      // LIMITS (smooth Uber feel)
+      if (offsetY < -260) offsetY = -260;
+      if (offsetY > 80) offsetY = 80;
 
       sheet.style.transform = `translateY(${offsetY}px)`;
     };
@@ -331,9 +334,9 @@ function initBottomSheetDrag() {
     const end = () => {
       isDragging = false;
 
-      // snap positions
+      // SNAP LOGIC
       if (offsetY < -120) {
-        offsetY = -250; // open
+        offsetY = -260; // fully open
       } else {
         offsetY = 0; // closed
       }
@@ -341,18 +344,32 @@ function initBottomSheetDrag() {
       sheet.style.transform = `translateY(${offsetY}px)`;
     };
 
-    // TOUCH EVENTS
-    sheet.addEventListener("touchstart", (e) => start(e.touches[0].clientY));
-    sheet.addEventListener("touchmove", (e) => move(e.touches[0].clientY));
-    sheet.addEventListener("touchend", end);
+    // 🔥 TOUCH (MOBILE)
+    handle.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      start(e.touches[0].clientY);
+    });
 
-    // MOUSE EVENTS (for laptop testing)
-    sheet.addEventListener("mousedown", (e) => start(e.clientY));
+    window.addEventListener("touchmove", (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      move(e.touches[0].clientY);
+    }, { passive: false });
+
+    window.addEventListener("touchend", end);
+
+    // 🖱️ MOUSE (DESKTOP)
+    handle.addEventListener("mousedown", (e) => {
+      start(e.clientY);
+    });
+
     window.addEventListener("mousemove", (e) => move(e.clientY));
     window.addEventListener("mouseup", end);
 
   });
 }
 
-// 🔥 ENSURE DOM IS READY
-window.addEventListener("load", initBottomSheetDrag);
+// ✅ RUN AFTER PAGE LOAD
+window.addEventListener("load", () => {
+  setTimeout(initBottomSheetDrag, 300);
+});
