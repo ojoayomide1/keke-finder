@@ -256,11 +256,20 @@ if (r.riderLat && r.riderLng) {
   if (window.rideLine) map.removeLayer(window.rideLine);
 
   // TEMP straight line (will replace later)
-  window.rideLine = L.polyline([
-    [r.riderLat, r.riderLng],
-    [r.lat, r.lng]
-  ], { color: "green", weight: 5 }).addTo(map);
+  if (window.routeControl) {
+  map.removeControl(window.routeControl);
+}
 
+window.routeControl = L.Routing.control({
+  waypoints: [
+    L.latLng(r.riderLat, r.riderLng),
+    L.latLng(r.lat, r.lng)
+  ],
+  routeWhileDragging: false,
+  addWaypoints: false,
+  draggableWaypoints: false,
+  createMarker: () => null
+}).addTo(map);
   // 🔥 RIDER MARKER (FIXED)
   if (!window.riderMarker) {
     window.riderMarker = L.marker([r.riderLat, r.riderLng])
