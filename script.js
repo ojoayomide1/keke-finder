@@ -250,23 +250,40 @@ function startListeners() {
       // ✅ ONLY TRACK CURRENT RIDE
       if (docSnap.id !== window.currentRideId) return;
 
-      if (r.riderLat && r.riderLng) {
-        if (window.rideLine) map.removeLayer(window.rideLine);
+if (r.riderLat && r.riderLng) {
 
-        window.rideLine = L.polyline([
-          [r.riderLat, r.riderLng],
-          [r.lat, r.lng]
-        ]).addTo(map);
+  // 🔥 REMOVE OLD LINE
+  if (window.rideLine) map.removeLayer(window.rideLine);
 
-        const dist = map.distance(
-          [r.riderLat, r.riderLng],
-          [r.lat, r.lng]
-        );
+  // TEMP straight line (will replace later)
+  window.rideLine = L.polyline([
+    [r.riderLat, r.riderLng],
+    [r.lat, r.lng]
+  ], { color: "green", weight: 5 }).addTo(map);
 
-        updateUI(r, dist);
-      }
-    });
-  });
+  // 🔥 RIDER MARKER (FIXED)
+  if (!window.riderMarker) {
+    window.riderMarker = L.marker([r.riderLat, r.riderLng])
+      .addTo(map)
+      .bindPopup("🚖 Rider");
+  } else {
+    window.riderMarker.setLatLng([r.riderLat, r.riderLng]);
+  }
+
+  const dist = map.distance(
+    [r.riderLat, r.riderLng],
+    [r.lat, r.lng]
+  );
+
+  updateUI(r, dist);
+
+  // 🔥 AUTO ZOOM
+  const bounds = L.latLngBounds([
+    [r.riderLat, r.riderLng],
+    [r.lat, r.lng]
+  ]);
+
+  map.fitBounds(bounds, { padding: [80, 80] });
 }
 
 // ================= DRAG =================
