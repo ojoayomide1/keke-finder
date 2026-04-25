@@ -250,50 +250,55 @@ function startListeners() {
       // ✅ ONLY TRACK CURRENT RIDE
       if (docSnap.id !== window.currentRideId) return;
 
-if (r.riderLat && r.riderLng) {
+      if (r.riderLat && r.riderLng) {
 
-  // 🔥 REMOVE OLD LINE
-  if (window.rideLine) map.removeLayer(window.rideLine);
+        // 🔥 REMOVE OLD ROUTE
+        if (window.routeControl) {
+          map.removeControl(window.routeControl);
+        }
 
-  // TEMP straight line (will replace later)
-  if (window.routeControl) {
-  map.removeControl(window.routeControl);
-}
+        // 🔥 ROAD ROUTE
+        window.routeControl = L.Routing.control({
+          waypoints: [
+            L.latLng(r.riderLat, r.riderLng),
+            L.latLng(r.lat, r.lng)
+          ],
+          routeWhileDragging: false,
+          addWaypoints: false,
+          draggableWaypoints: false,
+          createMarker: () => null
+        }).addTo(map);
 
-window.routeControl = L.Routing.control({
-  waypoints: [
-    L.latLng(r.riderLat, r.riderLng),
-    L.latLng(r.lat, r.lng)
-  ],
-  routeWhileDragging: false,
-  addWaypoints: false,
-  draggableWaypoints: false,
-  createMarker: () => null
-}).addTo(map);
-  // 🔥 RIDER MARKER (FIXED)
-  if (!window.riderMarker) {
-    window.riderMarker = L.marker([r.riderLat, r.riderLng])
-      .addTo(map)
-      .bindPopup("🚖 Rider");
-  } else {
-    window.riderMarker.setLatLng([r.riderLat, r.riderLng]);
-  }
+        // 🔥 RIDER MARKER
+        if (!window.riderMarker) {
+          window.riderMarker = L.marker([r.riderLat, r.riderLng])
+            .addTo(map)
+            .bindPopup("🚖 Rider");
+        } else {
+          window.riderMarker.setLatLng([r.riderLat, r.riderLng]);
+        }
 
-  const dist = map.distance(
-    [r.riderLat, r.riderLng],
-    [r.lat, r.lng]
-  );
+        const dist = map.distance(
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        );
 
-  updateUI(r, dist);
+        updateUI(r, dist);
 
-  // 🔥 AUTO ZOOM
-  const bounds = L.latLngBounds([
-    [r.riderLat, r.riderLng],
-    [r.lat, r.lng]
-  ]);
+        // 🔥 AUTO ZOOM
+        const bounds = L.latLngBounds([
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        ]);
 
-  map.fitBounds(bounds, { padding: [80, 80] });
-}
+        map.fitBounds(bounds, { padding: [80, 80] });
+      }
+
+    }); // ✅ CLOSE forEach
+
+  }); // ✅ CLOSE onSnapshot
+
+} // ✅ CLOSE function
 
 // ================= DRAG =================
 function initBottomSheetDrag() {
