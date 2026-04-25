@@ -260,31 +260,32 @@ function startListeners() {
 
       window.requestMarkers.push(marker);
 
-      // tracking
-      if (r.riderLat && r.riderLng) {
+      // 🔥 ONLY TRACK YOUR ACTIVE RIDE
+if (window.currentRideId !== docSnap.id) return;
 
-        if (window.rideLine) map.removeLayer(window.rideLine);
+// tracking
+if (r.riderLat && r.riderLng) {
 
-        window.rideLine = L.polyline([
-          [r.riderLat, r.riderLng],
-          [r.lat, r.lng]
-        ], { color: "green" }).addTo(map);
+  if (window.rideLine) map.removeLayer(window.rideLine);
 
-        if (!window.riderMarker) {
-          window.riderMarker = L.marker([r.riderLat, r.riderLng]).addTo(map);
-        } else {
-          window.riderMarker.setLatLng([r.riderLat, r.riderLng]);
-        }
+  window.rideLine = L.polyline([
+    [r.riderLat, r.riderLng],
+    [r.lat, r.lng]
+  ], { color: "green" }).addTo(map);
 
-        const dist = map.distance(
-          [r.riderLat, r.riderLng],
-          [r.lat, r.lng]
-        );
+  if (!window.riderMarker) {
+    window.riderMarker = L.marker([r.riderLat, r.riderLng]).addTo(map);
+  } else {
+    window.riderMarker.setLatLng([r.riderLat, r.riderLng]);
+  }
 
-        updateUI(r, dist);
-      }
-    });
-  });
+  const dist = map.distance(
+    [r.riderLat, r.riderLng],
+    [r.lat, r.lng]
+  );
+
+  // 🔥 NOW updates ONLY your ride
+  updateUI(r, dist);
 }
 
 // ================= 🔥 DRAG FIX =================
