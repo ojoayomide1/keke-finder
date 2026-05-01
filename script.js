@@ -197,36 +197,54 @@ function startListeners() {
       if (rideId !== currentRideId) return;
 
       if (r.riderLat && r.riderLng) {
-        if (routeControl) map.removeControl(routeControl);
+        // 🔥 ROAD ROUTE - Only show routing panel for Rider
+      if (routeControl) {
+        map.removeControl(routeControl);
+      }
 
-        routeControl = L.Routing.control({
-          waypoints: [
-            L.latLng(r.riderLat, r.riderLng),
-            L.latLng(r.lat, r.lng)
-          ],
-          routeWhileDragging: false,
-          addWaypoints: false,
-          draggableWaypoints: false,
-          createMarker: () => null
-        }).addTo(map);
+      routeControl = L.Routing.control({
+        waypoints: [
+          L.latLng(r.riderLat, r.riderLng),
+          L.latLng(r.lat, r.lng)
+        ],
+        routeWhileDragging: false,
+        addWaypoints: false,
+        draggableWaypoints: false,
+        createMarker: () => null,
+        lineOptions: {
+          styles: [{ color: '#22c55e', weight: 6 }]
+        },
+        // Hide the complicated turn-by-turn instructions
+        show: currentRole === "rider",           // Only show panel for rider
+        addWaypoints: false,
+        routeWhileDragging: false,
+        collapsible: true
+      }).addTo(map);
 
-        // Rider marker
-        if (!riderMarker) {
-          riderMarker = L.marker([r.riderLat, r.riderLng]).addTo(map).bindPopup("🚖 Rider");
-        } else {
-          riderMarker.setLatLng([r.riderLat, r.riderLng]);
-        }
+      // Rider marker
+      if (!riderMarker) {
+        riderMarker = L.marker([r.riderLat, r.riderLng])
+          .addTo(map)
+          .bindPopup("🚖 Rider");
+      } else {
+        riderMarker.setLatLng([r.riderLat, r.riderLng]);
+      }
 
-        const dist = map.distance([r.riderLat, r.riderLng], [r.lat, r.lng]);
+      const dist = map.distance([r.riderLat, r.riderLng], [r.lat, r.lng]);
 
-        updateBottomSheet(currentRole === "student" ? "🚗 Rider coming" : "🚗 Heading", 
-                         `${Math.round(dist)}m away`);
-        toggleControls(true);
+      updateBottomSheet(
+        currentRole === "student" ? "🚗 Rider coming" : "🚗 Heading to student", 
+        `${Math.round(dist)}m away`
+      );
 
-        map.fitBounds([
-          [r.riderLat, r.riderLng],
-          [r.lat, r.lng]
-        ], { padding: [80, 80] });
+      toggleControls(true);
+
+      // Auto zoom and focus
+      const bounds = L.latLngBounds([
+        [r.riderLat, r.riderLng],
+        [r.lat, r.lng]
+      ]);
+      map.fitBounds(bounds, { padding: [90, 90] });
       }
     });
   });
