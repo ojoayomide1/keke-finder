@@ -50,8 +50,12 @@ function initMap(mapId) {
   }).addTo(map);
 
   setTimeout(() => map.invalidateSize(), 500);
+
+  if (!listenersStarted) {
+    startListeners();
+    listenersStarted = true;
+  }
 }
-// Remove the listenersStarted logic for now to avoid bugs when switching
 
 // ================= ROLE =================
 window.selectRole = (role) => {
@@ -134,16 +138,13 @@ window.becomeAvailable = () => {
 
   updateBottomSheet("🟢 You're Online", "Looking for nearby requests...");
 
-  navigator.geolocation.watchPosition((pos) => {
+  navigator.geolocation.watchPosition(async (pos) => {
     const { latitude, longitude } = pos.coords;
 
-    // Center rider on their location
+    // Center map on rider
     if (map && currentRole === "rider") {
       map.setView([latitude, longitude], 14);
     }
-
-    // TODO: Later we can filter nearby requests
-  }, null, { enableHighAccuracy: true });
 
     if (!riderDocId) {
       const ref = await addDoc(collection(db, "kekes"), {
@@ -158,7 +159,7 @@ window.becomeAvailable = () => {
         lng: longitude
       });
     }
-  });
+  }, null, { enableHighAccuracy: true });
 };
 
 // ================= STATUS =================
@@ -202,7 +203,7 @@ function updateUI(r, dist) {
   }
 }
 
-// ================= LISTENER (Your original core) =================
+// ================= LISTENER =================
 function startListeners() {
   const q = query(collection(db, "requests"), orderBy("time", "desc"));
 
@@ -317,4 +318,7 @@ function initBottomSheetDrag() {
   });
 }
 
-window.addEventListener("load", initBottomSheetDrag);
+window.addEventListener("load", () => {
+  initBottomSheetDrag();
+  console.log("✅ Keke Finder Loaded");
+});
