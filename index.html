@@ -10,10 +10,39 @@
 </head>
 <body>
 
-  <!-- ROLE SELECT -->
-  <div id="roleSelect" class="screen center">
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="screen center">
     <h1>🚖 Keke Finder</h1>
-    <p>Veritas University - Abuja</p>
+    <p>Veritas University • Abuja</p>
+
+    <div style="width: 85%; max-width: 320px; margin-top: 30px;">
+      <input type="email" id="email" placeholder="Email address" class="input-field">
+      <input type="password" id="password" placeholder="Password" class="input-field">
+
+      <button type="button" onclick="login()" class="green" style="width:100%; margin: 20px 0 10px; padding: 16px;">
+        Login
+      </button>
+
+      <button type="button" onclick="showSignup()" style="width:100%; background:#333; color:white; padding: 16px; margin-bottom: 30px;">
+        Create New Account
+      </button>
+
+      <p style="text-align: center; margin: 20px 0; opacity: 0.8;">— OR —</p>
+
+      <button type="button" onclick="continueAs('student')" class="green" style="width:100%; margin-bottom: 12px;">
+        👤 Continue as Student
+      </button>
+      
+      <button type="button" onclick="continueAs('rider')" class="yellow" style="width:100%;">
+        🛵 Continue as Rider
+      </button>
+    </div>
+  </div>
+
+  <!-- ROLE SELECT (will show after login or continue) -->
+  <div id="roleSelect" class="screen center hidden">
+    <h1>🚖 Keke Finder</h1>
+    <p>Choose your role</p>
     
     <button type="button" onclick="selectRole('student')" class="green" style="width:80%; max-width:280px;">
       👤 I'm a Student - Find Keke
@@ -27,7 +56,7 @@
   <!-- STUDENT UI -->
   <div id="studentUI" class="screen hidden">
     <div id="studentMap" class="map"></div>
-    <button class="backBtn" onclick="goBack()">←</button>
+    <button class="backBtn" onclick="goBackToRole()">←</button>
     <button class="fab green" onclick="requestKeke()">🚖 Request Ride</button>
 
     <div class="bottomSheet" id="studentSheet">
@@ -45,7 +74,7 @@
   <!-- RIDER UI -->
   <div id="riderUI" class="screen hidden">
     <div id="riderMap" class="map"></div>
-    <button class="backBtn" onclick="goBack()">←</button>
+    <button class="backBtn" onclick="goBackToRole()">←</button>
     <button class="fab yellow" onclick="becomeAvailable()">🟢 Go Live</button>
 
     <div class="bottomSheet" id="riderSheet">
