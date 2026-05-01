@@ -2,35 +2,58 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Keke Finder - Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Keke Finder</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
 </head>
 <body>
-  <div class="screen center" style="background: linear-gradient(135deg, #1a1a2e, #16213e);">
-    <h1 style="font-size: 2.8rem; margin-bottom: 10px;">🚖 Keke Finder</h1>
-    <p style="margin-bottom: 40px; opacity: 0.9;">Veritas University Edition</p>
 
-    <div style="width: 85%; max-width: 320px;">
-      <input type="email" id="email" placeholder="Email" class="input">
-      <input type="password" id="password" placeholder="Password" class="input">
-      
-      <button onclick="login()" class="green" style="width:100%; margin: 15px 0;">Login</button>
-      
-      <button onclick="showSignup()" style="width:100%; background:#333; color:white;">Create Account</button>
+  <!-- LOGIN / ROLE SELECT (Dashboard Entry) -->
+  <div id="roleSelect" class="screen center">
+    <h1>🚖 Keke Finder</h1>
+    <p>Veritas University • Abuja</p>
+    
+    <button type="button" onclick="selectRole('student')" class="green" style="width:85%; max-width:300px; padding:18px;">
+      👤 I'm a Student - Find Keke
+    </button>
+    
+    <button type="button" onclick="selectRole('rider')" class="yellow" style="width:85%; max-width:300px; padding:18px;">
+      🛵 I'm a Rider - Go Online
+    </button>
+  </div>
 
-      <div style="margin-top: 40px;">
-        <p style="margin-bottom: 15px; opacity: 0.8;">Or continue as:</p>
-        <button onclick="quickRole('student')" class="green" style="width:100%; margin-bottom:8px;">
-          👤 Student - Find Keke
-        </button>
-        <button onclick="quickRole('rider')" class="yellow" style="width:100%;">
-          🛵 Rider - Go Online
-        </button>
-      </div>
+  <!-- STUDENT DASHBOARD -->
+  <div id="studentUI" class="screen hidden">
+    <div id="studentMap" class="map"></div>
+    <button class="backBtn" onclick="goBack()">←</button>
+    <button class="fab green" onclick="requestKeke()">🚖 Request Keke</button>
+
+    <div class="bottomSheet" id="studentSheet">
+      <div class="dragZone"></div>
+      <div class="handle"></div>
+      <h3 id="studentTitle">Ready to ride?</h3>
+      <p id="studentSub">Tap the button above to request</p>
     </div>
   </div>
 
+  <!-- RIDER DASHBOARD -->
+  <div id="riderUI" class="screen hidden">
+    <div id="riderMap" class="map"></div>
+    <button class="backBtn" onclick="goBack()">←</button>
+    <button class="fab yellow" id="goLiveBtn" onclick="becomeAvailable()">🟢 Go Live</button>
+
+    <div class="bottomSheet" id="riderSheet">
+      <div class="dragZone"></div>
+      <div class="handle"></div>
+      <h3 id="riderTitle">Offline</h3>
+      <p id="riderSub">Go live to start receiving requests</p>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
   <script type="module" src="script.js"></script>
 </body>
 </html>
