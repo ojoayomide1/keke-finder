@@ -1,1 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Keke Finder</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+</head>
+<body>
 
+  <!-- Top Bar -->
+  <div class="topbar">
+    <h2 id="pageTitle">Keke Finder</h2>
+    <button onclick="logout()" class="small-btn">Logout</button>
+  </div>
+
+  <!-- Student View -->
+  <div id="studentView" class="screen hidden">
+    <div id="studentMap" class="map"></div>
+    <button class="fab green" onclick="requestKeke()">🚖 Request Keke Now</button>
+  </div>
+
+  <!-- Rider View -->
+  <div id="riderView" class="screen hidden">
+    <div id="riderMap" class="map"></div>
+    <button id="goLiveBtn" class="fab yellow" onclick="toggleOnline()">🟢 Go Online</button>
+  </div>
+
+  <!-- Bottom Sheet (will be updated dynamically) -->
+  <div class="bottomSheet" id="mainBottomSheet">
+    <div class="dragZone"></div>
+    <div class="handle"></div>
+    <h3 id="sheetTitle">Welcome</h3>
+    <p id="sheetSubtitle">No active ride</p>
+    <div class="controls" id="sheetControls"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>
