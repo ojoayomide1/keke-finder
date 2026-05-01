@@ -12,7 +12,7 @@ import {
 
 // ================= FIREBASE =================
 const firebaseConfig = {
-  apiKey: "AIza...",   // ← Put your real key
+  apiKey: "AIza...", 
   authDomain: "keke-finder-cd5fe.firebaseapp.com",
   projectId: "keke-finder-cd5fe",
   storageBucket: "keke-finder-cd5fe.appspot.com",
@@ -25,20 +25,34 @@ const db = getFirestore(app);
 
 // ================= GLOBAL =================
 let map = null;
+let listenersStarted = false;
+
 let currentRole = null;
 let currentRideId = null;
+let riderDocId = null;
+
+let requestMarkers = [];
+let riderMarker = null;
+let routeControl = null;
+let userMarker = null;
 
 // ================= MAP =================
 function initMap(mapId) {
   if (map) map.remove();
 
-  map = L.map(mapId, { tap: false }).setView([9.0579, 7.4951], 13);
+  map = L.map(mapId, { tap: false })
+    .setView([9.0579, 7.4951], 13);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19
   }).addTo(map);
 
   setTimeout(() => map.invalidateSize(), 400);
+
+  if (!listenersStarted) {
+    startListeners();
+    listenersStarted = true;
+  }
 }
 
 // ================= ROLE =================
@@ -48,10 +62,10 @@ window.selectRole = (role) => {
 
   if (role === "student") {
     document.getElementById("studentUI").classList.remove("hidden");
-    setTimeout(() => initMap("studentMap"), 100);
+    setTimeout(() => initMap("studentMap"), 150);
   } else {
     document.getElementById("riderUI").classList.remove("hidden");
-    setTimeout(() => initMap("riderMap"), 100);
+    setTimeout(() => initMap("riderMap"), 150);
   }
 };
 
@@ -62,11 +76,10 @@ window.goBack = () => {
   if (map) map.remove();
 };
 
-// ================= BOTTOM SHEET HELPERS =================
+// ================= BOTTOM SHEET =================
 function getActiveSheet() {
-  return currentRole === "student" 
-    ? document.getElementById("studentSheet") 
-    : document.getElementById("riderSheet");
+  return currentRole === "student" ? 
+    document.getElementById("studentSheet") : document.getElementById("riderSheet");
 }
 
 function updateBottomSheet(title, sub) {
@@ -90,71 +103,160 @@ window.requestKeke = async () => {
   navigator.geolocation.getCurrentPosition(async (pos) => {
     const { latitude, longitude } = pos.coords;
 
-    try {
-      const ref = await addDoc(collection(db, "requests"), {
-        lat: latitude,
-        lng: longitude,
-        status: "waiting",
-        time: Date.now()
-      });
+    const ref = await addDoc(collection(db, "requests"), {
+      lat: latitude,
+      lng: longitude,
+      status: "waiting",
+      time: Date.now()
+    });
 
-      currentRideId = ref.id;
-      map.setView([latitude, longitude], 16);
+    currentRideId = ref.id;
 
-      L.marker([latitude, longitude]).addTo(map).bindPopup("📍 You");
+    map.setView([latitude, longitude], 16);
 
-      updateBottomSheet("🔍 Searching for rider...", "Waiting...");
-    } catch (e) {
-      alert("Error: " + e.message);
-    }
+    userMarker = L.marker([latitude, longitude])
+      .addTo(map)
+      .bindPopup("📍 You");
+
+    updateBottomSheet("🔍 Searching...", "Connecting to riders...");
   });
 };
 
 // ================= RIDER =================
 window.becomeAvailable = () => {
-  const name = prompt("Enter your rider name:");
+  const name = prompt("Enter your name:");
   if (!name) return;
 
-  updateBottomSheet("🟢 You're Online", "Waiting for requests...");
+  updateBottomSheet("🟢 You're Online", "Waiting for rides...");
 
   navigator.geolocation.watchPosition(async (pos) => {
     const { latitude, longitude } = pos.coords;
-    console.log("Rider location:", latitude, longitude);
-    // You can expand this later
+
+    if (!riderDocId) {
+      const ref = await addDoc(collection(db, "kekes"), {
+        name,
+        lat: latitude,
+        lng: longitude
+      });
+      riderDocId = ref.id;
+    } else {
+      await updateDoc(doc(db, "kekes", riderDocId), {
+        lat: latitude,
+        lng: longitude
+      });
+    }
   });
 };
 
-// Status functions
-window.setArriving = () => updateBottomSheet("📍 Arriving", "Rider is close");
-window.completeRide = () => updateBottomSheet("✅ Ride Completed", "Thank you!");
+// ================= STATUS =================
+window.setArriving = async () => {
+  if (!currentRideId) return;
+  await updateDoc(doc(db, "requests", currentRideId), { status: "arriving" });
+};
+
+window.completeRide = async () => {
+  if (!currentRideId) return;
+  await updateDoc(doc(db, "requests", currentRideId), { status: "completed" });
+};
+
+// ================= MAIN LISTENER (Your original logic restored) =================
+function startListeners() {
+  const q = query(collection(db, "requests"), orderBy("time", "desc"));
+
+  onSnapshot(q, (snapshot) => {
+    if (!map) return;
+
+    // Clear old markers
+    requestMarkers.forEach(m => map.removeLayer(m));
+    requestMarkers = [];
+
+    snapshot.forEach(docSnap => {
+      const r = docSnap.data();
+      const rideId = docSnap.id;
+
+      // Show request markers
+      const marker = L.circleMarker([r.lat, r.lng], {color: 'red'}).addTo(map);
+      requestMarkers.push(marker);
+
+      marker.on("click", async () => {
+        if (r.status !== "waiting" || currentRole !== "rider") return;
+
+        if (confirm("Accept this ride?")) {
+          navigator.geolocation.getCurrentPosition(async (pos) => {
+            await updateDoc(doc(db, "requests", rideId), {
+              status: "accepted",
+              riderLat: pos.coords.latitude,
+              riderLng: pos.coords.longitude
+            });
+            currentRideId = rideId;
+          });
+        }
+      });
+
+      // Track only current active ride
+      if (rideId !== currentRideId) return;
+
+      if (r.riderLat && r.riderLng) {
+        if (routeControl) map.removeControl(routeControl);
+
+        routeControl = L.Routing.control({
+          waypoints: [
+            L.latLng(r.riderLat, r.riderLng),
+            L.latLng(r.lat, r.lng)
+          ],
+          routeWhileDragging: false,
+          addWaypoints: false,
+          draggableWaypoints: false,
+          createMarker: () => null
+        }).addTo(map);
+
+        // Rider marker
+        if (!riderMarker) {
+          riderMarker = L.marker([r.riderLat, r.riderLng]).addTo(map).bindPopup("🚖 Rider");
+        } else {
+          riderMarker.setLatLng([r.riderLat, r.riderLng]);
+        }
+
+        const dist = map.distance([r.riderLat, r.riderLng], [r.lat, r.lng]);
+
+        updateBottomSheet(currentRole === "student" ? "🚗 Rider coming" : "🚗 Heading", 
+                         `${Math.round(dist)}m away`);
+        toggleControls(true);
+
+        map.fitBounds([
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        ], { padding: [80, 80] });
+      }
+    });
+  });
+}
 
 // ================= DRAG =================
 function initBottomSheetDrag() {
   document.querySelectorAll(".bottomSheet").forEach(sheet => {
     const dragZone = sheet.querySelector(".dragZone");
-    if (!dragZone) return;
 
     let startY = 0, offset = 0, dragging = false;
 
     const start = (y) => { dragging = true; startY = y - offset; };
     const move = (y) => {
       if (!dragging) return;
-      offset = Math.max(-280, Math.min(0, y - startY));
+      offset = y - startY;
+      if (offset < -300) offset = -300;
+      if (offset > 0) offset = 0;
       sheet.style.transform = `translateY(${offset}px)`;
     };
     const end = () => {
       dragging = false;
-      offset = offset < -140 ? -280 : 0;
+      offset = offset < -150 ? -300 : 0;
       sheet.style.transform = `translateY(${offset}px)`;
     };
 
-    dragZone.addEventListener("touchstart", e => start(e.touches[0].clientY), { passive: true });
-    dragZone.addEventListener("touchmove", e => move(e.touches[0].clientY), { passive: true });
+    dragZone.addEventListener("touchstart", e => start(e.touches[0].clientY));
+    dragZone.addEventListener("touchmove", e => move(e.touches[0].clientY));
     dragZone.addEventListener("touchend", end);
   });
 }
 
-window.addEventListener("load", () => {
-  initBottomSheetDrag();
-  console.log("✅ Keke Finder loaded");
-});
+window.addEventListener("load", initBottomSheetDrag);
