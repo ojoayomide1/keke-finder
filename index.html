@@ -10,45 +10,53 @@
 </head>
 <body>
 
-  <!-- LOGIN / ROLE SELECT (Dashboard Entry) -->
+  <!-- ROLE SELECT -->
   <div id="roleSelect" class="screen center">
     <h1>🚖 Keke Finder</h1>
-    <p>Veritas University • Abuja</p>
+    <p>Veritas University - Abuja</p>
     
-    <button type="button" onclick="selectRole('student')" class="green" style="width:85%; max-width:300px; padding:18px;">
+    <button type="button" onclick="selectRole('student')" class="green" style="width:80%; max-width:280px;">
       👤 I'm a Student - Find Keke
     </button>
     
-    <button type="button" onclick="selectRole('rider')" class="yellow" style="width:85%; max-width:300px; padding:18px;">
+    <button type="button" onclick="selectRole('rider')" class="yellow" style="width:80%; max-width:280px;">
       🛵 I'm a Rider - Go Online
     </button>
   </div>
 
-  <!-- STUDENT DASHBOARD -->
+  <!-- STUDENT UI -->
   <div id="studentUI" class="screen hidden">
     <div id="studentMap" class="map"></div>
     <button class="backBtn" onclick="goBack()">←</button>
-    <button class="fab green" onclick="requestKeke()">🚖 Request Keke</button>
+    <button class="fab green" onclick="requestKeke()">🚖 Request Ride</button>
 
     <div class="bottomSheet" id="studentSheet">
       <div class="dragZone"></div>
       <div class="handle"></div>
-      <h3 id="studentTitle">Ready to ride?</h3>
-      <p id="studentSub">Tap the button above to request</p>
+      <h3 id="studentTitle">Waiting...</h3>
+      <p id="studentSub">No active ride</p>
+      <div class="controls" id="studentControls" style="display:none;">
+        <button onclick="setArriving()" class="yellow">📍 Arriving</button>
+        <button onclick="completeRide()" class="green">✅ Complete</button>
+      </div>
     </div>
   </div>
 
-  <!-- RIDER DASHBOARD -->
+  <!-- RIDER UI -->
   <div id="riderUI" class="screen hidden">
     <div id="riderMap" class="map"></div>
     <button class="backBtn" onclick="goBack()">←</button>
-    <button class="fab yellow" id="goLiveBtn" onclick="becomeAvailable()">🟢 Go Live</button>
+    <button class="fab yellow" onclick="becomeAvailable()">🟢 Go Live</button>
 
     <div class="bottomSheet" id="riderSheet">
       <div class="dragZone"></div>
       <div class="handle"></div>
       <h3 id="riderTitle">Offline</h3>
-      <p id="riderSub">Go live to start receiving requests</p>
+      <p id="riderSub">Go live to start</p>
+      <div class="controls" id="riderControls" style="display:none;">
+        <button onclick="setArriving()" class="yellow">📍 Arriving</button>
+        <button onclick="completeRide()" class="green">✅ Complete</button>
+      </div>
     </div>
   </div>
 
