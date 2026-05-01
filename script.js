@@ -124,7 +124,7 @@ window.requestKeke = async () => {
 
 // ================= RIDER =================
 window.becomeAvailable = () => {
-  const name = prompt("Enter your name:");
+  const name = prompt("Enter your rider name:");
   if (!name) return;
 
   updateBottomSheet("🟢 You're Online", "Waiting for rides...");
@@ -145,6 +145,13 @@ window.becomeAvailable = () => {
         lng: longitude
       });
     }
+
+    // Auto center rider's map when going live
+    if (map && currentRole === "rider") {
+      map.setView([latitude, longitude], 15);
+    }
+  }, null, { enableHighAccuracy: true });
+};
   });
 };
 
