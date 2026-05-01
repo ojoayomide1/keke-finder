@@ -37,7 +37,6 @@ let routeControl = null;
 let userMarker = null;
 
 // ================= MAP =================
-// ================= MAP =================
 function initMap(mapId) {
   if (map) {
     map.remove();
@@ -130,13 +129,21 @@ window.requestKeke = async () => {
 
 // ================= RIDER =================
 window.becomeAvailable = () => {
-  const name = prompt("Enter your name:");
+  const name = prompt("Enter your rider name:");
   if (!name) return;
 
-  updateBottomSheet("🟢 You're Online", "Waiting for rides...");
+  updateBottomSheet("🟢 You're Online", "Looking for nearby requests...");
 
-  navigator.geolocation.watchPosition(async (pos) => {
+  navigator.geolocation.watchPosition((pos) => {
     const { latitude, longitude } = pos.coords;
+
+    // Center rider on their location
+    if (map && currentRole === "rider") {
+      map.setView([latitude, longitude], 14);
+    }
+
+    // TODO: Later we can filter nearby requests
+  }, null, { enableHighAccuracy: true });
 
     if (!riderDocId) {
       const ref = await addDoc(collection(db, "kekes"), {
