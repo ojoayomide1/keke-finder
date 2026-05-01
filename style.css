@@ -232,3 +232,44 @@ h1, p {
   font-size: 14.5px;
   line-height: 1.4;
 }
+
+/* ================= ROUTING PANEL IMPROVEMENTS ================= */
+.leaflet-routing-container {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important;
+  max-height: 45vh !important;
+  overflow-y: auto;
+}
+
+/* Hide complicated instructions on student side */
+#studentUI .leaflet-routing-container {
+  display: none !important;
+}
+
+/* Make instructions simpler */
+.leaflet-routing-alt,
+.leaflet-routing-instructions {
+  font-size: 15px !important;
+  line-height: 1.5;
+}
+
+/* Back button improvements */
+.backBtn {
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px);
+  border: 2px solid rgba(255,255,255,0.3);
+  z-index: 2500 !important;
+  transition: all 0.2s;
+}
+
+.backBtn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: scale(1.05);
+}
+
+/* Make sure routing doesn't cover back button */
+.leaflet-top.leaflet-right {
+  top: 70px !important;
+  right: 10px !important;
+}
