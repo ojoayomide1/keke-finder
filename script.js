@@ -25,8 +25,6 @@ const db = getFirestore(app);
 
 // ================= GLOBAL =================
 let map = null;
-let listenersStarted = false;
-
 let currentRole = null;
 let currentRideId = null;
 let riderDocId = null;
@@ -38,29 +36,35 @@ let userMarker = null;
 
 // ================= MAP =================
 function initMap(mapId) {
-  if (map) {
-    map.remove();
-  }
+  if (map) map.remove();
 
-  map = L.map(mapId, { tap: false })
-    .setView([9.0579, 7.4951], 13);
+  map = L.map(mapId, { tap: false }).setView([9.0579, 7.4951], 13);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19
   }).addTo(map);
 
   setTimeout(() => map.invalidateSize(), 500);
-
-  if (!listenersStarted) {
-    startListeners();
-    listenersStarted = true;
-  }
 }
 
-// ================= ROLE =================
+// ================= LOGIN / CONTINUE =================
+window.continueAs = (role) => {
+  currentRole = role;
+  document.getElementById("loginScreen").classList.add("hidden");
+  document.getElementById("roleSelect").classList.remove("hidden");
+};
+
+window.login = () => {
+  alert("Login feature coming soon...\n\nFor now, use 'Continue as Student' or 'Continue as Rider'");
+};
+
+window.showSignup = () => {
+  alert("Signup feature coming soon");
+};
+
+// ================= ROLE SELECT =================
 window.selectRole = (role) => {
   currentRole = role;
-
   document.getElementById("roleSelect").classList.add("hidden");
 
   if (role === "student") {
@@ -72,11 +76,13 @@ window.selectRole = (role) => {
   }
 };
 
-window.goBack = () => {
+window.goBackToRole = () => {
+  // Hide current UI
   document.getElementById("studentUI").classList.add("hidden");
   document.getElementById("riderUI").classList.add("hidden");
+  // Show role select again
   document.getElementById("roleSelect").classList.remove("hidden");
-
+  
   if (map) map.remove();
 };
 
@@ -90,7 +96,6 @@ function getActiveSheet() {
 function updateBottomSheet(title, sub) {
   const sheet = getActiveSheet();
   if (!sheet) return;
-
   sheet.querySelector("h3").innerText = title;
   sheet.querySelector("p").innerText = sub;
 }
@@ -98,11 +103,8 @@ function updateBottomSheet(title, sub) {
 function toggleControls(show) {
   const sheet = getActiveSheet();
   if (!sheet) return;
-
   const controls = sheet.querySelector(".controls");
-  if (controls) {
-    controls.style.display = show ? "flex" : "none";
-  }
+  if (controls) controls.style.display = show ? "flex" : "none";
 }
 
 // ================= STUDENT =================
@@ -120,14 +122,11 @@ window.requestKeke = async () => {
     });
 
     currentRideId = ref.id;
-
     map.setView([latitude, longitude], 16);
 
-    userMarker = L.marker([latitude, longitude])
-      .addTo(map)
-      .bindPopup("📍 You");
+    userMarker = L.marker([latitude, longitude]).addTo(map).bindPopup("📍 You");
 
-    updateBottomSheet("🔍 Searching...", "Connecting...");
+    updateBottomSheet("🔍 Searching for rider...", "Waiting for acceptance");
   });
 };
 
@@ -141,7 +140,6 @@ window.becomeAvailable = () => {
   navigator.geolocation.watchPosition(async (pos) => {
     const { latitude, longitude } = pos.coords;
 
-    // Center map on rider
     if (map && currentRole === "rider") {
       map.setView([latitude, longitude], 14);
     }
@@ -154,10 +152,7 @@ window.becomeAvailable = () => {
       });
       riderDocId = ref.id;
     } else {
-      await updateDoc(doc(db, "kekes", riderDocId), {
-        lat: latitude,
-        lng: longitude
-      });
+      await updateDoc(doc(db, "kekes", riderDocId), { lat: latitude, lng: longitude });
     }
   }, null, { enableHighAccuracy: true });
 };
@@ -166,44 +161,16 @@ window.becomeAvailable = () => {
 window.setArriving = async () => {
   if (!currentRideId) return;
   await updateDoc(doc(db, "requests", currentRideId), { status: "arriving" });
+  updateBottomSheet("📍 Arriving", "Rider is near");
 };
 
 window.completeRide = async () => {
   if (!currentRideId) return;
   await updateDoc(doc(db, "requests", currentRideId), { status: "completed" });
+  updateBottomSheet("✅ Ride Completed", "Thank you!");
 };
 
-// ================= UI LOGIC =================
-function updateUI(r, dist) {
-  if (currentRole === "student") {
-    if (r.status === "waiting") {
-      updateBottomSheet("🔍 Searching...", "Connecting...");
-      toggleControls(false);
-    } else if (r.status === "accepted") {
-      updateBottomSheet("🚗 Rider coming", `${Math.round(dist)}m away`);
-      toggleControls(true);
-    } else if (r.status === "arriving") {
-      updateBottomSheet("📍 Arriving", "Get ready");
-    } else if (r.status === "completed") {
-      updateBottomSheet("✅ Completed", "Thanks!");
-      toggleControls(false);
-    }
-  } else if (currentRole === "rider") {
-    if (r.status === "waiting") {
-      updateBottomSheet("📥 New request", "Tap to accept");
-    } else if (r.status === "accepted") {
-      updateBottomSheet("🚗 Heading", `${Math.round(dist)}m away`);
-      toggleControls(true);
-    } else if (r.status === "arriving") {
-      updateBottomSheet("📍 Arrived", "Waiting...");
-    } else if (r.status === "completed") {
-      updateBottomSheet("✅ Done", "Good job");
-      toggleControls(false);
-    }
-  }
-}
-
-// ================= LISTENER =================
+// ================= MAIN LISTENER =================
 function startListeners() {
   const q = query(collection(db, "requests"), orderBy("time", "desc"));
 
@@ -215,100 +182,102 @@ function startListeners() {
 
     snapshot.forEach(docSnap => {
       const r = docSnap.data();
+      const rideId = docSnap.id;
 
-      const marker = L.circleMarker([r.lat, r.lng]).addTo(map);
-
-      marker.on("click", async () => {
-        if (r.status !== "waiting") return;
-
-        const ok = confirm("Accept ride?");
-        if (!ok) return;
-
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          await updateDoc(doc(db, "requests", docSnap.id), {
-            status: "accepted",
-            riderLat: pos.coords.latitude,
-            riderLng: pos.coords.longitude
-          });
-
-          currentRideId = docSnap.id;
-        });
-      });
-
+      const marker = L.circleMarker([r.lat, r.lng], {color: '#ef4444'}).addTo(map);
       requestMarkers.push(marker);
 
-      if (docSnap.id !== currentRideId) return;
-
-      if (r.riderLat && r.riderLng) {
-
-        if (routeControl) {
-          map.removeControl(routeControl);
+      marker.on("click", async () => {
+        if (r.status !== "waiting" || currentRole !== "rider") return;
+        if (confirm("Accept this ride?")) {
+          navigator.geolocation.getCurrentPosition(async (pos) => {
+            await updateDoc(doc(db, "requests", rideId), {
+              status: "accepted",
+              riderLat: pos.coords.latitude,
+              riderLng: pos.coords.longitude
+            });
+            currentRideId = rideId;
+          });
         }
+      });
 
-        routeControl = L.Routing.control({
-          waypoints: [
-            L.latLng(r.riderLat, r.riderLng),
-            L.latLng(r.lat, r.lng)
-          ],
-          routeWhileDragging: false,
-          addWaypoints: false,
-          draggableWaypoints: false,
-          createMarker: () => null
-        }).addTo(map);
+      // Real-time update for current ride
+      if (rideId === currentRideId) {
+        if (r.riderLat && r.riderLng) {
+          if (routeControl) map.removeControl(routeControl);
 
-        if (!riderMarker) {
-          riderMarker = L.marker([r.riderLat, r.riderLng])
-            .addTo(map)
-            .bindPopup("🚖 Rider");
-        } else {
-          riderMarker.setLatLng([r.riderLat, r.riderLng]);
+          routeControl = L.Routing.control({
+            waypoints: [
+              L.latLng(r.riderLat, r.riderLng),
+              L.latLng(r.lat, r.lng)
+            ],
+            routeWhileDragging: false,
+            addWaypoints: false,
+            draggableWaypoints: false,
+            createMarker: () => null,
+            lineOptions: { styles: [{ color: '#22c55e', weight: 6 }] }
+          }).addTo(map);
+
+          if (!riderMarker) {
+            riderMarker = L.marker([r.riderLat, r.riderLng]).addTo(map).bindPopup("🚖 Rider");
+          } else {
+            riderMarker.setLatLng([r.riderLat, r.riderLng]);
+          }
+
+          const dist = map.distance([r.riderLat, r.riderLng], [r.lat, r.lng]);
+          updateUI(r, dist);
+
+          map.fitBounds([[r.riderLat, r.riderLng], [r.lat, r.lng]], { padding: [80, 80] });
         }
-
-        const dist = map.distance([r.riderLat, r.riderLng], [r.lat, r.lng]);
-
-        updateUI(r, dist);
-
-        const bounds = L.latLngBounds([
-          [r.riderLat, r.riderLng],
-          [r.lat, r.lng]
-        ]);
-
-        map.fitBounds(bounds, { padding: [80, 80] });
       }
     });
   });
+}
+
+// ================= UI LOGIC =================
+function updateUI(r, dist) {
+  if (!currentRole) return;
+
+  if (currentRole === "student") {
+    if (r.status === "accepted") {
+      updateBottomSheet("🚗 Rider coming", `${Math.round(dist)}m away`);
+      toggleControls(true);
+    } else if (r.status === "arriving") {
+      updateBottomSheet("📍 Rider Arriving", "Get ready!");
+    } else if (r.status === "completed") {
+      updateBottomSheet("✅ Ride Completed", "Thank you!");
+      toggleControls(false);
+    }
+  } else if (currentRole === "rider") {
+    if (r.status === "accepted") {
+      updateBottomSheet("🚗 Heading to student", `${Math.round(dist)}m away`);
+      toggleControls(true);
+    } else if (r.status === "arriving") {
+      updateBottomSheet("📍 Arriving at student", "Almost there");
+    } else if (r.status === "completed") {
+      updateBottomSheet("✅ Ride Completed", "Good job!");
+      toggleControls(false);
+    }
+  }
 }
 
 // ================= DRAG =================
 function initBottomSheetDrag() {
   document.querySelectorAll(".bottomSheet").forEach(sheet => {
     const dragZone = sheet.querySelector(".dragZone");
+    if (!dragZone) return;
 
-    let startY = 0;
-    let offset = 0;
-    let dragging = false;
+    let startY = 0, offset = 0, dragging = false;
 
-    const start = (y) => {
-      dragging = true;
-      startY = y - offset;
-    };
-
+    const start = (y) => { dragging = true; startY = y - offset; };
     const move = (y) => {
       if (!dragging) return;
-
-      offset = y - startY;
-      if (offset < -300) offset = -300;
-      if (offset > 0) offset = 0;
-
+      offset = Math.max(-300, Math.min(0, y - startY));
       sheet.style.transform = `translateY(${offset}px)`;
     };
-
     const end = () => {
       dragging = false;
-
-      if (offset < -150) offset = -300;
-      else offset = 0;
-
+      offset = offset < -150 ? -300 : 0;
       sheet.style.transform = `translateY(${offset}px)`;
     };
 
@@ -320,5 +289,6 @@ function initBottomSheetDrag() {
 
 window.addEventListener("load", () => {
   initBottomSheetDrag();
-  console.log("✅ Keke Finder Loaded");
+  startListeners();           // Important: Start listener on load
+  console.log("✅ Keke Finder Loaded Successfully");
 });
