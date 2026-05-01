@@ -37,6 +37,7 @@ let routeControl = null;
 let userMarker = null;
 
 // ================= MAP =================
+// ================= MAP =================
 function initMap(mapId) {
   if (map) {
     map.remove();
@@ -49,13 +50,9 @@ function initMap(mapId) {
     maxZoom: 19
   }).addTo(map);
 
-  setTimeout(() => map.invalidateSize(), 400);
-
-  if (!listenersStarted) {
-    startListeners();
-    listenersStarted = true;
-  }
+  setTimeout(() => map.invalidateSize(), 500);
 }
+// Remove the listenersStarted logic for now to avoid bugs when switching
 
 // ================= ROLE =================
 window.selectRole = (role) => {
