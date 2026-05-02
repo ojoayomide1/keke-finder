@@ -187,10 +187,13 @@ window.setArriving = async () => {
 };
 
 window.completeRide = async () => {
-  if (!currentRideId) return;
-  await updateDoc(doc(db, "requests", currentRideId), { status: "completed" });
-  updateBottomSheet("✅ Ride Completed", "Thank you!");
-};
+  // 🔥 CRITICAL FIX: keep updating rider position into ride
+if (currentRideId) {
+  await updateDoc(doc(db, "requests", currentRideId), {
+    riderLat: latitude,
+    riderLng: longitude
+  });
+}
 
 // ================= MAIN LISTENER =================
 function startListeners() {
