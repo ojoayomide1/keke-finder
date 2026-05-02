@@ -38,7 +38,8 @@ let userMarker = null;
 function initMap(mapId) {
   if (map) map.remove();
 
-  map = L.map(mapId, { tap: false }).setView([9.0579, 7.4951], 13);
+  // Veritas University is closer to these coordinates
+map = L.map(mapId, { tap: false }).setView([9.0023, 7.4305], 15);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19
