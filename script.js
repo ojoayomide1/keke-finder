@@ -34,7 +34,7 @@ let riderMarker = null;
 let routeControl = null;
 let userMarker = null;
 
-let hasFocused = false; // 🔥 FIX zoom fighting
+let hasFocused = false;
 
 // ================= MAP =================
 function initMap(mapId) {
@@ -156,7 +156,6 @@ window.becomeAvailable = () => {
   navigator.geolocation.watchPosition(async (pos) => {
     const { latitude, longitude } = pos.coords;
 
-    // 🔥 Only follow BEFORE accepting ride
     if (map && currentRole === "rider" && !currentRideId) {
       map.setView([latitude, longitude], 14);
     }
@@ -175,7 +174,7 @@ window.becomeAvailable = () => {
       });
     }
 
-    // 🔥 CRITICAL: update ride live
+    // update ride live
     if (currentRideId) {
       await updateDoc(doc(db, "requests", currentRideId), {
         riderLat: latitude,
@@ -264,7 +263,7 @@ function startListeners() {
 
         updateUI(r, dist);
 
-        // 🔥 FIX zoom fighting
+        // zoom control
         if (!hasFocused) {
           const bounds = L.latLngBounds([
             [r.riderLat, r.riderLng],
