@@ -12,7 +12,7 @@ import {
 
 // ================= FIREBASE =================
 const firebaseConfig = {
-  apiKey: "AIza...", 
+  apiKey: "AIza...",
   authDomain: "keke-finder-cd5fe.firebaseapp.com",
   projectId: "keke-finder-cd5fe",
   storageBucket: "keke-finder-cd5fe.appspot.com",
@@ -34,12 +34,14 @@ let riderMarker = null;
 let routeControl = null;
 let userMarker = null;
 
+let hasFocused = false; // 🔥 FIX zoom fighting
+
 // ================= MAP =================
 function initMap(mapId) {
   if (map) map.remove();
 
-  // Veritas University, Bwari, Abuja - accurate coordinates
-map = L.map(mapId, { tap: false }).setView([9.0579, 7.4951], 13);
+  map = L.map(mapId, { tap: false }).setView([9.0579, 7.4951], 13);
+
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19
   }).addTo(map);
@@ -47,23 +49,17 @@ map = L.map(mapId, { tap: false }).setView([9.0579, 7.4951], 13);
   setTimeout(() => map.invalidateSize(), 500);
 }
 
-// ================= LOGIN / CONTINUE =================
+// ================= LOGIN =================
 window.continueAs = (role) => {
   currentRole = role;
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("roleSelect").classList.remove("hidden");
 };
 
-window.login = () => {
-  alert("Login feature coming soon...\n\nFor now, use 'Continue as Student' or 'Continue as Rider'");
-};
+window.login = () => alert("Login coming soon");
+window.showSignup = () => alert("Signup coming soon");
 
-window.showSignup = () => {
-  alert("Signup feature coming soon");
-};
-
-// ================= ROLE SELECT =================
-// ✅ Better: Start listeners AFTER map is initialized
+// ================= ROLE =================
 window.selectRole = (role) => {
   currentRole = role;
   document.getElementById("roleSelect").classList.add("hidden");
@@ -72,37 +68,39 @@ window.selectRole = (role) => {
     document.getElementById("studentUI").classList.remove("hidden");
     setTimeout(() => {
       initMap("studentMap");
-      startListeners(); // 👈 Move here
+      startListeners();
     }, 200);
   } else {
     document.getElementById("riderUI").classList.remove("hidden");
     setTimeout(() => {
       initMap("riderMap");
-      startListeners(); // 👈 Move here
+      startListeners();
     }, 200);
   }
 };
-// ✅ Fix: Reset on goBack
+
 window.goBackToRole = () => {
   document.getElementById("studentUI").classList.add("hidden");
   document.getElementById("riderUI").classList.add("hidden");
   document.getElementById("roleSelect").classList.remove("hidden");
-  
+
   if (map) map.remove();
+
   map = null;
   currentRideId = null;
-  riderDocId = null;        // 👈 Reset
-  riderMarker = null;       // 👈 Reset
-  routeControl = null;      // 👈 Reset
-  requestMarkers = [];      // 👈 Reset
-  userMarker = null;        // 👈 Reset
+  riderDocId = null;
+  riderMarker = null;
+  routeControl = null;
+  requestMarkers = [];
+  userMarker = null;
+  hasFocused = false;
 };
 
-// ================= UI HELPERS =================
+// ================= UI =================
 function getActiveSheet() {
-  return currentRole === "student" ? 
-         document.getElementById("studentSheet") : 
-         document.getElementById("riderSheet");
+  return currentRole === "student"
+    ? document.getElementById("studentSheet")
+    : document.getElementById("riderSheet");
 }
 
 function updateBottomSheet(title, sub) {
@@ -124,8 +122,6 @@ window.requestKeke = async () => {
   const fab = document.querySelector("#studentUI .fab");
   fab.disabled = true;
   fab.innerText = "⏳ Finding...";
-  
-  updateBottomSheet("📍 Getting location...", "Please wait");
 
   navigator.geolocation.getCurrentPosition(async (pos) => {
     const { latitude, longitude } = pos.coords;
@@ -138,18 +134,16 @@ window.requestKeke = async () => {
     });
 
     currentRideId = ref.id;
+
     map.setView([latitude, longitude], 16);
+
     userMarker = L.marker([latitude, longitude]).addTo(map).bindPopup("📍 You");
 
-    updateBottomSheet("🔍 Searching for rider...", "Waiting for acceptance");
-    
+    updateBottomSheet("🔍 Searching...", "Waiting for rider");
+
     fab.disabled = false;
     fab.innerText = "🚖 Request Ride";
-  }, (err) => {
-    updateBottomSheet("❌ GPS Error", "Enable location access");
-    fab.disabled = false;
-    fab.innerText = "🚖 Request Ride";
-  }, { enableHighAccuracy: true, timeout: 10000 });
+  });
 };
 
 // ================= RIDER =================
@@ -157,12 +151,13 @@ window.becomeAvailable = () => {
   const name = prompt("Enter your rider name:");
   if (!name) return;
 
-  updateBottomSheet("🟢 You're Online", "Looking for nearby requests...");
+  updateBottomSheet("🟢 You're Online", "Looking for rides...");
 
   navigator.geolocation.watchPosition(async (pos) => {
     const { latitude, longitude } = pos.coords;
 
-    if (map && currentRole === "rider") {
+    // 🔥 Only follow BEFORE accepting ride
+    if (map && currentRole === "rider" && !currentRideId) {
       map.setView([latitude, longitude], 14);
     }
 
@@ -174,7 +169,18 @@ window.becomeAvailable = () => {
       });
       riderDocId = ref.id;
     } else {
-      await updateDoc(doc(db, "kekes", riderDocId), { lat: latitude, lng: longitude });
+      await updateDoc(doc(db, "kekes", riderDocId), {
+        lat: latitude,
+        lng: longitude
+      });
+    }
+
+    // 🔥 CRITICAL: update ride live
+    if (currentRideId) {
+      await updateDoc(doc(db, "requests", currentRideId), {
+        riderLat: latitude,
+        riderLng: longitude
+      });
     }
   }, null, { enableHighAccuracy: true });
 };
@@ -182,20 +188,21 @@ window.becomeAvailable = () => {
 // ================= STATUS =================
 window.setArriving = async () => {
   if (!currentRideId) return;
-  await updateDoc(doc(db, "requests", currentRideId), { status: "arriving" });
-  updateBottomSheet("📍 Arriving", "Rider is near");
+
+  await updateDoc(doc(db, "requests", currentRideId), {
+    status: "arriving"
+  });
 };
 
 window.completeRide = async () => {
-  // 🔥 CRITICAL FIX: keep updating rider position into ride
-if (currentRideId) {
-  await updateDoc(doc(db, "requests", currentRideId), {
-    riderLat: latitude,
-    riderLng: longitude
-  });
-}
+  if (!currentRideId) return;
 
-// ================= MAIN LISTENER =================
+  await updateDoc(doc(db, "requests", currentRideId), {
+    status: "completed"
+  });
+};
+
+// ================= LISTENER =================
 function startListeners() {
   const q = query(collection(db, "requests"), orderBy("time", "desc"));
 
@@ -209,50 +216,62 @@ function startListeners() {
       const r = docSnap.data();
       const rideId = docSnap.id;
 
-      const marker = L.circleMarker([r.lat, r.lng], {color: '#ef4444'}).addTo(map);
+      const marker = L.circleMarker([r.lat, r.lng], { color: '#ef4444' }).addTo(map);
       requestMarkers.push(marker);
 
       marker.on("click", async () => {
         if (r.status !== "waiting" || currentRole !== "rider") return;
-        if (confirm("Accept this ride?")) {
+
+        if (confirm("Accept ride?")) {
           navigator.geolocation.getCurrentPosition(async (pos) => {
             await updateDoc(doc(db, "requests", rideId), {
               status: "accepted",
               riderLat: pos.coords.latitude,
               riderLng: pos.coords.longitude
             });
+
             currentRideId = rideId;
+            hasFocused = false;
           });
         }
       });
 
-      // Real-time update for current ride
-      if (rideId === currentRideId) {
-        if (r.riderLat && r.riderLng) {
-          if (routeControl) map.removeControl(routeControl);
+      if (rideId === currentRideId && r.riderLat && r.riderLng) {
 
-          routeControl = L.Routing.control({
-            waypoints: [
-              L.latLng(r.riderLat, r.riderLng),
-              L.latLng(r.lat, r.lng)
-            ],
-            routeWhileDragging: false,
-            addWaypoints: false,
-            draggableWaypoints: false,
-            createMarker: () => null,
-            lineOptions: { styles: [{ color: '#22c55e', weight: 6 }] }
-          }).addTo(map);
+        if (routeControl) map.removeControl(routeControl);
 
-          if (!riderMarker) {
-            riderMarker = L.marker([r.riderLat, r.riderLng]).addTo(map).bindPopup("🚖 Rider");
-          } else {
-            riderMarker.setLatLng([r.riderLat, r.riderLng]);
-          }
+        routeControl = L.Routing.control({
+          waypoints: [
+            L.latLng(r.riderLat, r.riderLng),
+            L.latLng(r.lat, r.lng)
+          ],
+          addWaypoints: false,
+          draggableWaypoints: false,
+          createMarker: () => null,
+          lineOptions: { styles: [{ color: '#22c55e', weight: 6 }] }
+        }).addTo(map);
 
-          const dist = map.distance([r.riderLat, r.riderLng], [r.lat, r.lng]);
-          updateUI(r, dist);
+        if (!riderMarker) {
+          riderMarker = L.marker([r.riderLat, r.riderLng]).addTo(map);
+        } else {
+          riderMarker.setLatLng([r.riderLat, r.riderLng]);
+        }
 
-          map.fitBounds([[r.riderLat, r.riderLng], [r.lat, r.lng]], { padding: [80, 80] });
+        const dist = map.distance(
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        );
+
+        updateUI(r, dist);
+
+        // 🔥 FIX zoom fighting
+        if (!hasFocused) {
+          const bounds = L.latLngBounds([
+            [r.riderLat, r.riderLng],
+            [r.lat, r.lng]
+          ]);
+          map.fitBounds(bounds, { padding: [80, 80] });
+          hasFocused = true;
         }
       }
     });
@@ -266,21 +285,19 @@ function updateUI(r, dist) {
   if (currentRole === "student") {
     if (r.status === "accepted") {
       updateBottomSheet("🚗 Rider coming", `${Math.round(dist)}m away`);
-      toggleControls(true);
     } else if (r.status === "arriving") {
-      updateBottomSheet("📍 Rider Arriving", "Get ready!");
+      updateBottomSheet("📍 Rider arriving", "Get ready");
     } else if (r.status === "completed") {
-      updateBottomSheet("✅ Ride Completed", "Thank you!");
-      toggleControls(false);
+      updateBottomSheet("✅ Completed", "Thanks!");
     }
-  } else if (currentRole === "rider") {
+  } else {
     if (r.status === "accepted") {
       updateBottomSheet("🚗 Heading to student", `${Math.round(dist)}m away`);
       toggleControls(true);
     } else if (r.status === "arriving") {
-      updateBottomSheet("📍 Arriving at student", "Almost there");
+      updateBottomSheet("📍 Arrived", "Waiting...");
     } else if (r.status === "completed") {
-      updateBottomSheet("✅ Ride Completed", "Good job!");
+      updateBottomSheet("✅ Done", "Good job");
       toggleControls(false);
     }
   }
@@ -314,6 +331,5 @@ function initBottomSheetDrag() {
 
 window.addEventListener("load", () => {
   initBottomSheetDrag();
-  startListeners();           // Important: Start listener on load
-  console.log("✅ Keke Finder Loaded Successfully");
+  console.log("✅ App Loaded");
 });
