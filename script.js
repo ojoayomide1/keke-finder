@@ -38,9 +38,8 @@ let userMarker = null;
 function initMap(mapId) {
   if (map) map.remove();
 
-  // Veritas University is closer to these coordinates
-map = L.map(mapId, { tap: false }).setView([9.0023, 7.4305], 15);
-
+  // Veritas University, Bwari, Abuja - accurate coordinates
+map = L.map(mapId, { tap: false }).setView([9.29070, 7.41642], 16);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19
   }).addTo(map);
