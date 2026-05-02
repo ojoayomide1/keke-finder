@@ -160,7 +160,7 @@ button:disabled {
   transform: scale(1.05);
 }
 
-/* ================= LEAFLET FIX ================= */
+/* ================= LEAFLET ================= */
 .leaflet-container {
   z-index: 1;
 }
@@ -304,7 +304,6 @@ button:disabled {
   line-height: 1.5;
 }
 
-/* ================= SMALL POLISH ================= */
 h1, p {
   user-select: none;
 }
