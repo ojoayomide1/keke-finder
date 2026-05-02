@@ -138,24 +138,34 @@ window.becomeAvailable = () => {
   updateBottomSheet("🟢 You're Online", "Looking for nearby requests...");
 
   navigator.geolocation.watchPosition(async (pos) => {
-    const { latitude, longitude } = pos.coords;
+  const { latitude, longitude } = pos.coords;
 
-    if (map && currentRole === "rider") {
-      map.setView([latitude, longitude], 14);
-    }
+  if (map && currentRole === "rider") {
+    map.setView([latitude, longitude], 14);
+  }
 
-    if (!riderDocId) {
-      const ref = await addDoc(collection(db, "kekes"), {
-        name,
-        lat: latitude,
-        lng: longitude
-      });
-      riderDocId = ref.id;
-    } else {
-      await updateDoc(doc(db, "kekes", riderDocId), { lat: latitude, lng: longitude });
-    }
-  }, null, { enableHighAccuracy: true });
-};
+  if (!riderDocId) {
+    const ref = await addDoc(collection(db, "kekes"), {
+      name,
+      lat: latitude,
+      lng: longitude
+    });
+    riderDocId = ref.id;
+  } else {
+    await updateDoc(doc(db, "kekes", riderDocId), {
+      lat: latitude,
+      lng: longitude
+    });
+  }
+
+  // 🔥 ADD THIS
+  if (currentRideId) {
+    await updateDoc(doc(db, "requests", currentRideId), {
+      riderLat: latitude,
+      riderLng: longitude
+    });
+  }
+});
 
 // ================= STATUS =================
 window.setArriving = async () => {
@@ -176,6 +186,7 @@ function startListeners() {
 
   onSnapshot(q, (snapshot) => {
     if (!map) return;
+    if (currentRole === "student") return;
 
     requestMarkers.forEach(m => map.removeLayer(m));
     requestMarkers = [];
@@ -204,28 +215,31 @@ function startListeners() {
       // Real-time update for current ride
       if (rideId === currentRideId) {
         if (r.riderLat && r.riderLng) {
-          if (routeControl) map.removeControl(routeControl);
-
-          routeControl = L.Routing.control({
-            waypoints: [
-              L.latLng(r.riderLat, r.riderLng),
-              L.latLng(r.lat, r.lng)
-            ],
-            routeWhileDragging: false,
-            addWaypoints: false,
-            draggableWaypoints: false,
-            createMarker: () => null,
-            lineOptions: { styles: [{ color: '#22c55e', weight: 6 }] }
-          }).addTo(map);
-
-          if (!riderMarker) {
-            riderMarker = L.marker([r.riderLat, r.riderLng]).addTo(map).bindPopup("🚖 Rider");
-          } else {
-            riderMarker.setLatLng([r.riderLat, r.riderLng]);
+          if (!routeControl) {
+  routeControl = L.Routing.control({
+    waypoints: [
+      L.latLng(r.riderLat, r.riderLng),
+      L.latLng(r.lat, r.lng)
+    ],
+    addWaypoints: false,
+    draggableWaypoints: false,
+    createMarker: () => null,
+    lineOptions: { styles: [{ color: '#22c55e', weight: 6 }] }
+  }).addTo(map);
+} else {
+  routeControl.setWaypoints([
+    L.latLng(r.riderLat, r.riderLng),
+    L.latLng(r.lat, r.lng)
+  ]);
           }
 
           const dist = map.distance([r.riderLat, r.riderLng], [r.lat, r.lng]);
           updateUI(r, dist);
+
+          currentRideId = rideId;
+
+// 🔥 zoom to student instantly
+map.setView([r.lat, r.lng], 16);
 
           map.fitBounds([[r.riderLat, r.riderLng], [r.lat, r.lng]], { padding: [80, 80] });
         }
