@@ -63,19 +63,25 @@ window.showSignup = () => {
 };
 
 // ================= ROLE SELECT =================
+// ✅ Better: Start listeners AFTER map is initialized
 window.selectRole = (role) => {
   currentRole = role;
   document.getElementById("roleSelect").classList.add("hidden");
 
   if (role === "student") {
     document.getElementById("studentUI").classList.remove("hidden");
-    setTimeout(() => initMap("studentMap"), 200);
+    setTimeout(() => {
+      initMap("studentMap");
+      startListeners(); // 👈 Move here
+    }, 200);
   } else {
     document.getElementById("riderUI").classList.remove("hidden");
-    setTimeout(() => initMap("riderMap"), 200);
+    setTimeout(() => {
+      initMap("riderMap");
+      startListeners(); // 👈 Move here
+    }, 200);
   }
 };
-
 // ✅ Fix: Reset on goBack
 window.goBackToRole = () => {
   document.getElementById("studentUI").classList.add("hidden");
