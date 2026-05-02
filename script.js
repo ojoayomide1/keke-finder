@@ -36,7 +36,10 @@ let userMarker = null;
 
 // ================= MAP =================
 function initMap(mapId) {
-  if (map) map.remove();
+  if (map) {
+    map.remove();
+    map = null;
+  }
 
   map = L.map(mapId, { tap: false }).setView([9.0579, 7.4951], 13);
 
@@ -77,13 +80,14 @@ window.selectRole = (role) => {
 };
 
 window.goBackToRole = () => {
-  // Hide current UI
   document.getElementById("studentUI").classList.add("hidden");
   document.getElementById("riderUI").classList.add("hidden");
-  // Show role select again
   document.getElementById("roleSelect").classList.remove("hidden");
   
-  if (map) map.remove();
+  if (map) {
+    map.remove();
+    map = null;
+  }
 };
 
 // ================= UI HELPERS =================
@@ -138,34 +142,35 @@ window.becomeAvailable = () => {
   updateBottomSheet("🟢 You're Online", "Looking for nearby requests...");
 
   navigator.geolocation.watchPosition(async (pos) => {
-  const { latitude, longitude } = pos.coords;
+    const { latitude, longitude } = pos.coords;
 
-  if (map && currentRole === "rider") {
-    map.setView([latitude, longitude], 14);
-  }
+    if (map && currentRole === "rider") {
+      map.setView([latitude, longitude], 14);
+    }
 
-  if (!riderDocId) {
-    const ref = await addDoc(collection(db, "kekes"), {
-      name,
-      lat: latitude,
-      lng: longitude
-    });
-    riderDocId = ref.id;
-  } else {
-    await updateDoc(doc(db, "kekes", riderDocId), {
-      lat: latitude,
-      lng: longitude
-    });
-  }
+    if (!riderDocId) {
+      const ref = await addDoc(collection(db, "kekes"), {
+        name,
+        lat: latitude,
+        lng: longitude
+      });
+      riderDocId = ref.id;
+    } else {
+      await updateDoc(doc(db, "kekes", riderDocId), {
+        lat: latitude,
+        lng: longitude
+      });
+    }
 
-  // 🔥 ADD THIS
-  if (currentRideId) {
-    await updateDoc(doc(db, "requests", currentRideId), {
-      riderLat: latitude,
-      riderLng: longitude
-    });
-  }
-});
+    // 🔥 update active ride location
+    if (currentRideId) {
+      await updateDoc(doc(db, "requests", currentRideId), {
+        riderLat: latitude,
+        riderLng: longitude
+      });
+    }
+  });
+}; // ✅ FIXED (this was missing)
 
 // ================= STATUS =================
 window.setArriving = async () => {
@@ -186,7 +191,6 @@ function startListeners() {
 
   onSnapshot(q, (snapshot) => {
     if (!map) return;
-    if (currentRole === "student") return;
 
     requestMarkers.forEach(m => map.removeLayer(m));
     requestMarkers = [];
@@ -200,6 +204,7 @@ function startListeners() {
 
       marker.on("click", async () => {
         if (r.status !== "waiting" || currentRole !== "rider") return;
+
         if (confirm("Accept this ride?")) {
           navigator.geolocation.getCurrentPosition(async (pos) => {
             await updateDoc(doc(db, "requests", rideId), {
@@ -207,42 +212,57 @@ function startListeners() {
               riderLat: pos.coords.latitude,
               riderLng: pos.coords.longitude
             });
+
             currentRideId = rideId;
+
+            // 🔥 focus instantly
+            map.setView([r.lat, r.lng], 16);
           });
         }
       });
 
-      // Real-time update for current ride
-      if (rideId === currentRideId) {
-        if (r.riderLat && r.riderLng) {
-          if (!routeControl) {
-  routeControl = L.Routing.control({
-    waypoints: [
-      L.latLng(r.riderLat, r.riderLng),
-      L.latLng(r.lat, r.lng)
-    ],
-    addWaypoints: false,
-    draggableWaypoints: false,
-    createMarker: () => null,
-    lineOptions: { styles: [{ color: '#22c55e', weight: 6 }] }
-  }).addTo(map);
-} else {
-  routeControl.setWaypoints([
-    L.latLng(r.riderLat, r.riderLng),
-    L.latLng(r.lat, r.lng)
-  ]);
-          }
+      // ================= TRACK CURRENT RIDE =================
+      if (rideId === currentRideId && r.riderLat && r.riderLng) {
 
-          const dist = map.distance([r.riderLat, r.riderLng], [r.lat, r.lng]);
-          updateUI(r, dist);
-
-          currentRideId = rideId;
-
-// 🔥 zoom to student instantly
-map.setView([r.lat, r.lng], 16);
-
-          map.fitBounds([[r.riderLat, r.riderLng], [r.lat, r.lng]], { padding: [80, 80] });
+        // ROUTE
+        if (!routeControl) {
+          routeControl = L.Routing.control({
+            waypoints: [
+              L.latLng(r.riderLat, r.riderLng),
+              L.latLng(r.lat, r.lng)
+            ],
+            addWaypoints: false,
+            draggableWaypoints: false,
+            createMarker: () => null,
+            lineOptions: { styles: [{ color: '#22c55e', weight: 6 }] }
+          }).addTo(map);
+        } else {
+          routeControl.setWaypoints([
+            L.latLng(r.riderLat, r.riderLng),
+            L.latLng(r.lat, r.lng)
+          ]);
         }
+
+        // 🔥 rider marker restored
+        if (!riderMarker) {
+          riderMarker = L.marker([r.riderLat, r.riderLng])
+            .addTo(map)
+            .bindPopup("🚖 Rider");
+        } else {
+          riderMarker.setLatLng([r.riderLat, r.riderLng]);
+        }
+
+        const dist = map.distance(
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        );
+
+        updateUI(r, dist);
+
+        map.fitBounds([
+          [r.riderLat, r.riderLng],
+          [r.lat, r.lng]
+        ], { padding: [80, 80] });
       }
     });
   });
@@ -303,6 +323,6 @@ function initBottomSheetDrag() {
 
 window.addEventListener("load", () => {
   initBottomSheetDrag();
-  startListeners();           // Important: Start listener on load
+  startListeners();
   console.log("✅ Keke Finder Loaded Successfully");
 });
