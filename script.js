@@ -109,6 +109,10 @@ function toggleControls(show) {
 
 // ================= STUDENT =================
 window.requestKeke = async () => {
+  const fab = document.querySelector("#studentUI .fab");
+  fab.disabled = true;
+  fab.innerText = "⏳ Finding...";
+  
   updateBottomSheet("📍 Getting location...", "Please wait");
 
   navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -123,11 +127,17 @@ window.requestKeke = async () => {
 
     currentRideId = ref.id;
     map.setView([latitude, longitude], 16);
-
     userMarker = L.marker([latitude, longitude]).addTo(map).bindPopup("📍 You");
 
     updateBottomSheet("🔍 Searching for rider...", "Waiting for acceptance");
-  });
+    
+    fab.disabled = false;
+    fab.innerText = "🚖 Request Ride";
+  }, (err) => {
+    updateBottomSheet("❌ GPS Error", "Enable location access");
+    fab.disabled = false;
+    fab.innerText = "🚖 Request Ride";
+  }, { enableHighAccuracy: true, timeout: 10000 });
 };
 
 // ================= RIDER =================
