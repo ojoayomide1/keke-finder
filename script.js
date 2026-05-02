@@ -76,14 +76,20 @@ window.selectRole = (role) => {
   }
 };
 
+// ✅ Fix: Reset on goBack
 window.goBackToRole = () => {
-  // Hide current UI
   document.getElementById("studentUI").classList.add("hidden");
   document.getElementById("riderUI").classList.add("hidden");
-  // Show role select again
   document.getElementById("roleSelect").classList.remove("hidden");
   
   if (map) map.remove();
+  map = null;
+  currentRideId = null;
+  riderDocId = null;        // 👈 Reset
+  riderMarker = null;       // 👈 Reset
+  routeControl = null;      // 👈 Reset
+  requestMarkers = [];      // 👈 Reset
+  userMarker = null;        // 👈 Reset
 };
 
 // ================= UI HELPERS =================
