@@ -46,6 +46,12 @@ body {
   text-shadow: 0 4px 15px rgba(0,0,0,0.5);
 }
 
+.auth-card {
+  width: 85%;
+  max-width: 320px;
+  margin-top: 30px;
+}
+
 .input-field {
   width: 100%;
   padding: 14px 16px;
@@ -65,6 +71,61 @@ body {
 
 .input-field:focus {
   border-color: #22c55e;
+}
+
+.auth-message {
+  min-height: 20px;
+  margin: 2px 0 8px;
+  color: #fca5a5;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.auth-message.success {
+  color: #86efac;
+}
+
+.auth-primary {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+#authSubmitBtn {
+  margin-top: 10px;
+}
+
+.auth-secondary {
+  width: 100%;
+  background: #333;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.auth-divider {
+  text-align: center;
+  margin: 18px 0;
+  opacity: 0.8;
+}
+
+.user-badge {
+  max-width: 80%;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  font-size: 0.95rem !important;
+}
+
+.logoutBtn {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  color: white;
+  font-size: 14px;
+  z-index: 10;
 }
 
 /* ================= ROLE SELECT ================= */

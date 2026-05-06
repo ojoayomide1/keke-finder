@@ -15,25 +15,27 @@
     <h1> Keke Finder</h1>
     <p>Veritas University  Abuja</p>
 
-    <div style="width: 85%; max-width: 320px; margin-top: 30px;">
-      <input type="email" id="email" placeholder="Email address" class="input-field">
-      <input type="password" id="password" placeholder="Password" class="input-field">
+    <div class="auth-card">
+      <input type="text" id="displayName" placeholder="Full name" class="input-field hidden" autocomplete="name">
+      <input type="email" id="email" placeholder="Email address" class="input-field" autocomplete="email">
+      <input type="password" id="password" placeholder="Password" class="input-field" autocomplete="current-password">
+      <p id="authMessage" class="auth-message"></p>
 
-      <button type="button" onclick="login()" class="green" style="width:100%; margin: 20px 0 10px; padding: 16px;">
+      <button type="button" id="authSubmitBtn" onclick="login()" class="green auth-primary">
         Login
       </button>
 
-      <button type="button" onclick="showSignup()" style="width:100%; background:#333; color:white; padding: 16px; margin-bottom: 30px;">
+      <button type="button" id="authToggleBtn" onclick="showSignup()" class="auth-secondary">
         Create New Account
       </button>
 
-      <p style="text-align: center; margin: 20px 0; opacity: 0.8;"> OR </p>
+      <p class="auth-divider">OR</p>
 
-      <button type="button" onclick="continueAs('student')" class="green" style="width:100%; margin-bottom: 12px;">
+      <button type="button" onclick="continueAs('student')" class="green auth-primary">
          Continue as Student
       </button>
       
-      <button type="button" onclick="continueAs('rider')" class="yellow" style="width:100%;">
+      <button type="button" onclick="continueAs('rider')" class="yellow auth-primary">
          Continue as Rider
       </button>
     </div>
@@ -41,7 +43,9 @@
 
   <!-- ROLE SELECT -->
   <div id="roleSelect" class="screen center hidden">
+    <button type="button" id="logoutBtn" class="logoutBtn hidden" onclick="logout()">Logout</button>
     <h1> Keke Finder</h1>
+    <p id="userBadge" class="user-badge hidden"></p>
     <p>Choose your role</p>
     
     <button type="button" onclick="selectRole('student')" class="green" style="width:80%; max-width:280px;">

@@ -7,25 +7,38 @@ import {
   query,
   orderBy,
   doc,
-  updateDoc
+  updateDoc,
+  setDoc,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+  updateProfile
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
 // ================= FIREBASE =================
 const firebaseConfig = {
-  apiKey: "AIza...",
+  apiKey: "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4",
   authDomain: "keke-finder-cd5fe.firebaseapp.com",
   projectId: "keke-finder-cd5fe",
-  storageBucket: "keke-finder-cd5fe.appspot.com",
+  storageBucket: "keke-finder-cd5fe.firebasestorage.app",
   messagingSenderId: "836112236677",
   appId: "1:836112236677:web:bd2a64d87f093a3230e9ec"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 // ================= GLOBAL =================
 let map = null;
 let currentRole = null;
+let currentUser = null;
+let isSignupMode = false;
 let currentRideId = null;
 let riderDocId = null;
 
@@ -33,6 +46,7 @@ let requestMarkers = [];
 let riderMarker = null;
 let routeControl = null;
 let userMarker = null;
+let unsubscribeRequests = null;
 
 let hasFocused = false;
 
@@ -49,15 +63,167 @@ function initMap(mapId) {
   setTimeout(() => map.invalidateSize(), 500);
 }
 
-// ================= LOGIN =================
-window.continueAs = (role) => {
-  currentRole = role;
+// ================= AUTH =================
+function getAuthValue(id) {
+  return document.getElementById(id).value.trim();
+}
+
+function setAuthMessage(message, type = "error") {
+  const authMessage = document.getElementById("authMessage");
+  authMessage.innerText = message;
+  authMessage.classList.toggle("success", type === "success");
+}
+
+function setAuthLoading(isLoading) {
+  const submitBtn = document.getElementById("authSubmitBtn");
+  const toggleBtn = document.getElementById("authToggleBtn");
+  submitBtn.disabled = isLoading;
+  toggleBtn.disabled = isLoading;
+  submitBtn.innerText = isLoading
+    ? (isSignupMode ? "Creating account..." : "Logging in...")
+    : (isSignupMode ? "Create Account" : "Login");
+}
+
+function showLoginScreen() {
+  document.getElementById("loginScreen").classList.remove("hidden");
+  document.getElementById("roleSelect").classList.add("hidden");
+  document.getElementById("studentUI").classList.add("hidden");
+  document.getElementById("riderUI").classList.add("hidden");
+  if (unsubscribeRequests) unsubscribeRequests();
+  if (map) map.remove();
+  unsubscribeRequests = null;
+  map = null;
+}
+
+function showRoleSelect() {
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("roleSelect").classList.remove("hidden");
+}
+
+function updateSignedInUI(user) {
+  const userBadge = document.getElementById("userBadge");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  if (!user) {
+    userBadge.classList.add("hidden");
+    logoutBtn.classList.add("hidden");
+    userBadge.innerText = "";
+    return;
+  }
+
+  userBadge.innerText = user.displayName || user.email;
+  userBadge.classList.remove("hidden");
+  logoutBtn.classList.remove("hidden");
+}
+
+function authErrorMessage(error) {
+  const messages = {
+    "auth/email-already-in-use": "That email already has an account. Try logging in.",
+    "auth/invalid-email": "Enter a valid email address.",
+    "auth/invalid-credential": "Email or password is incorrect.",
+    "auth/missing-password": "Enter your password.",
+    "auth/weak-password": "Use at least 6 characters for your password."
+  };
+
+  return messages[error.code] || error.message || "Something went wrong. Try again.";
+}
+
+async function createAccount() {
+  const name = getAuthValue("displayName");
+  const email = getAuthValue("email");
+  const password = getAuthValue("password");
+
+  if (!name) {
+    setAuthMessage("Enter your full name.");
+    return;
+  }
+
+  setAuthLoading(true);
+
+  try {
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(credential.user, { displayName: name });
+
+    try {
+      await setDoc(doc(db, "users", credential.user.uid), {
+        name,
+        email,
+        createdAt: serverTimestamp()
+      });
+    } catch (profileError) {
+      console.warn("Profile save failed:", profileError);
+    }
+
+    setAuthMessage("Account created. Choose your role.", "success");
+    showRoleSelect();
+  } catch (error) {
+    setAuthMessage(authErrorMessage(error));
+  } finally {
+    setAuthLoading(false);
+  }
+}
+
+async function signIn() {
+  const email = getAuthValue("email");
+  const password = getAuthValue("password");
+
+  setAuthLoading(true);
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    setAuthMessage("");
+    showRoleSelect();
+  } catch (error) {
+    setAuthMessage(authErrorMessage(error));
+  } finally {
+    setAuthLoading(false);
+  }
+}
+
+window.continueAs = (role) => {
+  currentRole = role;
+  currentUser = null;
+  showRoleSelect();
 };
 
-window.login = () => alert("Login coming soon");
-window.showSignup = () => alert("Signup coming soon");
+window.login = () => {
+  if (isSignupMode) {
+    createAccount();
+  } else {
+    signIn();
+  }
+};
+
+window.showSignup = () => {
+  isSignupMode = !isSignupMode;
+  const displayName = document.getElementById("displayName");
+  const password = document.getElementById("password");
+  const submitBtn = document.getElementById("authSubmitBtn");
+  const toggleBtn = document.getElementById("authToggleBtn");
+
+  displayName.classList.toggle("hidden", !isSignupMode);
+  password.autocomplete = isSignupMode ? "new-password" : "current-password";
+  submitBtn.innerText = isSignupMode ? "Create Account" : "Login";
+  toggleBtn.innerText = isSignupMode ? "Back to Login" : "Create New Account";
+  setAuthMessage("");
+};
+
+window.logout = async () => {
+  await signOut(auth);
+  currentUser = null;
+  currentRole = null;
+  updateSignedInUI(null);
+  showLoginScreen();
+};
+
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  updateSignedInUI(user);
+
+  if (user && !currentRole) {
+    showRoleSelect();
+  }
+});
 
 // ================= ROLE =================
 window.selectRole = (role) => {
@@ -84,8 +250,10 @@ window.goBackToRole = () => {
   document.getElementById("riderUI").classList.add("hidden");
   document.getElementById("roleSelect").classList.remove("hidden");
 
+  if (unsubscribeRequests) unsubscribeRequests();
   if (map) map.remove();
 
+  unsubscribeRequests = null;
   map = null;
   currentRideId = null;
   riderDocId = null;
@@ -130,6 +298,8 @@ window.requestKeke = async () => {
       lat: latitude,
       lng: longitude,
       status: "waiting",
+      studentId: currentUser?.uid || null,
+      studentName: currentUser?.displayName || currentUser?.email || "Guest student",
       time: Date.now()
     });
 
@@ -148,7 +318,8 @@ window.requestKeke = async () => {
 
 // ================= RIDER =================
 window.becomeAvailable = () => {
-  const name = prompt("Enter your rider name:");
+  const defaultName = currentUser?.displayName || currentUser?.email || "";
+  const name = defaultName || prompt("Enter your rider name:");
   if (!name) return;
 
   updateBottomSheet(" You're Online", "Looking for rides...");
@@ -164,6 +335,7 @@ window.becomeAvailable = () => {
     if (!riderDocId) {
       const ref = await addDoc(collection(db, "kekes"), {
         name,
+        riderId: currentUser?.uid || null,
         lat: latitude,
         lng: longitude
       });
@@ -204,9 +376,11 @@ window.completeRide = async () => {
 
 // ================= LISTENER =================
 function startListeners() {
+  if (unsubscribeRequests) unsubscribeRequests();
+
   const q = query(collection(db, "requests"), orderBy("time", "desc"));
 
-  onSnapshot(q, (snapshot) => {
+  unsubscribeRequests = onSnapshot(q, (snapshot) => {
     if (!map) return;
 
     requestMarkers.forEach(m => map.removeLayer(m));
@@ -330,5 +504,10 @@ function initBottomSheetDrag() {
 
 window.addEventListener("load", () => {
   initBottomSheetDrag();
+  ["displayName", "email", "password"].forEach((id) => {
+    document.getElementById(id).addEventListener("keydown", (event) => {
+      if (event.key === "Enter") window.login();
+    });
+  });
   console.log(" App Loaded");
 });
