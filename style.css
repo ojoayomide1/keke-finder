@@ -1,0 +1,309 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: #111;
+}
+
+/* ================= SCREENS ================= */
+.screen {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+  color: white;
+}
+
+/* ================= LOGIN ================= */
+#loginScreen {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+}
+
+#loginScreen h1 {
+  font-size: 2.8rem;
+  text-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+
+.input-field {
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-field::placeholder {
+  color: rgba(255,255,255,0.5);
+}
+
+.input-field:focus {
+  border-color: #22c55e;
+}
+
+/* ================= ROLE SELECT ================= */
+#roleSelect {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+}
+
+#roleSelect h1 {
+  font-size: 2.8rem;
+  text-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+
+#roleSelect p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  max-width: 280px;
+}
+
+/* ================= BUTTONS ================= */
+button {
+  padding: 16px 28px;
+  font-size: 17px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.green {
+  background: #22c55e;
+  color: white;
+}
+
+.yellow {
+  background: #facc15;
+  color: #111;
+}
+
+/* ================= MAP ================= */
+.map {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* ================= FAB ================= */
+.fab {
+  position: absolute;
+  bottom: 200px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50px;
+  padding: 16px 28px;
+  font-weight: 700;
+  z-index: 2000;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+
+/* ================= BACK BUTTON ================= */
+.backBtn {
+  position: absolute;
+  top: 20px;
+  left: 15px;
+  font-size: 26px;
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px);
+  color: white;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  z-index: 2500 !important;
+  border: 2px solid rgba(255,255,255,0.3);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backBtn:hover {
+  background: rgba(0, 0, 0, 0.9) !important;
+  transform: scale(1.05);
+}
+
+/* ================= LEAFLET ================= */
+.leaflet-container {
+  z-index: 1;
+}
+
+.leaflet-control,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 800 !important;
+}
+
+.leaflet-top.leaflet-right {
+  top: 70px !important;
+  right: 10px !important;
+}
+
+/* Hide routing panel on student side */
+#studentUI .leaflet-routing-container {
+  display: none !important;
+}
+
+/* ================= BOTTOM SHEET ================= */
+.bottomSheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  min-height: 140px;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 15px 20px 25px;
+  box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
+  z-index: 2000;
+  transform: translateY(0);
+  transition: transform 0.25s ease, min-height 0.25s ease;
+  touch-action: none;
+  user-select: none;
+}
+
+.bottomSheet.expanded {
+  min-height: 220px;
+}
+
+/* DRAG ZONE */
+.dragZone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  z-index: 10;
+}
+
+/* HANDLE */
+.handle {
+  width: 50px;
+  height: 5px;
+  background: #ccc;
+  border-radius: 10px;
+  margin: 0 auto 12px;
+  cursor: grab;
+}
+
+/* TEXT */
+.bottomSheet h3 {
+  font-size: 19px;
+  margin-bottom: 6px;
+}
+
+.bottomSheet p {
+  font-size: 14.5px;
+  color: #666;
+  line-height: 1.4;
+}
+
+/* CONTROLS */
+.controls {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+.controls button {
+  flex: 1;
+}
+
+/* ================= TOAST NOTIFICATIONS ================= */
+.toast {
+  position: fixed;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  text-align: center;
+  max-width: 90vw;
+}
+
+.toast.show {
+  opacity: 1;
+}
+
+.toast.error {
+  background: #ef4444;
+}
+
+.toast.success {
+  background: #22c55e;
+}
+
+/* ================= LOADING ANIMATION ================= */
+.loadingPulse {
+  animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* ================= ROUTING PANEL ================= */
+.leaflet-routing-container {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important;
+  max-height: 45vh !important;
+  overflow-y: auto;
+}
+
+.leaflet-routing-alt,
+.leaflet-routing-instructions {
+  font-size: 15px !important;
+  line-height: 1.5;
+}
+
+h1, p {
+  user-select: none;
+}
