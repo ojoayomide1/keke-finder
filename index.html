@@ -60,6 +60,27 @@
   <!-- STUDENT UI -->
   <div id="studentUI" class="screen hidden">
     <div id="studentMap" class="map"></div>
+    <div id="campusEditor" class="campus-editor hidden">
+      <div class="campus-editor__header">
+        <strong>Campus Editor</strong>
+        <button type="button" id="clearCampusDraftBtn">Clear</button>
+      </div>
+
+      <label for="campusPointName">Name</label>
+      <input type="text" id="campusPointName" placeholder="Main Gate" autocomplete="off">
+
+      <label for="campusPointType">Mode</label>
+      <select id="campusPointType">
+        <option value="location">Location marker</option>
+        <option value="path">Path / road</option>
+        <option value="zone">Zone / boundary</option>
+      </select>
+
+      <p id="campusEditorHint">Click the map to capture coordinates.</p>
+      <textarea id="campusEditorOutput" readonly spellcheck="false"></textarea>
+      <button type="button" id="saveCampusShapeBtn">Save Shape</button>
+      <button type="button" id="copyCampusJsonBtn">Copy JSON</button>
+    </div>
     <button class="backBtn" onclick="goBackToRole()"></button>
     <button class="fab green" id="requestBtn" onclick="requestKeke()"> Request Ride</button>
 

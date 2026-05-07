@@ -237,6 +237,108 @@ button:disabled {
   right: 10px !important;
 }
 
+/* ================= CAMPUS EDITOR ================= */
+.campus-editor {
+  position: absolute;
+  top: 82px;
+  right: 14px;
+  width: min(330px, calc(100vw - 28px));
+  max-height: calc(100vh - 270px);
+  overflow: auto;
+  z-index: 2600;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(17, 24, 39, 0.94);
+  color: white;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  backdrop-filter: blur(10px);
+  text-align: left;
+}
+
+.campus-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.campus-editor__header strong {
+  font-size: 15px;
+}
+
+.campus-editor label {
+  display: block;
+  margin: 10px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.72);
+  text-transform: uppercase;
+}
+
+.campus-editor input,
+.campus-editor select,
+.campus-editor textarea {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.09);
+  color: white;
+  font-size: 14px;
+  outline: none;
+}
+
+.campus-editor input,
+.campus-editor select {
+  height: 42px;
+  padding: 0 10px;
+}
+
+.campus-editor select option {
+  color: #111;
+}
+
+.campus-editor textarea {
+  min-height: 150px;
+  margin-top: 10px;
+  padding: 10px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  line-height: 1.4;
+}
+
+.campus-editor p {
+  margin-top: 10px;
+  color: rgba(255,255,255,0.78);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.campus-editor button {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+#copyCampusJsonBtn {
+  width: 100%;
+  margin-top: 10px;
+  background: #22c55e;
+  color: white;
+}
+
+#saveCampusShapeBtn {
+  width: 100%;
+  margin-top: 10px;
+  background: #facc15;
+  color: #111;
+}
+
+#clearCampusDraftBtn {
+  background: rgba(255,255,255,0.12);
+  color: white;
+}
+
 /* Hide routing panel on student side */
 #studentUI .leaflet-routing-container {
   display: none !important;
