@@ -175,6 +175,11 @@ button:disabled {
   color: #111;
 }
 
+.danger {
+  background: #ef4444;
+  color: white;
+}
+
 /* ================= MAP ================= */
 .map {
   width: 100%;
@@ -199,21 +204,29 @@ button:disabled {
 /* ================= BACK BUTTON ================= */
 .backBtn {
   position: absolute;
-  top: 20px;
-  left: 15px;
-  font-size: 26px;
-  background: rgba(0, 0, 0, 0.75) !important;
+  top: 86px;
+  left: 14px;
+  font-size: 0;
+  background: rgba(17, 24, 39, 0.86) !important;
   backdrop-filter: blur(8px);
   color: white;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  border-radius: 14px;
+  width: 44px;
+  height: 44px;
   z-index: 2500 !important;
   border: 2px solid rgba(255,255,255,0.3);
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.28);
+}
+
+.backBtn::before {
+  content: "<";
+  font-size: 24px;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 
 .backBtn:hover {
@@ -294,6 +307,36 @@ button:disabled {
   font-size: 14.5px;
   color: #666;
   line-height: 1.4;
+}
+
+.ride-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ride-detail {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3f4f6;
+}
+
+.ride-detail span {
+  display: block;
+  margin-bottom: 4px;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.ride-detail strong {
+  display: block;
+  color: #111827;
+  font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 /* CONTROLS */

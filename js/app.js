@@ -16,6 +16,8 @@ let currentRole = null;
 let currentUser = null;
 let currentRideId = null;
 let riderDocId = null;
+let currentRiderName = "";
+let riderWatchId = null;
 
 let requestMarkers = [];
 let riderMarker = null;
@@ -63,12 +65,15 @@ window.selectRole = (role) => {
 
   if (role === "student") {
     document.getElementById("studentUI").classList.remove("hidden");
+    setButtonVisible("requestBtn", !currentRideId);
+    document.getElementById("studentControls").style.display = currentRideId ? "flex" : "none";
     setTimeout(() => {
       initMap("studentMap");
       startListeners();
     }, 200);
   } else {
     document.getElementById("riderUI").classList.remove("hidden");
+    setButtonVisible("goLiveBtn", !riderWatchId);
     setTimeout(() => {
       initMap("riderMap");
       startListeners();
@@ -93,6 +98,7 @@ window.goBackToRole = () => {
   requestMarkers = [];
   userMarker = null;
   hasFocused = false;
+  clearRideDetails();
 };
 
 // ================= UI =================
@@ -116,8 +122,58 @@ function toggleControls(show) {
   if (controls) controls.style.display = show ? "flex" : "none";
 }
 
+function showToast(message, type = "success") {
+  const toast = document.createElement("div");
+  toast.className = `toast ${type} show`;
+  toast.innerText = message;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 2200);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function setButtonVisible(id, isVisible) {
+  const button = document.getElementById(id);
+  if (!button) return;
+  button.classList.toggle("hidden", !isVisible);
+  button.disabled = !isVisible;
+}
+
+function updateRideDetails(target, details) {
+  const container = document.getElementById(`${target}RideDetails`);
+  if (!container) return;
+
+  container.innerHTML = details
+    .filter(detail => detail.value)
+    .map(detail => `
+      <div class="ride-detail">
+        <span>${escapeHtml(detail.label)}</span>
+        <strong>${escapeHtml(detail.value)}</strong>
+      </div>
+    `)
+    .join("");
+}
+
+function clearRideDetails() {
+  updateRideDetails("student", []);
+  updateRideDetails("rider", []);
+}
+
 // ================= STUDENT =================
 window.requestKeke = async () => {
+  if (currentRideId) return;
+
   const fab = document.querySelector("#studentUI .fab");
   fab.disabled = true;
   fab.innerText = " Finding...";
@@ -140,22 +196,58 @@ window.requestKeke = async () => {
 
     userMarker = L.marker([latitude, longitude]).addTo(map).bindPopup(" You");
 
-    updateBottomSheet(" Searching...", "Waiting for rider");
+    setButtonVisible("requestBtn", false);
+    toggleControls(true);
+    updateBottomSheet("Ride requested", "Waiting for a rider to accept");
+    updateRideDetails("student", [
+      { label: "Status", value: "Waiting" },
+      { label: "Pickup", value: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}` }
+    ]);
+    showToast("Ride requested");
 
     fab.disabled = false;
     fab.innerText = " Request Ride";
+  }, () => {
+    fab.disabled = false;
+    fab.innerText = " Request Ride";
+    showToast("Location permission is needed to request a ride.", "error");
   });
+};
+
+window.cancelRide = async () => {
+  if (!currentRideId) return;
+
+  await updateDoc(doc(db, "requests", currentRideId), {
+    status: "cancelled"
+  });
+
+  currentRideId = null;
+  hasFocused = false;
+  toggleControls(false);
+  setButtonVisible("requestBtn", true);
+  updateBottomSheet("Request cancelled", "No active ride");
+  updateRideDetails("student", []);
+  showToast("Ride request cancelled");
 };
 
 // ================= RIDER =================
 window.becomeAvailable = () => {
+  if (riderWatchId) return;
+
   const defaultName = currentUser?.displayName || currentUser?.email || "";
   const name = defaultName || prompt("Enter your rider name:");
   if (!name) return;
 
-  updateBottomSheet(" You're Online", "Looking for rides...");
+  currentRiderName = name;
+  setButtonVisible("goLiveBtn", false);
+  updateBottomSheet("You're live", "Looking for ride requests");
+  updateRideDetails("rider", [
+    { label: "Rider", value: name },
+    { label: "Status", value: "Online" }
+  ]);
+  showToast("You are live");
 
-  navigator.geolocation.watchPosition(async (pos) => {
+  riderWatchId = navigator.geolocation.watchPosition(async (pos) => {
     const { latitude, longitude } = pos.coords;
 
     //  Only follow BEFORE accepting ride
@@ -185,7 +277,13 @@ window.becomeAvailable = () => {
         riderLng: longitude
       });
     }
-  }, null, { enableHighAccuracy: true });
+  }, () => {
+    riderWatchId = null;
+    setButtonVisible("goLiveBtn", true);
+    updateBottomSheet("Offline", "Location permission is needed to go live");
+    updateRideDetails("rider", []);
+    showToast("Location permission is needed to go live.", "error");
+  }, { enableHighAccuracy: true });
 };
 
 // ================= STATUS =================
@@ -203,6 +301,13 @@ window.completeRide = async () => {
   await updateDoc(doc(db, "requests", currentRideId), {
     status: "completed"
   });
+
+  currentRideId = null;
+  toggleControls(false);
+  updateRideDetails("rider", [
+    { label: "Rider", value: currentRiderName },
+    { label: "Status", value: "Online" }
+  ]);
 };
 
 // ================= LISTENER =================
@@ -231,12 +336,19 @@ function startListeners() {
           navigator.geolocation.getCurrentPosition(async (pos) => {
             await updateDoc(doc(db, "requests", rideId), {
               status: "accepted",
+              riderName: currentRiderName || currentUser?.displayName || currentUser?.email || "Rider",
               riderLat: pos.coords.latitude,
               riderLng: pos.coords.longitude
             });
 
             currentRideId = rideId;
             hasFocused = false;
+            updateBottomSheet("Ride accepted", `Heading to ${r.studentName || "student"}`);
+            updateRideDetails("rider", [
+              { label: "Student", value: r.studentName || "Guest student" },
+              { label: "Status", value: "Accepted" }
+            ]);
+            showToast("Ride accepted");
           });
         }
       });
