@@ -18,12 +18,15 @@ body {
 .screen {
   width: 100vw;
   height: 100vh;
+  height: 100dvh; /* Use dynamic viewport height for mobile */
   position: relative;
   overflow: hidden;
 }
 
-.hidden {
-  display: none !important;
+#loginScreen.screen {
+  overflow-y: auto;
+  display: block; /* Allow flex content to flow naturally if taller than screen */
+  padding: 40px 0;
 }
 
 .center {
@@ -31,6 +34,7 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  min-height: 100%;
   gap: 20px;
   text-align: center;
   color: white;
