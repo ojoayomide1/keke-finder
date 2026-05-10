@@ -60,8 +60,70 @@
   <!-- STUDENT UI -->
   <div id="studentUI" class="screen hidden">
     <div id="studentMap" class="map"></div>
+    
+    <!-- Sidebar Toggle -->
+    <button class="menuBtn" onclick="toggleSidebar()"></button>
     <button class="backBtn" onclick="goBackToRole()"></button>
+    
     <button class="fab green" id="requestBtn" onclick="requestKeke()"> Request Ride</button>
+
+    <!-- Sidebar Overlay & Container -->
+    <div id="sidebarOverlay" class="sidebar-overlay hidden" onclick="toggleSidebar()"></div>
+    <div id="studentSidebar" class="sidebar hidden">
+      <div class="sidebar-header">
+        <h2 id="sidebarName">Student Name</h2>
+        <p id="sidebarEmail">email@example.com</p>
+      </div>
+      <nav class="sidebar-nav">
+        <button onclick="switchStudentView('map')" class="nav-item active">
+          <i>📍</i> Map
+        </button>
+        <button onclick="switchStudentView('activity')" class="nav-item">
+          <i>🕒</i> Activity
+        </button>
+        <button onclick="switchStudentView('profile')" class="nav-item">
+          <i>👤</i> Profile
+        </button>
+        <div class="nav-divider"></div>
+        <button onclick="logout()" class="nav-item logout">
+          <i>🚪</i> Logout
+        </button>
+      </nav>
+    </div>
+
+    <!-- Activity Section -->
+    <div id="activityView" class="view-overlay hidden">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchStudentView('map')">←</button>
+        <h2>Your Activity</h2>
+      </div>
+      <div id="activityList" class="activity-list">
+        <!-- Activity items will be injected here -->
+        <p class="empty-state">No recent activity</p>
+      </div>
+    </div>
+
+    <!-- Profile Section -->
+    <div id="profileView" class="view-overlay hidden">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchStudentView('map')">←</button>
+        <h2>Profile Settings</h2>
+      </div>
+      <div class="profile-content">
+        <div class="profile-card">
+          <div class="profile-avatar">S</div>
+          <h3 id="profileName">Student Name</h3>
+          <p id="profileEmail">email@example.com</p>
+        </div>
+        <div class="settings-list">
+          <div class="settings-item">
+            <span>App Version</span>
+            <strong>1.0.0</strong>
+          </div>
+          <button onclick="logout()" class="danger-text">Logout from account</button>
+        </div>
+      </div>
+    </div>
 
     <div class="bottomSheet" id="studentSheet">
       <div class="dragZone"></div>

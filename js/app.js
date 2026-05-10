@@ -67,6 +67,7 @@ window.selectRole = (role) => {
     document.getElementById("studentUI").classList.remove("hidden");
     setButtonVisible("requestBtn", !currentRideId);
     document.getElementById("studentControls").style.display = currentRideId ? "flex" : "none";
+    updateStudentProfileUI();
     setTimeout(() => {
       initMap("studentMap");
       startListeners();
@@ -99,7 +100,91 @@ window.goBackToRole = () => {
   userMarker = null;
   hasFocused = false;
   clearRideDetails();
+  
+  // Reset student views
+  switchStudentView('map');
 };
+
+// ================= STUDENT DASHBOARD =================
+window.toggleSidebar = () => {
+  const sidebar = document.getElementById("studentSidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  const isHidden = sidebar.classList.contains("hidden");
+
+  sidebar.classList.toggle("hidden", !isHidden);
+  overlay.classList.toggle("hidden", !isHidden);
+};
+
+window.switchStudentView = (view) => {
+  const views = ["activityView", "profileView"];
+  views.forEach(v => document.getElementById(v).classList.add("hidden"));
+
+  if (view === "activity") {
+    document.getElementById("activityView").classList.remove("hidden");
+    fetchRideHistory();
+  } else if (view === "profile") {
+    document.getElementById("profileView").classList.remove("hidden");
+  }
+
+  // Update nav active state
+  document.querySelectorAll(".nav-item").forEach(item => {
+    item.classList.toggle("active", item.innerText.toLowerCase().includes(view));
+  });
+
+  if (document.getElementById("studentSidebar")) {
+    document.getElementById("studentSidebar").classList.add("hidden");
+    document.getElementById("sidebarOverlay").classList.add("hidden");
+  }
+};
+
+async function fetchRideHistory() {
+  const list = document.getElementById("activityList");
+  if (!currentUser) return;
+
+  const q = query(
+    collection(db, "requests"),
+    orderBy("time", "desc")
+  );
+
+  // For simplicity in this prototype, we'll just use a one-time get or keep it simple with existing listener logic
+  // but let's do a quick snapshot for history
+  onSnapshot(q, (snapshot) => {
+    const history = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.studentId === currentUser.uid) {
+        history.push({ id: doc.id, ...data });
+      }
+    });
+
+    if (history.length === 0) {
+      list.innerHTML = '<p class="empty-state">No recent activity</p>';
+      return;
+    }
+
+    list.innerHTML = history.map(h => `
+      <div class="activity-item">
+        <div class="activity-info">
+          <h4>Ride to Campus</h4>
+          <p>${new Date(h.time).toLocaleString()}</p>
+        </div>
+        <span class="status-pill ${h.status}">${h.status}</span>
+      </div>
+    `).join("");
+  });
+}
+
+function updateStudentProfileUI() {
+  if (!currentUser) return;
+  const name = currentUser.displayName || "Guest Student";
+  const email = currentUser.email || "No email";
+
+  document.getElementById("sidebarName").innerText = name;
+  document.getElementById("sidebarEmail").innerText = email;
+  document.getElementById("profileName").innerText = name;
+  document.getElementById("profileEmail").innerText = email;
+  document.querySelector(".profile-avatar").innerText = name.charAt(0).toUpperCase();
+}
 
 // ================= UI =================
 function getActiveSheet() {
@@ -454,6 +539,9 @@ window.addEventListener("load", () => {
     },
     onUserChanged: (user) => {
       currentUser = user;
+      if (user && currentRole === "student") {
+        updateStudentProfileUI();
+      }
     },
     showLoginScreen,
     showRoleSelect
