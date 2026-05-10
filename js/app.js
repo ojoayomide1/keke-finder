@@ -34,7 +34,16 @@ let hasFocused = false;
 
 // ================= MAP =================
 function initMap(mapId) {
-  if (map) map.remove();
+  if (map) {
+    map.remove();
+    map = null;
+  }
+
+  // Reset marker/route references so they are re-created on the new map
+  riderMarker = null;
+  userMarker = null;
+  routeControl = null;
+  requestMarkers = [];
 
   map = L.map(mapId, { tap: false }).setView([9.2880, 7.4130], 16);
 
@@ -498,6 +507,19 @@ function updateRideUI(r) {
       riderMarker = L.circleMarker([r.riderLat, r.riderLng], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(map);
     } else {
       riderMarker.setLatLng([r.riderLat, r.riderLng]);
+    }
+  }
+
+  // Update Student/Destination Markers for Rider
+  if (currentRole === "rider") {
+    if (!userMarker) {
+      userMarker = L.circleMarker([r.pickupLat, r.pickupLng], { radius: 6, color: '#ef4444', fillOpacity: 1 }).addTo(map);
+      userMarker.bindPopup("Pickup: " + r.pickupName);
+    }
+    // If on trip, maybe show drop-off too
+    if (r.status === "picked_up") {
+      userMarker.setLatLng([r.dropoffLat, r.dropoffLng]);
+      userMarker.setPopupContent("Drop-off: " + r.dropoffName);
     }
   }
 
