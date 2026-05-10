@@ -358,6 +358,11 @@ window.becomeAvailable = () => {
     
     // Update local map view if not in active ride
     if (map && !currentRideId) {
+      if (!riderMarker) {
+        riderMarker = L.circleMarker([latitude, longitude], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(map);
+      } else {
+        riderMarker.setLatLng([latitude, longitude]);
+      }
       map.setView([latitude, longitude], 15);
     }
 
@@ -385,6 +390,10 @@ window.becomeAvailable = () => {
 
 window.setArriving = async () => {
   if (currentRideId) await updateDoc(doc(db, "requests", currentRideId), { status: "arriving" });
+};
+
+window.startRide = async () => {
+  if (currentRideId) await updateDoc(doc(db, "requests", currentRideId), { status: "picked_up" });
 };
 
 window.completeRide = async () => {
@@ -480,11 +489,22 @@ window.acceptRide = async (rideId) => {
 
 function updateRideUI(r) {
   if (!map) return;
-  const dist = r.riderLat ? map.distance([r.riderLat, r.riderLng], [r.pickupLat, r.pickupLng]) : 0;
+  const distToPickup = r.riderLat ? map.distance([r.riderLat, r.riderLng], [r.pickupLat, r.pickupLng]) : 0;
+  const distToDropoff = r.riderLat ? map.distance([r.riderLat, r.riderLng], [r.dropoffLat, r.dropoffLng]) : 0;
   
+  // Update Rider Marker
+  if (r.riderLat) {
+    if (!riderMarker) {
+      riderMarker = L.circleMarker([r.riderLat, r.riderLng], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(map);
+    } else {
+      riderMarker.setLatLng([r.riderLat, r.riderLng]);
+    }
+  }
+
   if (currentRole === "student") {
-    if (r.status === "accepted") updateBottomSheet("Rider Coming", `${Math.round(dist)}m away`);
+    if (r.status === "accepted") updateBottomSheet("Rider Coming", `${Math.round(distToPickup)}m away`);
     else if (r.status === "arriving") updateBottomSheet("Rider Arriving", "Get ready");
+    else if (r.status === "picked_up") updateBottomSheet("On Trip", `Heading to ${r.dropoffName}`);
     else if (r.status === "completed") {
       updateBottomSheet("Completed", "Ride finished");
       setTimeout(() => {
@@ -494,10 +514,15 @@ function updateRideUI(r) {
     }
   } else {
     if (r.status === "accepted") {
-      updateBottomSheet("Heading to Pickup", `${Math.round(dist)}m away`, "rider");
+      updateBottomSheet("Heading to Pickup", `${Math.round(distToPickup)}m away`, "rider");
       toggleControls(true, "rider");
+      updateRiderControls("arriving");
     } else if (r.status === "arriving") {
       updateBottomSheet("Arrived at Pickup", "Wait for student", "rider");
+      updateRiderControls("picked_up");
+    } else if (r.status === "picked_up") {
+      updateBottomSheet("Heading to Drop-off", `${Math.round(distToDropoff)}m away`, "rider");
+      updateRiderControls("completed");
     } else if (r.status === "completed") {
       updateBottomSheet("Job Done", "Payment received", "rider");
       setTimeout(() => {
@@ -508,14 +533,34 @@ function updateRideUI(r) {
   }
   
   if (r.riderLat) {
-    if (routeControl) map.removeControl(routeControl);
-    routeControl = L.Routing.control({
-      waypoints: [L.latLng(r.riderLat, r.riderLng), L.latLng(r.pickupLat, r.pickupLng)],
-      createMarker: () => null,
-      addWaypoints: false,
-      draggableWaypoints: false,
-      lineOptions: { styles: [{ color: '#22c55e', weight: 6 }] }
-    }).addTo(map);
+    const targetLat = (r.status === "picked_up") ? r.dropoffLat : r.pickupLat;
+    const targetLng = (r.status === "picked_up") ? r.dropoffLng : r.pickupLng;
+
+    if (!routeControl) {
+      routeControl = L.Routing.control({
+        waypoints: [L.latLng(r.riderLat, r.riderLng), L.latLng(targetLat, targetLng)],
+        createMarker: () => null,
+        addWaypoints: false,
+        draggableWaypoints: false,
+        show: false, // Remove instruction panel
+        lineOptions: { styles: [{ color: '#22c55e', weight: 6 }] }
+      }).addTo(map);
+    } else {
+      routeControl.setWaypoints([L.latLng(r.riderLat, r.riderLng), L.latLng(targetLat, targetLng)]);
+    }
+  }
+}
+
+function updateRiderControls(nextState) {
+  const container = document.getElementById("riderControls");
+  if (!container) return;
+
+  if (nextState === "arriving") {
+    container.innerHTML = `<button onclick="setArriving()" class="yellow">I've Arrived</button>`;
+  } else if (nextState === "picked_up") {
+    container.innerHTML = `<button onclick="startRide()" class="green">Student Picked Up</button>`;
+  } else if (nextState === "completed") {
+    container.innerHTML = `<button onclick="completeRide()" class="green">Complete Ride</button>`;
   }
 }
 
