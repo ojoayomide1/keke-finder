@@ -7,6 +7,7 @@ import {
   doc,
   updateDoc,
   getDoc,
+  getDocs,
   where,
   db
 } from "./firebase.js";
@@ -234,6 +235,7 @@ window.hideRiderMap = () => {
   document.getElementById("riderDashboard").classList.remove("hidden");
   document.getElementById("riderMap").classList.add("hidden");
   document.getElementById("riderMapBackBtn").classList.add("hidden");
+  document.getElementById("riderSheet").classList.add("hidden");
 };
 
 // ================= RIDE LOGIC =================
@@ -245,31 +247,40 @@ window.requestKeke = async () => {
   btn.innerText = "Checking...";
 
   try {
-    // Check Firestore for any active requests by this user
+    // Check Firestore for any active requests by this user (prevent duplicate rides after refresh)
     const q = query(
       collection(db, "requests"), 
       where("studentId", "==", currentUser?.uid || (currentUser?.isGuest ? "guest" : "unknown")),
       where("status", "in", ["waiting", "accepted", "arriving"])
     );
     
-    // For simplicity in this env, we'll use onSnapshot or a getDocs if we had it, 
-    // but let's stick to the currentRideId local check + a quick fetch logic if needed.
-    // Actually, local currentRideId is usually enough for the session, 
-    // but let's add a quick logic to handle multiple tabs/refreshes if possible.
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const activeRide = querySnapshot.docs[0];
+      currentRideId = activeRide.id;
+      showToast("Restoring active ride...");
+      
+      // Restore Map/Sheet view
+      document.getElementById("studentDashboard").classList.add("hidden");
+      document.getElementById("studentMap").classList.remove("hidden");
+      document.getElementById("mapBackBtn").classList.remove("hidden");
+      document.getElementById("studentSheet").classList.remove("hidden");
+      initMap("studentMap");
+      startListeners();
+      
+      updateRideUI(activeRide.data());
+      return;
+    }
     
     const pickupId = document.getElementById("pickupSelect").value;
     const dropoffId = document.getElementById("dropoffSelect").value;
 
     if (!pickupId || !dropoffId) {
       showToast("Select pickup and drop-off", "error");
-      btn.disabled = false;
-      btn.innerText = "Request Ride";
       return;
     }
     if (pickupId === dropoffId) {
       showToast("Pickup and drop-off cannot be same", "error");
-      btn.disabled = false;
-      btn.innerText = "Request Ride";
       return;
     }
 
