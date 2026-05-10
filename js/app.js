@@ -23,6 +23,7 @@ let currentRideId = null;
 let riderDocId = null;
 let currentRiderName = "";
 let riderWatchId = null;
+let lastRiderLoc = null;
 
 let requestMarkers = [];
 let riderMarker = null;
@@ -538,24 +539,46 @@ function updateAvailableRidesList(rides) {
 window.acceptRide = async (rideId) => {
   if (currentRideId) return showToast("Finish current ride first", "error");
 
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    await updateDoc(doc(db, "requests", rideId), {
-      status: "accepted",
-      riderName: currentUser.displayName,
-      riderLat: pos.coords.latitude,
-      riderLng: pos.coords.longitude
-    });
-    currentRideId = rideId;
-    
-    // Switch to map view
-    document.getElementById("riderDashboard").classList.add("hidden");
-    document.getElementById("riderMap").classList.remove("hidden");
-    document.getElementById("riderSheet").classList.remove("hidden");
-    document.getElementById("riderMapBackBtn").classList.remove("hidden");
-    
-    initMap("riderMap");
-    showToast("Ride accepted");
-  });
+  // Instant UI Feedback
+  document.getElementById("riderDashboard").classList.add("hidden");
+  document.getElementById("riderMap").classList.remove("hidden");
+  document.getElementById("riderSheet").classList.remove("hidden");
+  document.getElementById("riderMapBackBtn").classList.remove("hidden");
+  updateBottomSheet("Accepting...", "Syncing with student...", "rider");
+  
+  initMap("riderMap");
+  currentRideId = rideId;
+
+  const performAccept = async (lat, lng) => {
+    try {
+      await updateDoc(doc(db, "requests", rideId), {
+        status: "accepted",
+        riderId: currentUser.uid,
+        riderName: currentUser.displayName,
+        riderLat: lat,
+        riderLng: lng
+      });
+      showToast("Ride accepted");
+      startListeners();
+    } catch (err) {
+      showToast("Failed to accept ride", "error");
+      hideRiderMap();
+    }
+  };
+
+  if (lastRiderLoc) {
+    performAccept(lastRiderLoc.lat, lastRiderLoc.lng);
+  } else {
+    showToast("Fetching location...", "info");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => performAccept(pos.coords.latitude, pos.coords.longitude),
+      (err) => {
+        showToast("Location required to accept", "error");
+        hideRiderMap();
+      },
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  }
 };
 
 window.restoreActiveRideUI = async () => {
