@@ -558,26 +558,62 @@ window.becomeAvailable = () => {
   
   setButtonVisible("goLiveBtn", false);
   document.getElementById("riderTitle").innerText = "Online";
-  document.getElementById("riderSub").innerText = "Warming up GPS...";
+  document.getElementById("riderSub").innerText = "Activating GPS...";
   document.getElementById("availableRidesSection").classList.remove("hidden");
-  showToast("Warming up GPS...", "info");
+  showToast("Activating GPS...", "info");
 
   initMap("riderMap");
 
   riderWatchId = navigator.geolocation.watchPosition(async (pos) => {
     const { latitude, longitude, accuracy } = pos.coords;
-    if (accuracy > 60) return;
+    
+    // Softer warning for accuracy, but don't block progress
+    if (accuracy > 80) {
+      document.getElementById("riderSub").innerText = "Weak GPS (Searching...)";
+    } else {
+      document.getElementById("riderSub").innerText = "Looking for nearby students";
+    }
 
+    // Tighter threshold for smoother local updates
     const distMoved = lastRiderLoc ? getDistance(lastRiderLoc.lat, lastRiderLoc.lng, latitude, longitude) : 999;
-    if (distMoved < 5) return;
+    if (distMoved < 2) return; 
 
     lastRiderLoc = { lat: latitude, lng: longitude };
-    document.getElementById("riderSub").innerText = "Looking for nearby students";
 
     if (map && !currentRideId) {
       if (!riderMarker) {
         riderMarker = L.circleMarker([latitude, longitude], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(map);
       } else {
+        animateMarker(riderMarker, latitude, longitude, 800);
+      }
+      map.panTo([latitude, longitude], { animate: true });
+    }
+
+    if (!riderDocId) {
+      const ref = await addDoc(collection(db, "kekes"), {
+        name: currentUser.displayName,
+        riderId: currentUser.uid,
+        lat: latitude,
+        lng: longitude
+      });
+      riderDocId = ref.id;
+    } else {
+      await updateDoc(doc(db, "kekes", riderDocId), { lat: latitude, lng: longitude });
+    }
+
+    if (currentRideId) {
+      await updateDoc(doc(db, "requests", currentRideId), { riderLat: latitude, riderLng: longitude });
+    }
+  }, (err) => {
+    showToast("Location access required", "error");
+  }, { 
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 10000
+  });
+  
+  startListeners();
+};
         riderMarker.setLatLng([latitude, longitude]);
       }
       map.setView([latitude, longitude], 15);
