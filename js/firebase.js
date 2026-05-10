@@ -10,6 +10,7 @@ import {
   updateDoc,
   setDoc,
   getDoc,
+  where,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 import {
@@ -45,6 +46,7 @@ export {
   updateDoc,
   setDoc,
   getDoc,
+  where,
   serverTimestamp,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
