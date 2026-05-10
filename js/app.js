@@ -66,7 +66,7 @@ function showLoginScreen() {
   map = null;
 }
 
-function transitionToDashboard(user) {
+async function transitionToDashboard(user) {
   document.getElementById("loginScreen").classList.add("hidden");
   
   if (user.role === "student") {
@@ -75,10 +75,36 @@ function transitionToDashboard(user) {
     populateLocations();
     updateStudentProfileUI();
     switchStudentView('dashboard');
+    checkForActiveRide("student");
   } else {
     currentRole = "rider";
     document.getElementById("riderUI").classList.remove("hidden");
     updateRiderDashboardUI();
+    checkForActiveRide("rider");
+  }
+}
+
+async function checkForActiveRide(role) {
+  const q = query(
+    collection(db, "requests"), 
+    where(role === "student" ? "studentId" : "riderId", "==", currentUser?.uid || "guest"),
+    where("status", "in", ["waiting", "accepted", "arriving", "picked_up"])
+  );
+  
+  const querySnapshot = await getDocs(q);
+  if (!querySnapshot.empty) {
+    const activeRide = querySnapshot.docs[0];
+    currentRideId = activeRide.id;
+    
+    if (role === "rider") {
+      document.getElementById("riderActiveRideSection").classList.remove("hidden");
+      document.getElementById("riderActiveRideSub").innerText = `Active ride from ${activeRide.data().pickupName}`;
+    }
+    // Student logic is handled via requestKeke or history visit, but we set currentRideId here too
+  } else {
+    if (role === "rider") {
+      document.getElementById("riderActiveRideSection").classList.add("hidden");
+    }
   }
 }
 
@@ -177,20 +203,56 @@ async function fetchRideHistory() {
       return;
     }
 
-    list.innerHTML = history.map(h => `
-      <div class="activity-item">
-        <div class="activity-info">
-          <h4>Ride to ${h.dropoffName || 'Campus'}</h4>
-          <p>${new Date(h.time).toLocaleString()}</p>
+    list.innerHTML = history.map(h => {
+      const isActive = ["waiting", "accepted", "arriving", "picked_up"].includes(h.status);
+      return `
+        <div class="activity-item">
+          <div class="activity-info">
+            <h4>Ride to ${h.dropoffName || 'Campus'}</h4>
+            <p>${new Date(h.time).toLocaleString()}</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="status-pill ${h.status}" style="font-size:10px;">${h.status}</span>
+            <button class="iconBtn" style="font-size:11px; width:auto; padding:5px 8px; border-radius:6px; background:#f3f4f6;" onclick="viewRideDetails('${h.id}')">Details</button>
+            <button class="iconBtn" style="font-size:11px; width:auto; padding:5px 8px; border-radius:6px; background:${isActive ? '#22c55e' : '#e5e7eb'}; color:${isActive ? 'white' : '#9ca3af'};" 
+              ${isActive ? `onclick="visitRide('${h.id}')"` : 'disabled'}>Visit</button>
+          </div>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span class="status-pill ${h.status}">${h.status}</span>
-          <button class="iconBtn" style="font-size:12px; width:auto; padding:5px 10px; border-radius:8px;" onclick="viewRideDetails('${h.id}')">Visit</button>
-        </div>
-      </div>
-    `).join("");
+      `;
+    }).join("");
   });
 }
+
+window.visitRide = async (rideId) => {
+  currentRideId = rideId;
+  const docRef = doc(db, "requests", rideId);
+  const docSnap = await getDoc(docRef);
+  
+  if (docSnap.exists()) {
+    const r = docSnap.data();
+    // Switch to map view
+    document.getElementById("studentDashboard").classList.add("hidden");
+    document.getElementById("studentMap").classList.remove("hidden");
+    document.getElementById("mapBackBtn").classList.remove("hidden");
+    document.getElementById("studentSheet").classList.remove("hidden");
+    
+    initMap("studentMap");
+    startListeners();
+    updateRideUI(r);
+    
+    // Update sheet initial state
+    updateBottomSheet(r.status === "waiting" ? "Ride Requested" : "Trip Active", r.status);
+    updateRideDetails("student", [
+      { label: "Status", value: r.status },
+      { label: "From", value: r.pickupName },
+      { label: "To", value: r.dropoffName }
+    ]);
+    
+    // Close activity view
+    switchStudentView('dashboard');
+    document.getElementById("studentDashboard").classList.add("hidden"); // Ensure dashboard stays hidden for map
+  }
+};
 
 window.viewRideDetails = async (rideId) => {
   const content = document.getElementById("rideDetailContent");
@@ -496,8 +558,38 @@ window.acceptRide = async (rideId) => {
   });
 };
 
+window.restoreActiveRideUI = async () => {
+  if (!currentRideId) return;
+  
+  const docRef = doc(db, "requests", currentRideId);
+  const docSnap = await getDoc(docRef);
+  if (docSnap.exists()) {
+    document.getElementById("riderDashboard").classList.add("hidden");
+    document.getElementById("riderMap").classList.remove("hidden");
+    document.getElementById("riderSheet").classList.remove("hidden");
+    document.getElementById("riderMapBackBtn").classList.remove("hidden");
+    
+    initMap("riderMap");
+    startListeners();
+    updateRideUI(docSnap.data());
+    showToast("Trip map restored");
+  }
+};
+
 function updateRideUI(r) {
   if (!map) return;
+  
+  // Show/Hide Rider Active Card on Dashboard
+  const activeCard = document.getElementById("riderActiveRideSection");
+  if (currentRole === "rider" && activeCard) {
+    if (["accepted", "arriving", "picked_up"].includes(r.status)) {
+      activeCard.classList.remove("hidden");
+      document.getElementById("riderActiveRideSub").innerText = `Active trip to ${r.status === 'picked_up' ? r.dropoffName : r.pickupName}`;
+    } else {
+      activeCard.classList.add("hidden");
+    }
+  }
+
   const distToPickup = r.riderLat ? map.distance([r.riderLat, r.riderLng], [r.pickupLat, r.pickupLng]) : 0;
   const distToDropoff = r.riderLat ? map.distance([r.riderLat, r.riderLng], [r.dropoffLat, r.dropoffLng]) : 0;
   

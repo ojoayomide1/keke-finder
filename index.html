@@ -218,6 +218,13 @@
         </div>
 
         <div id="riderRideDetails" class="ride-details-container"></div>
+
+        <!-- Active Ride Section for Rider -->
+        <div id="riderActiveRideSection" class="ride-form-card hidden" style="margin-bottom: 20px;">
+          <h3 style="margin-bottom:10px;">Active Trip</h3>
+          <p id="riderActiveRideSub" style="font-size:13px; color:#6b7280; margin-bottom:15px;">You have a ride in progress.</p>
+          <button onclick="restoreActiveRideUI()" class="yellow" style="width:100%;">Visit Trip Map</button>
+        </div>
         
         <div id="availableRidesSection" class="available-rides-section hidden">
           <h3>Available Requests</h3>
