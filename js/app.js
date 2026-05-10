@@ -418,16 +418,28 @@ window.becomeAvailable = () => {
   
   setButtonVisible("goLiveBtn", false);
   document.getElementById("riderTitle").innerText = "Online";
-  document.getElementById("riderSub").innerText = "Looking for nearby students";
+  document.getElementById("riderSub").innerText = "Warming up GPS...";
   document.getElementById("availableRidesSection").classList.remove("hidden");
-  showToast("You are now live");
+  showToast("Warming up GPS...", "info");
 
   // Ensure map is ready in background
   initMap("riderMap");
 
   riderWatchId = navigator.geolocation.watchPosition(async (pos) => {
-    const { latitude, longitude } = pos.coords;
+    const { latitude, longitude, accuracy } = pos.coords;
     
+    // 1. Filter out low accuracy (greater than 60m is usually too jittery)
+    if (accuracy > 60) return;
+
+    // 2. Check for significant movement before syncing to Firestore (minimizes jitter)
+    const distMoved = lastRiderLoc ? getDistance(lastRiderLoc.lat, lastRiderLoc.lng, latitude, longitude) : 999;
+    
+    // Only update if moved > 5 meters or if it's the first lock
+    if (distMoved < 5) return;
+
+    lastRiderLoc = { lat: latitude, lng: longitude };
+    document.getElementById("riderSub").innerText = "Looking for nearby students";
+
     // Update local map view if not in active ride
     if (map && !currentRideId) {
       if (!riderMarker) {
@@ -455,7 +467,11 @@ window.becomeAvailable = () => {
     }
   }, (err) => {
     showToast("Location access required to go live", "error");
-  }, { enableHighAccuracy: true });
+  }, { 
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 10000
+  });
   
   startListeners();
 };
@@ -701,22 +717,21 @@ function updateRiderControls(nextState) {
   }
 }
 
-// ================= UI HELPERS =================
-function updateBottomSheet(title, sub, target = "student") {
-  const sheet = document.getElementById(`${target}Sheet`);
-  sheet.querySelector("h3").innerText = title;
-  sheet.querySelector("p").innerText = sub;
-}
+// ================= UTILS =================
+function getDistance(lat1, lon1, lat2, lng2) {
+  if (!lat1 || !lon1 || !lat2 || !lng2) return 0;
+  const R = 6371e3; // metres
+  const phi1 = lat1 * Math.PI / 180;
+  const phi2 = lat2 * Math.PI / 180;
+  const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+  const deltaLambda = (lng2 - lon1) * Math.PI / 180;
 
-function updateRideDetails(target, details) {
-  const container = document.getElementById(`${target}RideDetails`);
-  container.innerHTML = details.map(d => `
-    <div class="ride-detail"><span>${d.label}</span><strong>${d.value}</strong></div>
-  `).join("");
-}
+  const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+            Math.cos(phi1) * Math.cos(phi2) *
+            Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-function toggleControls(show, target = "student") {
-  document.getElementById(`${target}Controls`).style.display = show ? "flex" : "none";
+  return R * c; // in metres
 }
 
 function showToast(message, type = "success") {
