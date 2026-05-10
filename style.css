@@ -323,7 +323,13 @@ button:disabled {
 
 .sidebar.hidden {
   transform: translateX(-100%);
-  display: flex !important;
+  pointer-events: none;
+}
+
+.sidebar-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .sidebar-header {
