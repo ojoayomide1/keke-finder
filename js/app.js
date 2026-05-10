@@ -30,10 +30,43 @@ let riderMarker = null;
 let routeControl = null;
 let userMarker = null;
 let unsubscribeRequests = null;
+let activeMarkerAnimations = new Map(); // Track animations to prevent overlaps
 
 let hasFocused = false;
 
 // ================= UI HELPERS (TOP-LEVEL) =================
+function animateMarker(marker, targetLat, targetLng, duration = 1000) {
+  if (!marker) return;
+  
+  // Cancel existing animation for this marker
+  if (activeMarkerAnimations.has(marker)) {
+    cancelAnimationFrame(activeMarkerAnimations.get(marker));
+  }
+
+  const startLat = marker.getLatLng().lat;
+  const startLng = marker.getLatLng().lng;
+  const startTime = performance.now();
+
+  function frame(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+
+    // Linear interpolation
+    const currentLat = startLat + (targetLat - startLat) * progress;
+    const currentLng = startLng + (targetLng - startLng) * progress;
+
+    marker.setLatLng([currentLat, currentLng]);
+
+    if (progress < 1) {
+      activeMarkerAnimations.set(marker, requestAnimationFrame(frame));
+    } else {
+      activeMarkerAnimations.delete(marker);
+    }
+  }
+
+  activeMarkerAnimations.set(marker, requestAnimationFrame(frame));
+}
+
 function updateBottomSheet(title, sub, target = "student") {
   const sheet = document.getElementById(`${target}Sheet`);
   if (!sheet) return;
