@@ -94,26 +94,37 @@ window.toggleSidebar = () => {
 
 window.switchStudentView = (view) => {
   const overlays = ["activityView", "profileView"];
-  overlays.forEach(v => document.getElementById(v).classList.add("hidden"));
-  document.getElementById("studentDashboard").classList.remove("hidden");
+  overlays.forEach(v => {
+    const el = document.getElementById(v);
+    if (el) el.classList.add("hidden");
+  });
+  
+  const dash = document.getElementById("studentDashboard");
+  if (dash) dash.classList.remove("hidden");
 
   if (view === "activity") {
     if (currentUser?.isGuest) return showToast("Signup to view activity", "error");
-    document.getElementById("activityView").classList.remove("hidden");
-    document.getElementById("studentDashboard").classList.add("hidden");
+    const vEl = document.getElementById("activityView");
+    if (vEl) vEl.classList.remove("hidden");
+    if (dash) dash.classList.add("hidden");
     fetchRideHistory();
   } else if (view === "profile") {
     if (currentUser?.isGuest) return showToast("Signup to view profile", "error");
-    document.getElementById("profileView").classList.remove("hidden");
-    document.getElementById("studentDashboard").classList.add("hidden");
+    const vEl = document.getElementById("profileView");
+    if (vEl) vEl.classList.remove("hidden");
+    if (dash) dash.classList.add("hidden");
   }
 
   document.querySelectorAll(".nav-item").forEach(item => {
-    item.classList.toggle("active", item.innerText.toLowerCase().includes(view));
+    if (item && item.innerText) {
+      item.classList.toggle("active", item.innerText.toLowerCase().includes(view));
+    }
   });
 
-  document.getElementById("studentSidebar").classList.add("hidden");
-  document.getElementById("sidebarOverlay").classList.add("hidden");
+  const sidebar = document.getElementById("studentSidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (sidebar) sidebar.classList.add("hidden");
+  if (overlay) overlay.classList.add("hidden");
 };
 
 window.showMap = () => {

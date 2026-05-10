@@ -23,6 +23,10 @@ body {
   overflow: hidden;
 }
 
+.hidden {
+  display: none !important;
+}
+
 #loginScreen.screen {
   overflow-y: auto;
   display: block; /* Allow flex content to flow naturally if taller than screen */
