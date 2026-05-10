@@ -8,77 +8,75 @@ import {
   setDoc,
   signInWithEmailAndPassword,
   signOut,
-  updateProfile
+  updateProfile,
+  getDoc
 } from "./firebase.js";
 
 let currentUser = null;
-let isSignupMode = false;
-let getCurrentRole = () => null;
-let setCurrentRole = () => {};
+let authMode = "login"; // "login" or "signup"
+let signupRole = "student"; // "student" or "rider"
+
 let onUserChanged = () => {};
 let showLoginScreen = () => {};
-let showRoleSelect = () => {};
 
 export function getCurrentUser() {
   return currentUser;
 }
 
 function getAuthValue(id) {
-  return document.getElementById(id).value.trim();
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : "";
 }
 
 function setAuthMessage(message, type = "error") {
   const authMessage = document.getElementById("authMessage");
   authMessage.innerText = message;
-  authMessage.classList.toggle("success", type === "success");
+  authMessage.style.color = type === "success" ? "#86efac" : "#fca5a5";
 }
 
 function setAuthLoading(isLoading) {
   const submitBtn = document.getElementById("authSubmitBtn");
-  const toggleBtn = document.getElementById("authToggleBtn");
   submitBtn.disabled = isLoading;
-  toggleBtn.disabled = isLoading;
-  submitBtn.innerText = isLoading
-    ? (isSignupMode ? "Creating account..." : "Logging in...")
-    : (isSignupMode ? "Create Account" : "Login");
-}
-
-function updateSignedInUI(user) {
-  const userBadge = document.getElementById("userBadge");
-  const logoutBtn = document.getElementById("logoutBtn");
-
-  if (!user) {
-    userBadge.classList.add("hidden");
-    logoutBtn.classList.add("hidden");
-    userBadge.innerText = "";
-    return;
+  if (isLoading) {
+    submitBtn.innerText = authMode === "signup" ? "Creating account..." : "Logging in...";
+  } else {
+    submitBtn.innerText = authMode === "signup" ? "Sign Up" : "Login";
   }
-
-  userBadge.innerText = user.displayName || user.email;
-  userBadge.classList.remove("hidden");
-  logoutBtn.classList.remove("hidden");
 }
 
-function authErrorMessage(error) {
-  const messages = {
-    "auth/email-already-in-use": "That email already has an account. Try logging in.",
-    "auth/invalid-email": "Enter a valid email address.",
-    "auth/invalid-credential": "Email or password is incorrect.",
-    "auth/missing-password": "Enter your password.",
-    "auth/weak-password": "Use at least 6 characters for your password."
-  };
-
-  return messages[error.code] || error.message || "Something went wrong. Try again.";
+// Mock Matric Verification (Replace with real database check if available)
+async function verifyMatricNumber(matricNo) {
+  // For now, any matric number that isn't empty is "valid" 
+  // but in a real app, we would check a 'validMatrics' collection
+  if (!matricNo) return false;
+  
+  // Example of real check (commented out):
+  /*
+  const docRef = doc(db, "validMatrics", matricNo);
+  const docSnap = await getDoc(docRef);
+  return docSnap.exists();
+  */
+  
+  return true; 
 }
 
 async function createAccount() {
   const name = getAuthValue("displayName");
   const email = getAuthValue("email");
   const password = getAuthValue("password");
+  const phone = getAuthValue("phoneNumber");
+  const matric = getAuthValue("matricNo");
+  const plate = getAuthValue("plateNo");
 
-  if (!name) {
-    setAuthMessage("Enter your full name.");
-    return;
+  if (!name) return setAuthMessage("Enter your full name.");
+  if (!phone) return setAuthMessage("Enter your phone number.");
+  
+  if (signupRole === "student") {
+    if (!matric) return setAuthMessage("Enter your matric number.");
+    const isValidMatric = await verifyMatricNumber(matric);
+    if (!isValidMatric) return setAuthMessage("Invalid matric number. Access denied.");
+  } else {
+    if (!plate) return setAuthMessage("Enter your plate number.");
   }
 
   setAuthLoading(true);
@@ -87,18 +85,24 @@ async function createAccount() {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(credential.user, { displayName: name });
 
-    try {
-      await setDoc(doc(db, "users", credential.user.uid), {
-        name,
-        email,
-        createdAt: serverTimestamp()
-      });
-    } catch (profileError) {
-      console.warn("Profile save failed:", profileError);
+    const userData = {
+      name,
+      email,
+      phone,
+      role: signupRole,
+      createdAt: serverTimestamp()
+    };
+
+    if (signupRole === "student") {
+      userData.matricNo = matric;
+    } else {
+      userData.plateNo = plate;
     }
 
-    setAuthMessage("Account created. Choose your role.", "success");
-    showRoleSelect();
+    await setDoc(doc(db, "users", credential.user.uid), userData);
+    
+    setAuthMessage("Account created successfully.", "success");
+    // App.js listener will handle redirect
   } catch (error) {
     setAuthMessage(authErrorMessage(error));
   } finally {
@@ -110,12 +114,13 @@ async function signIn() {
   const email = getAuthValue("email");
   const password = getAuthValue("password");
 
+  if (!email || !password) return setAuthMessage("Enter email and password.");
+
   setAuthLoading(true);
 
   try {
     await signInWithEmailAndPassword(auth, email, password);
     setAuthMessage("");
-    showRoleSelect();
   } catch (error) {
     setAuthMessage(authErrorMessage(error));
   } finally {
@@ -123,68 +128,115 @@ async function signIn() {
   }
 }
 
+function authErrorMessage(error) {
+  const messages = {
+    "auth/email-already-in-use": "That email already has an account.",
+    "auth/invalid-email": "Enter a valid email address.",
+    "auth/invalid-credential": "Email or password is incorrect.",
+    "auth/missing-password": "Enter your password.",
+    "auth/weak-password": "Password should be at least 6 characters."
+  };
+  return messages[error.code] || error.message || "Authentication failed.";
+}
+
 function bindAuthGlobals() {
-  window.continueAs = (role) => {
-    currentUser = null;
-    setCurrentRole(role);
-    onUserChanged(null);
-    showRoleSelect();
+  window.setAuthMode = (mode) => {
+    authMode = mode;
+    const loginTab = document.getElementById("loginTab");
+    const signupTab = document.getElementById("signupTab");
+    const roleToggle = document.getElementById("roleToggle");
+    const submitBtn = document.getElementById("authSubmitBtn");
+    
+    const fields = ["displayName", "phoneNumber", "matricNo", "plateNo"];
+    
+    if (mode === "login") {
+      loginTab.classList.add("active");
+      signupTab.classList.remove("active");
+      roleToggle.classList.add("hidden");
+      fields.forEach(f => document.getElementById(f).classList.add("hidden"));
+      submitBtn.innerText = "Login";
+    } else {
+      loginTab.classList.remove("active");
+      signupTab.classList.add("active");
+      roleToggle.classList.remove("hidden");
+      document.getElementById("displayName").classList.remove("hidden");
+      document.getElementById("phoneNumber").classList.remove("hidden");
+      setSignupRole(signupRole); // Refresh specific fields
+      submitBtn.innerText = "Sign Up";
+    }
+    setAuthMessage("");
   };
 
-  window.login = () => {
-    if (isSignupMode) {
+  window.setSignupRole = (role) => {
+    signupRole = role;
+    const studentBtn = document.getElementById("roleStudent");
+    const riderBtn = document.getElementById("roleRider");
+    const matricField = document.getElementById("matricNo");
+    const plateField = document.getElementById("plateNo");
+
+    if (role === "student") {
+      studentBtn.classList.add("active");
+      riderBtn.classList.remove("active");
+      matricField.classList.remove("hidden");
+      plateField.classList.add("hidden");
+    } else {
+      studentBtn.classList.remove("active");
+      riderBtn.classList.add("active");
+      matricField.classList.add("hidden");
+      plateField.classList.remove("hidden");
+    }
+  };
+
+  window.handleAuthSubmit = () => {
+    if (authMode === "signup") {
       createAccount();
     } else {
       signIn();
     }
   };
 
-  window.showSignup = () => {
-    isSignupMode = !isSignupMode;
-    const displayName = document.getElementById("displayName");
-    const password = document.getElementById("password");
-    const submitBtn = document.getElementById("authSubmitBtn");
-    const toggleBtn = document.getElementById("authToggleBtn");
-
-    displayName.classList.toggle("hidden", !isSignupMode);
-    password.autocomplete = isSignupMode ? "new-password" : "current-password";
-    submitBtn.innerText = isSignupMode ? "Create Account" : "Login";
-    toggleBtn.innerText = isSignupMode ? "Back to Login" : "Create New Account";
-    setAuthMessage("");
+  window.continueAsGuest = () => {
+    onUserChanged({ isGuest: true, role: 'student', displayName: 'Guest' });
   };
 
   window.logout = async () => {
     await signOut(auth);
-    currentUser = null;
-    setCurrentRole(null);
-    onUserChanged(null);
-    updateSignedInUI(null);
     showLoginScreen();
   };
 }
 
 export function initAuth(options) {
-  getCurrentRole = options.getCurrentRole;
-  setCurrentRole = options.setCurrentRole;
   onUserChanged = options.onUserChanged;
   showLoginScreen = options.showLoginScreen;
-  showRoleSelect = options.showRoleSelect;
 
   bindAuthGlobals();
 
-  onAuthStateChanged(auth, (user) => {
-    currentUser = user;
-    onUserChanged(user);
-    updateSignedInUI(user);
-
-    if (user && !getCurrentRole()) {
-      showRoleSelect();
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // Fetch role from Firestore
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        currentUser = { ...user, ...data };
+        onUserChanged(currentUser);
+      } else {
+        // Fallback or newly created user (should already have doc)
+        currentUser = user;
+        onUserChanged(user);
+      }
+    } else {
+      currentUser = null;
+      onUserChanged(null);
     }
   });
 
-  ["displayName", "email", "password"].forEach((id) => {
-    document.getElementById(id).addEventListener("keydown", (event) => {
-      if (event.key === "Enter") window.login();
-    });
+  // Handle Enter key
+  ["email", "password", "matricNo", "plateNo"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") window.handleAuthSubmit();
+      });
+    }
   });
 }

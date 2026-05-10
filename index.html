@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -10,41 +10,58 @@
 </head>
 <body>
 
-  <!-- LOGIN SCREEN -->
+  <!-- AUTH SCREEN -->
   <div id="loginScreen" class="screen center">
-    <h1> Keke Finder</h1>
-    <p>Veritas University  Abuja</p>
+    <h1>Keke Finder</h1>
+    <p>Veritas University Abuja</p>
 
     <div class="auth-card">
-      <input type="text" id="displayName" placeholder="Full name" class="input-field hidden" autocomplete="name">
-      <input type="email" id="email" placeholder="Email address" class="input-field" autocomplete="email">
-      <input type="password" id="password" placeholder="Password" class="input-field" autocomplete="current-password">
-      <p id="authMessage" class="auth-message"></p>
+      <!-- Auth Tabs -->
+      <div class="auth-tabs" id="authTabs">
+        <button type="button" onclick="setAuthMode('login')" class="tab-btn active" id="loginTab">Login</button>
+        <button type="button" onclick="setAuthMode('signup')" class="tab-btn" id="signupTab">Sign Up</button>
+      </div>
 
-      <button type="button" id="authSubmitBtn" onclick="login()" class="green auth-primary">
-        Login
-      </button>
+      <!-- Role Selection (Visible only in Signup Mode) -->
+      <div id="roleToggle" class="role-toggle hidden">
+        <button type="button" onclick="setSignupRole('student')" class="role-btn active" id="roleStudent">Student</button>
+        <button type="button" onclick="setSignupRole('rider')" class="role-btn" id="roleRider">Rider</button>
+      </div>
 
-      <button type="button" id="authToggleBtn" onclick="showSignup()" class="auth-secondary">
-        Create New Account
-      </button>
+      <div class="auth-form">
+        <!-- Common Fields -->
+        <input type="text" id="displayName" placeholder="Full name" class="input-field hidden" autocomplete="name">
+        
+        <!-- Student Specific -->
+        <input type="text" id="matricNo" placeholder="Matric Number" class="input-field hidden">
+        
+        <!-- Rider Specific -->
+        <input type="text" id="plateNo" placeholder="Plate Number" class="input-field hidden">
+        
+        <!-- Shared Info -->
+        <input type="tel" id="phoneNumber" placeholder="Phone Number" class="input-field hidden">
+        <input type="email" id="email" placeholder="Email address" class="input-field" autocomplete="email">
+        <input type="password" id="password" placeholder="Password" class="input-field" autocomplete="current-password">
+        
+        <p id="authMessage" class="auth-message"></p>
 
-      <p class="auth-divider">OR</p>
+        <button type="button" id="authSubmitBtn" onclick="handleAuthSubmit()" class="green auth-primary">
+          Login
+        </button>
 
-      <button type="button" onclick="continueAs('student')" class="green auth-primary">
-         Continue as Student
-      </button>
-      
-      <button type="button" onclick="continueAs('rider')" class="yellow auth-primary">
-         Continue as Rider
-      </button>
+        <p class="auth-divider">OR</p>
+
+        <button type="button" onclick="continueAsGuest()" class="auth-secondary">
+           Continue as Guest
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- ROLE SELECT -->
+  <!-- ROLE SELECT (Kept for fallback, but usually bypassed) -->
   <div id="roleSelect" class="screen center hidden">
     <button type="button" id="logoutBtn" class="logoutBtn hidden" onclick="logout()">Logout</button>
-    <h1> Keke Finder</h1>
+    <h1>Keke Finder</h1>
     <p id="userBadge" class="user-badge hidden"></p>
     <p>Choose your role</p>
     
@@ -59,13 +76,48 @@
 
   <!-- STUDENT UI -->
   <div id="studentUI" class="screen hidden">
-    <div id="studentMap" class="map"></div>
+    <!-- Student Dashboard (Form Centric) -->
+    <div id="studentDashboard" class="dashboard-container">
+      <header class="dashboard-header">
+        <div class="user-info">
+          <h2 id="studentDashName">Student Name</h2>
+          <span id="studentDashRole" class="role-tag">Student</span>
+        </div>
+        <button class="menu-icon-btn" onclick="toggleSidebar()">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+        </button>
+      </header>
+
+      <main class="dashboard-body">
+        <div class="ride-form-card">
+          <h3>Request a Ride</h3>
+          <div class="form-group">
+            <label>Pickup Location</label>
+            <select id="pickupSelect" class="input-field">
+              <option value="">Select Pickup Location</option>
+              <!-- Populated via JS -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Drop-off Location</label>
+            <select id="dropoffSelect" class="input-field">
+              <option value="">Select Drop-off Location</option>
+              <!-- Populated via JS -->
+            </select>
+          </div>
+          <button type="button" id="requestBtn" onclick="requestKeke()" class="green auth-primary">
+            Request Ride
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Map View (Hidden by default or toggled) -->
+    <div id="studentMap" class="map hidden"></div>
     
-    <!-- Sidebar Toggle -->
-    <button class="menuBtn" onclick="toggleSidebar()"></button>
-    <button class="backBtn" onclick="goBackToRole()"></button>
-    
-    <button class="fab green" id="requestBtn" onclick="requestKeke()"> Request Ride</button>
+    <button class="backBtn hidden" id="mapBackBtn" onclick="hideMap()"></button>
 
     <!-- Sidebar Overlay & Container -->
     <div id="sidebarOverlay" class="sidebar-overlay hidden" onclick="toggleSidebar()"></div>
@@ -75,18 +127,18 @@
         <p id="sidebarEmail">email@example.com</p>
       </div>
       <nav class="sidebar-nav">
-        <button onclick="switchStudentView('map')" class="nav-item active">
-          <i>📍</i> Map
+        <button onclick="switchStudentView('dashboard')" class="nav-item active">
+          Dashboard
         </button>
         <button onclick="switchStudentView('activity')" class="nav-item">
-          <i>🕒</i> Activity
+          Activity
         </button>
         <button onclick="switchStudentView('profile')" class="nav-item">
-          <i>👤</i> Profile
+          Profile
         </button>
         <div class="nav-divider"></div>
         <button onclick="logout()" class="nav-item logout">
-          <i>🚪</i> Logout
+          Logout
         </button>
       </nav>
     </div>
@@ -94,11 +146,10 @@
     <!-- Activity Section -->
     <div id="activityView" class="view-overlay hidden">
       <div class="view-header">
-        <button class="iconBtn" onclick="switchStudentView('map')">←</button>
+        <button class="iconBtn" onclick="switchStudentView('dashboard')">Back</button>
         <h2>Your Activity</h2>
       </div>
       <div id="activityList" class="activity-list">
-        <!-- Activity items will be injected here -->
         <p class="empty-state">No recent activity</p>
       </div>
     </div>
@@ -106,7 +157,7 @@
     <!-- Profile Section -->
     <div id="profileView" class="view-overlay hidden">
       <div class="view-header">
-        <button class="iconBtn" onclick="switchStudentView('map')">←</button>
+        <button class="iconBtn" onclick="switchStudentView('dashboard')">Back</button>
         <h2>Profile Settings</h2>
       </div>
       <div class="profile-content">
@@ -125,7 +176,7 @@
       </div>
     </div>
 
-    <div class="bottomSheet" id="studentSheet">
+    <div class="bottomSheet hidden" id="studentSheet">
       <div class="dragZone"></div>
       <div class="handle"></div>
       <h3 id="studentTitle">Waiting...</h3>
@@ -139,19 +190,38 @@
 
   <!-- RIDER UI -->
   <div id="riderUI" class="screen hidden">
-    <div id="riderMap" class="map"></div>
-    <button class="backBtn" onclick="goBackToRole()"></button>
-    <button class="fab yellow" id="goLiveBtn" onclick="becomeAvailable()"> Go Live</button>
+    <div id="riderDashboard" class="dashboard-container">
+      <header class="dashboard-header">
+        <div class="user-info">
+          <h2 id="riderDashName">Rider Name</h2>
+          <span id="riderDashRole" class="role-tag yellow-tag">Rider</span>
+        </div>
+        <button class="logout-link" onclick="logout()">Logout</button>
+      </header>
+      
+      <main class="dashboard-body">
+        <div class="status-card">
+          <h3 id="riderTitle">Offline</h3>
+          <p id="riderSub">Go live to start receiving requests</p>
+          <button class="fab yellow" id="goLiveBtn" onclick="becomeAvailable()">Go Live</button>
+        </div>
 
-    <div class="bottomSheet" id="riderSheet">
+        <div id="riderRideDetails" class="ride-details-container"></div>
+      </main>
+    </div>
+
+    <div id="riderMap" class="map hidden"></div>
+    <button class="backBtn hidden" id="riderMapBackBtn" onclick="hideRiderMap()"></button>
+
+    <div class="bottomSheet hidden" id="riderSheet">
       <div class="dragZone"></div>
       <div class="handle"></div>
-      <h3 id="riderTitle">Offline</h3>
-      <p id="riderSub">Go live to start</p>
-      <div class="ride-details" id="riderRideDetails"></div>
+      <h3 id="riderSheetTitle">Offline</h3>
+      <p id="riderSheetSub">Go live to start</p>
+      <div class="ride-details" id="riderSheetDetails"></div>
       <div class="controls" id="riderControls" style="display:none">
-        <button onclick="setArriving()" class="yellow"> Arriving</button>
-        <button onclick="completeRide()" class="green"> Complete</button>
+        <button onclick="setArriving()" class="yellow">Arriving</button>
+        <button onclick="completeRide()" class="green">Complete</button>
       </div>
     </div>
   </div>
