@@ -717,6 +717,29 @@ function updateRiderControls(nextState) {
   }
 }
 
+// ================= UI HELPERS =================
+function updateBottomSheet(title, sub, target = "student") {
+  const sheet = document.getElementById(`${target}Sheet`);
+  if (!sheet) return;
+  const h3 = sheet.querySelector("h3");
+  const p = sheet.querySelector("p");
+  if (h3) h3.innerText = title;
+  if (p) p.innerText = sub;
+}
+
+function updateRideDetails(target, details) {
+  const container = document.getElementById(`${target}RideDetails`);
+  if (!container) return;
+  container.innerHTML = details.map(d => `
+    <div class="ride-detail"><span>${d.label}</span><strong>${d.value}</strong></div>
+  `).join("");
+}
+
+function toggleControls(show, target = "student") {
+  const el = document.getElementById(`${target}Controls`);
+  if (el) el.style.display = show ? "flex" : "none";
+}
+
 // ================= UTILS =================
 function getDistance(lat1, lon1, lat2, lng2) {
   if (!lat1 || !lon1 || !lat2 || !lng2) return 0;
