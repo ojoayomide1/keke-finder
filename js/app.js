@@ -704,7 +704,12 @@ function updateRideUI(r) {
     if (!riderMarker) {
       riderMarker = L.circleMarker([r.riderLat, r.riderLng], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(map);
     } else {
-      riderMarker.setLatLng([r.riderLat, r.riderLng]);
+      animateMarker(riderMarker, r.riderLat, r.riderLng, 1000);
+    }
+
+    // Smoothly pan map for Rider only
+    if (currentRole === "rider") {
+      map.panTo([r.riderLat, r.riderLng], { animate: true, duration: 1.0 });
     }
   }
 
@@ -714,7 +719,7 @@ function updateRideUI(r) {
       userMarker.bindPopup("Pickup: " + r.pickupName);
     }
     if (r.status === "picked_up") {
-      userMarker.setLatLng([r.dropoffLat, r.dropoffLng]);
+      animateMarker(userMarker, r.dropoffLat, r.dropoffLng, 1000);
       userMarker.setPopupContent("Drop-off: " + r.dropoffName);
     }
   }
