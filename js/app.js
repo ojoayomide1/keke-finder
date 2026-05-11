@@ -483,7 +483,14 @@ window.acceptRide = async (rideId) => {
   } else {
     showToast("Fetching location...", "info");
     navigator.geolocation.getCurrentPosition(
-      (pos) => performAccept(pos.coords.latitude, pos.coords.longitude),
+      (pos) => {
+        if (pos.coords.accuracy > 100) {
+          showToast("GPS accuracy too low. Try again.", "error");
+          hideRiderMap();
+          return;
+        }
+        performAccept(pos.coords.latitude, pos.coords.longitude);
+      },
       (err) => {
         showToast("Location required to accept", "error");
         hideRiderMap();
@@ -503,13 +510,17 @@ window.becomeAvailable = () => {
   initMap("riderMap");
   riderWatchId = navigator.geolocation.watchPosition(async (pos) => {
     const { latitude, longitude, accuracy } = pos.coords;
-    if (accuracy > 80) {
+    
+    if (accuracy > 60) {
       document.getElementById("riderSub").innerText = "Weak GPS (Searching...)";
-    } else {
-      document.getElementById("riderSub").innerText = "Looking for nearby students";
+      return;
     }
+    
+    document.getElementById("riderSub").innerText = "Looking for nearby students";
+    
     const distMoved = lastRiderLoc ? getDistance(lastRiderLoc.lat, lastRiderLoc.lng, latitude, longitude) : 999;
-    if (distMoved < 2) return; 
+    if (distMoved < 10) return; 
+    
     lastRiderLoc = { lat: latitude, lng: longitude };
     if (map && !currentRideId) {
       if (!riderMarker) {
