@@ -11,8 +11,8 @@ import {
   updateProfile,
   getDoc
 } from "./firebase.js";
+import { state } from "./modules/state.js";
 
-let currentUser = null;
 let authMode = "login"; // "login" or "signup"
 let signupRole = "student"; // "student" or "rider"
 
@@ -20,7 +20,7 @@ let onUserChanged = () => {};
 let showLoginScreen = () => {};
 
 export function getCurrentUser() {
-  return currentUser;
+  return state.currentUser;
 }
 
 function getAuthValue(id) {
@@ -215,17 +215,13 @@ export function initAuth(options) {
     if (user) {
       // Fetch role from Firestore
       const userDoc = await getDoc(doc(db, "users", user.uid));
+      let finalUser = user;
       if (userDoc.exists()) {
         const data = userDoc.data();
-        currentUser = { ...user, ...data };
-        onUserChanged(currentUser);
-      } else {
-        // Fallback or newly created user (should already have doc)
-        currentUser = user;
-        onUserChanged(user);
+        finalUser = { ...user, ...data };
       }
+      onUserChanged(finalUser);
     } else {
-      currentUser = null;
       onUserChanged(null);
     }
   });

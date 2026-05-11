@@ -1,0 +1,53 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: #111;
+}
+
+/* Common Layout Utilities */
+.screen {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  position: relative;
+  overflow: hidden;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100%;
+  gap: 20px;
+  text-align: center;
+  color: white;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 0;
+  color: #9ca3af;
+}
+
+.danger-text {
+  width: 100%;
+  padding: 18px;
+  color: #ef4444;
+  font-weight: 600;
+  background: transparent;
+}
