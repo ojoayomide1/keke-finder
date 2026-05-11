@@ -252,7 +252,7 @@ window.becomeAvailable = () => {
   state.riderWatchId = navigator.geolocation.watchPosition(async (pos) => {
     const { latitude, longitude, accuracy } = pos.coords;
     
-    if (accuracy > 60) {
+    if (accuracy > 100) {
       document.getElementById("riderSub").innerText = "Weak GPS (Searching...)";
       return;
     }
@@ -260,7 +260,7 @@ window.becomeAvailable = () => {
     document.getElementById("riderSub").innerText = "Looking for nearby students";
     
     const distMoved = state.lastRiderLoc ? getDistance(state.lastRiderLoc.lat, state.lastRiderLoc.lng, latitude, longitude) : 999;
-    if (distMoved < 10) return; 
+    if (distMoved < 3) return; 
     
     state.lastRiderLoc = { lat: latitude, lng: longitude };
     
