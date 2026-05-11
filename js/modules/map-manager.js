@@ -47,6 +47,8 @@ export function initMap(mapId) {
   state.userMarker = null;
   state.routeControl = null;
   state.requestMarkers = [];
+  state.activeMarkerAnimations.forEach(id => cancelAnimationFrame(id));
+  state.activeMarkerAnimations.clear();
   
   state.map = L.map(mapId, { tap: false }).setView([9.2880, 7.4130], 16);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {

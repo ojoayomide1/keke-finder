@@ -110,9 +110,18 @@ window.hideRiderMap = () => {
   document.getElementById("riderSheet").classList.add("hidden");
 };
 
-window.requestKeke = _requestKeke;
-window.cancelRide = _cancelRide;
-window.completeRide = _completeRide;
+window.requestKeke = async () => {
+  await _requestKeke();
+  startListeners();
+};
+window.cancelRide = async () => {
+  await _cancelRide();
+  state.currentRideId = null;
+};
+window.completeRide = async () => {
+  await _completeRide();
+  state.currentRideId = null;
+};
 
 window.visitRide = async (rideId) => {
   state.currentRideId = rideId;
@@ -254,6 +263,7 @@ window.becomeAvailable = () => {
     if (distMoved < 10) return; 
     
     state.lastRiderLoc = { lat: latitude, lng: longitude };
+    
     if (state.map && !state.currentRideId) {
       if (!state.riderMarker) {
         state.riderMarker = L.circleMarker([latitude, longitude], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(state.map);
@@ -264,6 +274,7 @@ window.becomeAvailable = () => {
     }
     
     if (!state.riderDocId) {
+      state.riderDocId = "creating...";
       const ref = await addDoc(collection(db, "kekes"), {
         name: state.currentUser.displayName,
         riderId: state.currentUser.uid,
@@ -271,7 +282,7 @@ window.becomeAvailable = () => {
         lng: longitude
       });
       state.riderDocId = ref.id;
-    } else {
+    } else if (state.riderDocId !== "creating...") {
       await updateDoc(doc(db, "kekes", state.riderDocId), { lat: latitude, lng: longitude });
     }
     
@@ -306,12 +317,14 @@ async function transitionToDashboard(user) {
     populateLocations();
     updateStudentProfileUI();
     window.switchStudentView('dashboard');
-    checkForActiveRide("student");
+    await checkForActiveRide("student");
+    if (state.currentRideId) startListeners();
   } else {
     state.currentRole = "rider";
     document.getElementById("riderUI").classList.remove("hidden");
     updateRiderDashboardUI();
-    checkForActiveRide("rider");
+    await checkForActiveRide("rider");
+    if (state.currentRideId) startListeners();
   }
 }
 
@@ -339,16 +352,21 @@ async function checkForActiveRide(role) {
 
 function startListeners() {
   if (state.unsubscribeRequests) state.unsubscribeRequests();
+  
   const q = query(collection(db, "requests"), orderBy("time", "desc"));
+  let lastData = null;
+
   state.unsubscribeRequests = onSnapshot(q, (snapshot) => {
     const availableRides = [];
     if (state.map) {
       state.requestMarkers.forEach(m => state.map.removeLayer(m));
       state.requestMarkers = [];
     }
+    
     snapshot.forEach(docSnap => {
       const r = docSnap.data();
       const rideId = docSnap.id;
+      
       if (r.status === "waiting" && state.currentRole === "rider") {
         availableRides.push({ id: rideId, ...r });
         if (state.map) {
@@ -357,10 +375,23 @@ function startListeners() {
           state.requestMarkers.push(marker);
         }
       }
+      
       if (rideId === state.currentRideId) {
-        updateRideUI(r);
+        const currentDataStr = JSON.stringify({ 
+          status: r.status, 
+          riderLat: r.riderLat, 
+          riderLng: r.riderLng,
+          pickupLat: r.pickupLat,
+          pickupLng: r.pickupLng
+        });
+        
+        if (currentDataStr !== lastData) {
+          lastData = currentDataStr;
+          updateRideUI(r);
+        }
       }
     });
+    
     if (state.currentRole === "rider") {
       updateAvailableRidesList(availableRides);
     }
