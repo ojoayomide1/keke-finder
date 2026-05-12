@@ -68,15 +68,22 @@ async function createAccount() {
   const matric = getAuthValue("matricNo");
   const plate = getAuthValue("plateNo");
 
-  if (!name) return setAuthMessage("Enter your full name.");
-  if (!phone) return setAuthMessage("Enter your phone number.");
+  // Regex Patterns
+  const nameRegex = /^[a-zA-Z\s]{3,30}$/;
+  const phoneRegex = /^\+?[0-9]{10,15}$/;
+  const matricRegex = /^[A-Z0-9/-]{5,15}$/i; // Customize based on your university format
+  const plateRegex = /^[A-Z0-9\s-]{4,10}$/i;
+
+  // Validation
+  if (!nameRegex.test(name)) return setAuthMessage("Enter a valid full name (3-30 letters).");
+  if (!phoneRegex.test(phone)) return setAuthMessage("Enter a valid phone number (10-15 digits).");
   
   if (signupRole === "student") {
-    if (!matric) return setAuthMessage("Enter your matric number.");
+    if (!matricRegex.test(matric)) return setAuthMessage("Enter a valid Matric Number.");
     const isValidMatric = await verifyMatricNumber(matric);
     if (!isValidMatric) return setAuthMessage("Invalid matric number. Access denied.");
   } else {
-    if (!plate) return setAuthMessage("Enter your plate number.");
+    if (!plateRegex.test(plate)) return setAuthMessage("Enter a valid Plate Number.");
   }
 
   setAuthLoading(true);
@@ -94,15 +101,14 @@ async function createAccount() {
     };
 
     if (signupRole === "student") {
-      userData.matricNo = matric;
+      userData.matricNo = matric.toUpperCase();
     } else {
-      userData.plateNo = plate;
+      userData.plateNo = plate.toUpperCase();
     }
 
     await setDoc(doc(db, "users", credential.user.uid), userData);
     
     setAuthMessage("Account created successfully.", "success");
-    // App.js listener will handle redirect
   } catch (error) {
     setAuthMessage(authErrorMessage(error));
   } finally {
