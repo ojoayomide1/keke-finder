@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Keke Finder</title>
+  <title>VUNA Pathfinder</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
@@ -12,7 +12,7 @@
 
   <!-- AUTH SCREEN -->
   <div id="loginScreen" class="screen center">
-    <h1>Keke Finder</h1>
+    <h1>VUNA Pathfinder</h1>
     <p>Veritas University Abuja</p>
 
     <div class="auth-card">
@@ -36,7 +36,13 @@
         <input type="text" id="matricNo" placeholder="Matric Number" class="input-field hidden">
         
         <!-- Rider Specific -->
-        <input type="text" id="plateNo" placeholder="Plate Number" class="input-field hidden">
+        <div id="riderFields" class="hidden">
+          <input type="text" id="plateNo" placeholder="Plate Number" class="input-field">
+          <select id="vehicleType" class="input-field" style="margin-top: 10px;">
+            <option value="keke">Keke</option>
+            <option value="shuttle">Campus Shuttle</option>
+          </select>
+        </div>
         
         <!-- Shared Info -->
         <input type="tel" id="phoneNumber" placeholder="Phone Number" class="input-field hidden">
@@ -92,7 +98,7 @@
 
       <main class="dashboard-body">
         <div class="ride-form-card">
-          <h3>Request a Ride</h3>
+          <h3>VeriRide - Request Transit</h3>
           <div class="form-group">
             <label>Pickup Location</label>
             <select id="pickupSelect" class="input-field">
@@ -108,7 +114,7 @@
             </select>
           </div>
           <button type="button" id="requestBtn" onclick="requestKeke()" class="green auth-primary">
-            Request Ride
+            Find VeriRide
           </button>
         </div>
       </main>
@@ -128,7 +134,10 @@
       </div>
       <nav class="sidebar-nav">
         <button onclick="switchStudentView('dashboard')" class="nav-item active">
-          Dashboard
+          VeriRide (Home)
+        </button>
+        <button onclick="switchStudentView('pathfinder')" class="nav-item">
+          Pathfinder (Map)
         </button>
         <button onclick="switchStudentView('activity')" class="nav-item">
           Activity
@@ -141,6 +150,24 @@
           Logout
         </button>
       </nav>
+    </div>
+
+    <!-- Pathfinder Section -->
+    <div id="pathfinderView" class="view-overlay hidden">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchStudentView('dashboard')">Back</button>
+        <h2>Pathfinder Navigation</h2>
+      </div>
+      <div class="ride-form-card" style="margin: 15px;">
+        <div class="form-group">
+          <label>Where are you going?</label>
+          <select id="pathfinderSelect" class="input-field" onchange="navigateToLandmark(this.value)">
+            <option value="">Select Landmark</option>
+            <!-- Populated via JS -->
+          </select>
+        </div>
+        <p style="font-size: 12px; color: #6b7280;">Pathfinder helps freshers find their way around the Veritas campus.</p>
+      </div>
     </div>
 
     <!-- Activity Section -->
@@ -180,7 +207,7 @@
         <div class="settings-list">
           <div class="settings-item">
             <span>App Version</span>
-            <strong>1.0.0</strong>
+            <strong>1.1.0</strong>
           </div>
           <button onclick="logout()" class="danger-text">Logout from account</button>
         </div>
@@ -190,8 +217,8 @@
     <div class="bottomSheet hidden" id="studentSheet">
       <div class="dragZone"></div>
       <div class="handle"></div>
-      <h3 id="studentTitle">Waiting...</h3>
-      <p id="studentSub">No active ride</p>
+      <h3 id="studentTitle">Live Trip</h3>
+      <p id="studentSub">VeriRide Active</p>
       <div class="ride-details" id="studentRideDetails"></div>
       <div class="controls" id="studentControls" style="display:none">
         <button type="button" onclick="cancelRide()" class="danger">Cancel Request</button>

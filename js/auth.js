@@ -67,6 +67,7 @@ async function createAccount() {
   const phone = getAuthValue("phoneNumber");
   const matric = getAuthValue("matricNo");
   const plate = getAuthValue("plateNo");
+  const vType = document.getElementById("vehicleType").value;
 
   // Regex Patterns
   const nameRegex = /^[a-zA-Z\s]{3,30}$/;
@@ -104,6 +105,7 @@ async function createAccount() {
       userData.matricNo = matric.toUpperCase();
     } else {
       userData.plateNo = plate.toUpperCase();
+      userData.vehicleType = vType;
     }
 
     await setDoc(doc(db, "users", credential.user.uid), userData);
@@ -153,13 +155,16 @@ function bindAuthGlobals() {
     const roleToggle = document.getElementById("roleToggle");
     const submitBtn = document.getElementById("authSubmitBtn");
     
-    const fields = ["displayName", "phoneNumber", "matricNo", "plateNo"];
+    const fields = ["displayName", "phoneNumber", "matricNo", "riderFields"];
     
     if (mode === "login") {
       loginTab.classList.add("active");
       signupTab.classList.remove("active");
       roleToggle.classList.add("hidden");
-      fields.forEach(f => document.getElementById(f).classList.add("hidden"));
+      fields.forEach(f => {
+        const el = document.getElementById(f);
+        if (el) el.classList.add("hidden");
+      });
       submitBtn.innerText = "Login";
     } else {
       loginTab.classList.remove("active");
@@ -178,18 +183,18 @@ function bindAuthGlobals() {
     const studentBtn = document.getElementById("roleStudent");
     const riderBtn = document.getElementById("roleRider");
     const matricField = document.getElementById("matricNo");
-    const plateField = document.getElementById("plateNo");
+    const riderFields = document.getElementById("riderFields");
 
     if (role === "student") {
       studentBtn.classList.add("active");
       riderBtn.classList.remove("active");
       matricField.classList.remove("hidden");
-      plateField.classList.add("hidden");
+      riderFields.classList.add("hidden");
     } else {
       studentBtn.classList.remove("active");
       riderBtn.classList.add("active");
       matricField.classList.add("hidden");
-      plateField.classList.remove("hidden");
+      riderFields.classList.remove("hidden");
     }
   };
 

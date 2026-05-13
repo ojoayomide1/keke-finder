@@ -12,5 +12,6 @@ export const state = {
   routeControl: null,
   userMarker: null,
   unsubscribeRequests: null,
-  activeMarkerAnimations: new Map()
+  activeMarkerAnimations: new Map(),
+  vehicleType: null // 'keke' or 'shuttle'
 };

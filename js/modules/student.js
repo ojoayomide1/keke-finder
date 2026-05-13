@@ -112,7 +112,7 @@ export async function requestKeke() {
     initMap("studentMap");
     // startListeners will be called from app.js
     
-    updateBottomSheet("Ride Requested", "Waiting for rider to accept");
+    updateBottomSheet("Live Trip", "Waiting for rider to accept");
     updateRideDetails("student", [
       { label: "Status", value: "Waiting" },
       { label: "From", value: pickupLoc.name },

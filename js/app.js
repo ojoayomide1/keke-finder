@@ -13,6 +13,7 @@ import {
 } from "./firebase.js";
 import { initAuth } from "./auth.js";
 import { state } from "./modules/state.js";
+import { CAMPUS_MAP_DATA } from "./campus-data.js";
 import { 
   showToast, 
   updateBottomSheet, 
@@ -52,7 +53,7 @@ window.toggleSidebar = () => {
 };
 
 window.switchStudentView = (view) => {
-  const overlays = ["activityView", "profileView", "activityDetailView"];
+  const overlays = ["activityView", "profileView", "activityDetailView", "pathfinderView"];
   overlays.forEach(v => {
     const el = document.getElementById(v);
     if (el) el.classList.add("hidden");
@@ -75,11 +76,17 @@ window.switchStudentView = (view) => {
     const vEl = document.getElementById("activityDetailView");
     if (vEl) vEl.classList.remove("hidden");
     if (dash) dash.classList.add("hidden");
+  } else if (view === "pathfinder") {
+    const vEl = document.getElementById("pathfinderView");
+    if (vEl) vEl.classList.remove("hidden");
+    if (dash) dash.classList.add("hidden");
+    populatePathfinderLandmarks();
   }
   
   document.querySelectorAll(".nav-item").forEach(item => {
     if (item && item.innerText) {
-      item.classList.toggle("active", item.innerText.toLowerCase().includes(view));
+      const text = item.innerText.toLowerCase();
+      item.classList.toggle("active", text.includes(view) || (view === 'dashboard' && text.includes('veriride')));
     }
   });
   
@@ -88,6 +95,65 @@ window.switchStudentView = (view) => {
   if (sidebar) sidebar.classList.add("hidden");
   if (overlay) overlay.classList.add("hidden");
 };
+
+window.navigateToLandmark = (landmarkId) => {
+  if (!landmarkId) return;
+  const landmark = CAMPUS_MAP_DATA.locations.find(l => l.id === landmarkId);
+  if (!landmark) return;
+
+  // Switch to map view
+  document.getElementById("studentDashboard").classList.add("hidden");
+  document.getElementById("pathfinderView").classList.add("hidden");
+  document.getElementById("studentMap").classList.remove("hidden");
+  document.getElementById("mapBackBtn").classList.remove("hidden");
+  
+  initMap("studentMap");
+  
+  // Draw path from user current location (or a default start point if GPS unavailable)
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const { latitude, longitude } = pos.coords;
+    if (!state.userMarker) {
+      state.userMarker = L.marker([latitude, longitude]).addTo(state.map).bindPopup("Your Location");
+    } else {
+      state.userMarker.setLatLng([latitude, longitude]);
+    }
+    
+    if (state.routeControl) {
+      state.routeControl.setWaypoints([
+        L.latLng(latitude, longitude),
+        L.latLng(landmark.lat, landmark.lng)
+      ]);
+    } else {
+      state.routeControl = L.Routing.control({
+        waypoints: [
+          L.latLng(latitude, longitude),
+          L.latLng(landmark.lat, landmark.lng)
+        ],
+        createMarker: () => null,
+        addWaypoints: false,
+        draggableWaypoints: false,
+        show: false,
+        lineOptions: { styles: [{ color: '#3b82f6', weight: 6 }] }
+      }).addTo(state.map);
+    }
+    state.map.fitBounds(L.latLngBounds([latitude, longitude], [landmark.lat, landmark.lng]), { padding: [50, 50] });
+    showToast(`Pathfinding to ${landmark.name}`);
+  }, (err) => {
+    showToast("GPS required for navigation", "error");
+  });
+};
+
+function populatePathfinderLandmarks() {
+  const select = document.getElementById("pathfinderSelect");
+  if (!select) return;
+  if (select.children.length > 1) return; // Already populated
+  
+  const options = CAMPUS_MAP_DATA.locations
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(loc => `<option value="${loc.id}">${loc.name}</option>`)
+    .join("");
+  select.innerHTML = `<option value="">Select Landmark</option>` + options;
+}
 
 window.showMap = () => {
   document.getElementById("studentDashboard").classList.add("hidden");
