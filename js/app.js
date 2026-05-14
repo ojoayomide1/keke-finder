@@ -176,6 +176,18 @@ async function navigateToLandmark(landmarkId) {
   });
 }
 
+function populatePathfinderLandmarks() {
+  const select = document.getElementById("pathfinderSelect");
+  if (!select) return;
+  if (select.children.length > 1) return; // Already populated
+  
+  const options = CAMPUS_MAP_DATA.locations
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(loc => `<option value="${loc.id}">${loc.name}</option>`)
+    .join("");
+  select.innerHTML = `<option value="">Select Landmark</option>` + options;
+}
+
 function bindAppGlobals() {
   window.toggleSidebar = toggleSidebar;
   window.switchStudentView = switchStudentView;
