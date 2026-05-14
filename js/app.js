@@ -191,6 +191,7 @@ function populatePathfinderLandmarks() {
 }
 
 function bindAppGlobals() {
+  window.switchTab = switchTab;
   window.toggleSidebar = toggleSidebar;
   window.switchStudentView = switchStudentView;
   window.showMap = showMap;
