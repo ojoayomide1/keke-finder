@@ -28,3 +28,18 @@ Hostel I
   "zones": []
 }
 
+Hostel L
+{
+  "locations": [
+    {
+      "id": "unnamed",
+      "name": "Unnamed",
+      "category": "landmark",
+      "lat": 9.286366,
+      "lng": 7.411976
+    }
+  ],
+  "paths": [],
+  "zones": []
+}
+

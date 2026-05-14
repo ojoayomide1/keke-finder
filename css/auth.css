@@ -1,7 +1,9 @@
 #loginScreen.screen {
   overflow-y: auto;
-  display: block;
-  padding: 40px 0;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 60px 0;
 }
 
 #loginScreen {

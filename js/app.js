@@ -42,17 +42,16 @@ import {
 } from "./modules/rider.js";
 
 // ================= GLOBAL BINDINGS =================
-// These are needed because index.html uses onclick handlers
-window.toggleSidebar = () => {
+function toggleSidebar() {
   const sidebar = document.getElementById("studentSidebar");
   const overlay = document.getElementById("sidebarOverlay");
   if (!sidebar || !overlay) return;
   const isHidden = sidebar.classList.contains("hidden");
   sidebar.classList.toggle("hidden", !isHidden);
   overlay.classList.toggle("hidden", !isHidden);
-};
+}
 
-window.switchStudentView = (view) => {
+function switchStudentView(view) {
   const overlays = ["activityView", "profileView", "activityDetailView", "pathfinderView"];
   overlays.forEach(v => {
     const el = document.getElementById(v);
@@ -94,14 +93,49 @@ window.switchStudentView = (view) => {
   const overlay = document.getElementById("sidebarOverlay");
   if (sidebar) sidebar.classList.add("hidden");
   if (overlay) overlay.classList.add("hidden");
-};
+}
 
-window.navigateToLandmark = (landmarkId) => {
+function showMap() {
+  document.getElementById("studentDashboard").classList.add("hidden");
+  document.getElementById("studentMap").classList.remove("hidden");
+  document.getElementById("mapBackBtn").classList.remove("hidden");
+  initMap("studentMap");
+}
+
+function hideMap() {
+  document.getElementById("studentDashboard").classList.remove("hidden");
+  document.getElementById("studentMap").classList.add("hidden");
+  document.getElementById("mapBackBtn").classList.add("hidden");
+  document.getElementById("studentSheet").classList.add("hidden");
+}
+
+function hideRiderMap() {
+  document.getElementById("riderDashboard").classList.remove("hidden");
+  document.getElementById("riderMap").classList.add("hidden");
+  document.getElementById("riderMapBackBtn").classList.add("hidden");
+  document.getElementById("riderSheet").classList.add("hidden");
+}
+
+async function requestKeke() {
+  await _requestKeke();
+  startListeners();
+}
+
+async function cancelRide() {
+  await _cancelRide();
+  state.currentRideId = null;
+}
+
+async function completeRide() {
+  await _completeRide();
+  state.currentRideId = null;
+}
+
+async function navigateToLandmark(landmarkId) {
   if (!landmarkId) return;
   const landmark = CAMPUS_MAP_DATA.locations.find(l => l.id === landmarkId);
   if (!landmark) return;
 
-  // Switch to map view
   document.getElementById("studentDashboard").classList.add("hidden");
   document.getElementById("pathfinderView").classList.add("hidden");
   document.getElementById("studentMap").classList.remove("hidden");
@@ -109,7 +143,6 @@ window.navigateToLandmark = (landmarkId) => {
   
   initMap("studentMap");
   
-  // Draw path from user current location (or a default start point if GPS unavailable)
   navigator.geolocation.getCurrentPosition((pos) => {
     const { latitude, longitude } = pos.coords;
     if (!state.userMarker) {
@@ -141,53 +174,21 @@ window.navigateToLandmark = (landmarkId) => {
   }, (err) => {
     showToast("GPS required for navigation", "error");
   });
-};
-
-function populatePathfinderLandmarks() {
-  const select = document.getElementById("pathfinderSelect");
-  if (!select) return;
-  if (select.children.length > 1) return; // Already populated
-  
-  const options = CAMPUS_MAP_DATA.locations
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map(loc => `<option value="${loc.id}">${loc.name}</option>`)
-    .join("");
-  select.innerHTML = `<option value="">Select Landmark</option>` + options;
 }
 
-window.showMap = () => {
-  document.getElementById("studentDashboard").classList.add("hidden");
-  document.getElementById("studentMap").classList.remove("hidden");
-  document.getElementById("mapBackBtn").classList.remove("hidden");
-  initMap("studentMap");
-};
+function bindAppGlobals() {
+  window.toggleSidebar = toggleSidebar;
+  window.switchStudentView = switchStudentView;
+  window.showMap = showMap;
+  window.hideMap = hideMap;
+  window.hideRiderMap = hideRiderMap;
+  window.requestKeke = requestKeke;
+  window.cancelRide = cancelRide;
+  window.completeRide = completeRide;
+  window.navigateToLandmark = navigateToLandmark;
+}
 
-window.hideMap = () => {
-  document.getElementById("studentDashboard").classList.remove("hidden");
-  document.getElementById("studentMap").classList.add("hidden");
-  document.getElementById("mapBackBtn").classList.add("hidden");
-  document.getElementById("studentSheet").classList.add("hidden");
-};
-
-window.hideRiderMap = () => {
-  document.getElementById("riderDashboard").classList.remove("hidden");
-  document.getElementById("riderMap").classList.add("hidden");
-  document.getElementById("riderMapBackBtn").classList.add("hidden");
-  document.getElementById("riderSheet").classList.add("hidden");
-};
-
-window.requestKeke = async () => {
-  await _requestKeke();
-  startListeners();
-};
-window.cancelRide = async () => {
-  await _cancelRide();
-  state.currentRideId = null;
-};
-window.completeRide = async () => {
-  await _completeRide();
-  state.currentRideId = null;
-};
+bindAppGlobals();
 
 window.visitRide = async (rideId) => {
   state.currentRideId = rideId;
