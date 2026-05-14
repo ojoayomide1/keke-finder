@@ -51,62 +51,64 @@ function toggleSidebar() {
   overlay.classList.toggle("hidden", !isHidden);
 }
 
-function switchStudentView(view) {
-  const overlays = ["activityView", "profileView", "activityDetailView", "pathfinderView"];
-  overlays.forEach(v => {
-    const el = document.getElementById(v);
+function switchTab(tab) {
+  const tabs = ["home", "vip", "live", "map", "profile", "activity"];
+  const views = {
+    home: "studentDashboard",
+    vip: "vipView",
+    live: "liveRideView",
+    map: "pathfinderView",
+    profile: "profileView",
+    activity: "activityView"
+  };
+
+  // Hide all tab views
+  Object.values(views).forEach(vId => {
+    const el = document.getElementById(vId);
     if (el) el.classList.add("hidden");
   });
-  const dash = document.getElementById("studentDashboard");
-  if (dash) dash.classList.remove("hidden");
-  
-  if (view === "activity") {
+
+  // Handle specific tab logic
+  if (tab === "activity") {
     if (state.currentUser?.isGuest) return showToast("Signup to view activity", "error");
-    const vEl = document.getElementById("activityView");
-    if (vEl) vEl.classList.remove("hidden");
-    if (dash) dash.classList.add("hidden");
     fetchRideHistory();
-  } else if (view === "profile") {
-    if (state.currentUser?.isGuest) return showToast("Signup to view profile", "error");
-    const vEl = document.getElementById("profileView");
-    if (vEl) vEl.classList.remove("hidden");
-    if (dash) dash.classList.add("hidden");
-  } else if (view === "detail") {
-    const vEl = document.getElementById("activityDetailView");
-    if (vEl) vEl.classList.remove("hidden");
-    if (dash) dash.classList.add("hidden");
-  } else if (view === "pathfinder") {
-    const vEl = document.getElementById("pathfinderView");
-    if (vEl) vEl.classList.remove("hidden");
-    if (dash) dash.classList.add("hidden");
+  } else if (tab === "map") {
     populatePathfinderLandmarks();
+  } else if (tab === "live") {
+    // If opening live tab, ensure map is initialized
+    setTimeout(() => initMap("studentMap"), 100);
   }
-  
-  document.querySelectorAll(".nav-item").forEach(item => {
-    if (item && item.innerText) {
-      const text = item.innerText.toLowerCase();
-      item.classList.toggle("active", text.includes(view) || (view === 'dashboard' && text.includes('veriride')));
-    }
+
+  // Show selected view
+  const targetView = views[tab];
+  if (targetView) {
+    document.getElementById(targetView).classList.remove("hidden");
+  }
+
+  // Update bottom nav active state
+  document.querySelectorAll(".nav-tab").forEach(t => {
+    const tId = t.id.replace("tab-", "");
+    t.classList.toggle("active", tId === tab);
   });
-  
-  const sidebar = document.getElementById("studentSidebar");
-  const overlay = document.getElementById("sidebarOverlay");
-  if (sidebar) sidebar.classList.add("hidden");
-  if (overlay) overlay.classList.add("hidden");
+}
+
+function switchStudentView(view) {
+  // Map old view names to new tabs if called from other modules
+  const viewMap = {
+    dashboard: "home",
+    pathfinder: "map",
+    activity: "activity",
+    profile: "profile"
+  };
+  switchTab(viewMap[view] || view);
 }
 
 function showMap() {
-  document.getElementById("studentDashboard").classList.add("hidden");
-  document.getElementById("studentMap").classList.remove("hidden");
-  document.getElementById("mapBackBtn").classList.remove("hidden");
-  initMap("studentMap");
+  switchTab('live');
 }
 
 function hideMap() {
-  document.getElementById("studentDashboard").classList.remove("hidden");
-  document.getElementById("studentMap").classList.add("hidden");
-  document.getElementById("mapBackBtn").classList.add("hidden");
-  document.getElementById("studentSheet").classList.add("hidden");
+  switchTab('home');
 }
 
 function hideRiderMap() {
@@ -208,11 +210,8 @@ window.visitRide = async (rideId) => {
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
     const r = docSnap.data();
-    document.getElementById("studentDashboard").classList.add("hidden");
-    document.getElementById("studentMap").classList.remove("hidden");
-    document.getElementById("mapBackBtn").classList.remove("hidden");
+    switchTab('live');
     document.getElementById("studentSheet").classList.remove("hidden");
-    initMap("studentMap");
     startListeners();
     updateRideUI(r);
     updateBottomSheet(r.status === "waiting" ? "Ride Requested" : "Trip Active", r.status);
@@ -221,8 +220,6 @@ window.visitRide = async (rideId) => {
       { label: "From", value: r.pickupName },
       { label: "To", value: r.dropoffName }
     ]);
-    window.switchStudentView('dashboard');
-    document.getElementById("studentDashboard").classList.add("hidden"); 
   }
 };
 

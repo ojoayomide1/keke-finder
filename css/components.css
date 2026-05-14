@@ -176,3 +176,57 @@ button:disabled {
 }
 .toast.show { opacity: 1; }
 .toast.error { background: #ef4444; }
+
+/* Bottom Navigation */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 70px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  z-index: 3500;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #6b7280;
+  background: transparent;
+  padding: 0;
+  height: 100%;
+  border-radius: 0;
+}
+
+.nav-tab.active {
+  color: #22c55e;
+}
+
+.nav-tab i {
+  font-size: 20px;
+}
+
+.nav-tab span {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* App-like Overlays */
+.view-overlay {
+  padding-bottom: 80px; /* Space for bottom nav */
+}
+
+.dashboard-body {
+  padding-bottom: 90px;
+}

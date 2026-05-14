@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
 </head>
 <body>
 
@@ -82,121 +83,93 @@
 
   <!-- STUDENT UI -->
   <div id="studentUI" class="screen hidden">
-    <!-- Student Dashboard (Form Centric) -->
-    <div id="studentDashboard" class="dashboard-container">
+    <!-- Home / VeriRide Section -->
+    <div id="studentDashboard" class="dashboard-container tab-view">
       <header class="dashboard-header">
         <div class="user-info">
           <h2 id="studentDashName">Student Name</h2>
-          <span id="studentDashRole" class="role-tag">Student</span>
+          <span class="role-tag">Student</span>
         </div>
-        <button class="menu-icon-btn" onclick="toggleSidebar()">
-          <span class="bar"></span>
-          <span class="bar"></span>
-          <span class="bar"></span>
-        </button>
       </header>
 
       <main class="dashboard-body">
         <div class="ride-form-card">
-          <h3>VeriRide - Request Transit</h3>
+          <h3 style="margin-bottom: 8px;">Request a ride</h3>
+          <p style="font-size: 13px; color: #6b7280; margin-bottom: 20px;">Quick and reliable transit within Veritas University campus.</p>
+          
           <div class="form-group">
             <label>Pickup Location</label>
             <select id="pickupSelect" class="input-field">
               <option value="">Select Pickup Location</option>
-              <!-- Populated via JS -->
             </select>
           </div>
           <div class="form-group">
             <label>Drop-off Location</label>
             <select id="dropoffSelect" class="input-field">
               <option value="">Select Drop-off Location</option>
-              <!-- Populated via JS -->
             </select>
           </div>
           <button type="button" id="requestBtn" onclick="requestKeke()" class="green auth-primary">
-            Find VeriRide
+            Request a ride
           </button>
         </div>
       </main>
     </div>
 
-    <!-- Map View (Hidden by default or toggled) -->
-    <div id="studentMap" class="map hidden"></div>
-    
-    <button class="backBtn hidden" id="mapBackBtn" onclick="hideMap()"></button>
-
-    <!-- Sidebar Overlay & Container -->
-    <div id="sidebarOverlay" class="sidebar-overlay hidden" onclick="toggleSidebar()"></div>
-    <div id="studentSidebar" class="sidebar hidden">
-      <div class="sidebar-header">
-        <h2 id="sidebarName">Student Name</h2>
-        <p id="sidebarEmail">email@example.com</p>
+    <!-- VIP Section -->
+    <div id="vipView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>VIP Lounge</h2>
       </div>
-      <nav class="sidebar-nav">
-        <button onclick="switchStudentView('dashboard')" class="nav-item active">
-          VeriRide (Home)
-        </button>
-        <button onclick="switchStudentView('pathfinder')" class="nav-item">
-          Pathfinder (Map)
-        </button>
-        <button onclick="switchStudentView('activity')" class="nav-item">
-          Activity
-        </button>
-        <button onclick="switchStudentView('profile')" class="nav-item">
-          Profile
-        </button>
-        <div class="nav-divider"></div>
-        <button onclick="logout()" class="nav-item logout">
-          Logout
-        </button>
-      </nav>
+      <div class="center" style="padding: 40px; color: #111;">
+        <i class="fas fa-gem" style="font-size: 48px; color: #facc15; margin-bottom: 20px;"></i>
+        <h3>Premium Features</h3>
+        <p style="color: #6b7280;">Exclusive transit benefits for VUNA residents.</p>
+        <span class="role-tag yellow-tag" style="margin-top: 15px;">Coming Soon</span>
+      </div>
     </div>
 
-    <!-- Pathfinder Section -->
-    <div id="pathfinderView" class="view-overlay hidden">
+    <!-- Live Section (Map + Bottom Sheet) -->
+    <div id="liveRideView" class="view-overlay hidden tab-view">
       <div class="view-header">
-        <button class="iconBtn" onclick="switchStudentView('dashboard')">Back</button>
-        <h2>Pathfinder Navigation</h2>
+        <h2>Live Trip</h2>
+      </div>
+      <div id="studentMap" class="map" style="flex: 1; position: relative; height: 100%;"></div>
+      
+      <div class="bottomSheet hidden" id="studentSheet" style="position: absolute;">
+        <div class="dragZone"></div>
+        <div class="handle"></div>
+        <h3 id="studentTitle">Live Trip</h3>
+        <p id="studentSub">Waiting for rider...</p>
+        <div class="ride-details" id="studentRideDetails"></div>
+        <div class="controls" id="studentControls" style="display:none">
+          <button type="button" onclick="cancelRide()" class="danger">Cancel Request</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pathfinder (Map) Section -->
+    <div id="pathfinderView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>Pathfinder</h2>
       </div>
       <div class="ride-form-card" style="margin: 15px;">
+        <h3 style="margin-bottom: 8px;">Find your way</h3>
+        <p style="font-size: 13px; color: #6b7280; margin-bottom: 20px;">Pathfinder helps freshers find their way around the Veritas campus.</p>
+        
         <div class="form-group">
           <label>Where are you going?</label>
           <select id="pathfinderSelect" class="input-field" onchange="navigateToLandmark(this.value)">
             <option value="">Select Landmark</option>
-            <!-- Populated via JS -->
           </select>
         </div>
-        <p style="font-size: 12px; color: #6b7280;">Pathfinder helps freshers find their way around the Veritas campus.</p>
-      </div>
-    </div>
-
-    <!-- Activity Section -->
-    <div id="activityView" class="view-overlay hidden">
-      <div class="view-header">
-        <button class="iconBtn" onclick="switchStudentView('dashboard')">Back</button>
-        <h2>Your Activity</h2>
-      </div>
-      <div id="activityList" class="activity-list">
-        <p class="empty-state">No recent activity</p>
-      </div>
-    </div>
-
-    <!-- Activity Detail View -->
-    <div id="activityDetailView" class="view-overlay hidden">
-      <div class="view-header">
-        <button class="iconBtn" onclick="switchStudentView('activity')">Back</button>
-        <h2>Ride Details</h2>
-      </div>
-      <div class="detail-content" id="rideDetailContent">
-        <!-- Details will be injected here -->
       </div>
     </div>
 
     <!-- Profile Section -->
-    <div id="profileView" class="view-overlay hidden">
+    <div id="profileView" class="view-overlay hidden tab-view">
       <div class="view-header">
-        <button class="iconBtn" onclick="switchStudentView('dashboard')">Back</button>
-        <h2>Profile Settings</h2>
+        <h2>Profile</h2>
       </div>
       <div class="profile-content">
         <div class="profile-card">
@@ -204,26 +177,56 @@
           <h3 id="profileName">Student Name</h3>
           <p id="profileEmail">email@example.com</p>
         </div>
-        <div class="settings-list">
+        
+        <div class="settings-list" style="margin-bottom: 20px;">
+          <div class="settings-item" onclick="switchTab('activity')">
+            <span>Ride Activity</span>
+            <i class="fas fa-chevron-right"></i>
+          </div>
           <div class="settings-item">
             <span>App Version</span>
-            <strong>1.1.0</strong>
+            <strong>1.2.0</strong>
           </div>
-          <button onclick="logout()" class="danger-text">Logout from account</button>
         </div>
+        
+        <button onclick="logout()" class="danger-text">Logout from account</button>
       </div>
     </div>
 
-    <div class="bottomSheet hidden" id="studentSheet">
-      <div class="dragZone"></div>
-      <div class="handle"></div>
-      <h3 id="studentTitle">Live Trip</h3>
-      <p id="studentSub">VeriRide Active</p>
-      <div class="ride-details" id="studentRideDetails"></div>
-      <div class="controls" id="studentControls" style="display:none">
-        <button type="button" onclick="cancelRide()" class="danger">Cancel Request</button>
+    <!-- Activity (Nested in Profile usually, but kept as overlay for now) -->
+    <div id="activityView" class="view-overlay hidden">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchTab('profile')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Your Activity</h2>
+      </div>
+      <div id="activityList" class="activity-list">
+        <p class="empty-state">No recent activity</p>
       </div>
     </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <button class="nav-tab active" id="tab-home" onclick="switchTab('home')">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+      </button>
+      <button class="nav-tab" id="tab-vip" onclick="switchTab('vip')">
+        <i class="fas fa-gem"></i>
+        <span>VIP</span>
+      </button>
+      <button class="nav-tab" id="tab-live" onclick="switchTab('live')">
+        <i class="fas fa-satellite-dish"></i>
+        <span>Live</span>
+      </button>
+      <button class="nav-tab" id="tab-map" onclick="switchTab('map')">
+        <i class="fas fa-map-marked-alt"></i>
+        <span>Map</span>
+      </button>
+      <button class="nav-tab" id="tab-profile" onclick="switchTab('profile')">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+      </button>
+    </nav>
   </div>
 
   <!-- RIDER UI -->

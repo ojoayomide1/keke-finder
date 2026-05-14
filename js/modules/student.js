@@ -104,12 +104,9 @@ export async function requestKeke() {
     const ref = await addDoc(collection(db, "requests"), rideData);
     state.currentRideId = ref.id;
     
-    document.getElementById("studentDashboard").classList.add("hidden");
-    document.getElementById("studentMap").classList.remove("hidden");
-    document.getElementById("mapBackBtn").classList.remove("hidden");
-    document.getElementById("studentSheet").classList.remove("hidden");
+    // Switch to Live Tab via app.js global
+    if (window.switchTab) window.switchTab('live');
     
-    initMap("studentMap");
     // startListeners will be called from app.js
     
     updateBottomSheet("Live Trip", "Waiting for rider to accept");
@@ -123,7 +120,7 @@ export async function requestKeke() {
     showToast("Failed to request ride", "error");
   } finally {
     btn.disabled = false;
-    btn.innerText = "Request Ride";
+    btn.innerText = "Request a ride";
   }
 }
 
