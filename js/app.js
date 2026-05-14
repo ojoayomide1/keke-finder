@@ -25,7 +25,8 @@ import {
 import { 
   initMap, 
   animateMarker, 
-  getDistance 
+  getDistance,
+  stabilizeLocation
 } from "./modules/map-manager.js";
 import { 
   populateLocations, 
