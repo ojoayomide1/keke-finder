@@ -1,26 +1,67 @@
 import { state } from "./state.js";
 import { renderCampusMapData } from "../campus-map.js";
 
-export function animateMarker(marker, targetLat, targetLng, duration = 1000) {
+// Location Stabilizer State
+const stabilizer = {
+  lastLat: null,
+  lastLng: null,
+  smoothingFactor: 0.3 // Adjust (0 to 1): Lower is smoother but has more lag
+};
+
+/**
+ * Smoothens raw GPS coordinates using Exponential Moving Average (EMA).
+ * This reduces sudden jumps and "jitters".
+ */
+export function stabilizeLocation(lat, lng) {
+  if (stabilizer.lastLat === null || stabilizer.lastLng === null) {
+    stabilizer.lastLat = lat;
+    stabilizer.lastLng = lng;
+    return { lat, lng };
+  }
+
+  // EMA Formula: NewValue = (RawValue * Factor) + (OldValue * (1 - Factor))
+  const smoothLat = (lat * stabilizer.smoothingFactor) + (stabilizer.lastLat * (1 - stabilizer.smoothingFactor));
+  const smoothLng = (lng * stabilizer.smoothingFactor) + (stabilizer.lastLng * (1 - stabilizer.smoothingFactor));
+
+  stabilizer.lastLat = smoothLat;
+  stabilizer.lastLng = smoothLng;
+
+  return { lat: smoothLat, lng: smoothLng };
+}
+
+export function animateMarker(marker, targetLat, targetLng, duration = 1200) {
   if (!marker) return;
+  
   if (state.activeMarkerAnimations.has(marker)) {
     cancelAnimationFrame(state.activeMarkerAnimations.get(marker));
   }
+
   const startLat = marker.getLatLng().lat;
   const startLng = marker.getLatLng().lng;
   const startTime = performance.now();
+
+  // Easing function for a "gliding" feel
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
   function frame(currentTime) {
     const elapsed = currentTime - startTime;
-    const progress = Math.min(elapsed / duration, 1);
+    const rawProgress = Math.min(elapsed / duration, 1);
+    const progress = easeOutCubic(rawProgress);
+
     const currentLat = startLat + (targetLat - startLat) * progress;
     const currentLng = startLng + (targetLng - startLng) * progress;
+
     marker.setLatLng([currentLat, currentLng]);
-    if (progress < 1) {
+
+    if (rawProgress < 1) {
       state.activeMarkerAnimations.set(marker, requestAnimationFrame(frame));
     } else {
       state.activeMarkerAnimations.delete(marker);
     }
   }
+
   state.activeMarkerAnimations.set(marker, requestAnimationFrame(frame));
 }
 
