@@ -1,5 +1,3 @@
-import { db, collection, getCountFromServer } from "../firebase.js";
-
 export function getDistance(pointA, pointB) {
   const R = 6371000;
   const lat1 = pointA.lat * Math.PI / 180;
@@ -96,8 +94,9 @@ export function calculateFare(pickup, dropoff) {
 }
 
 export async function getQueuePosition() {
-  const snapshot = await getCountFromServer(collection(db, "waitingQueue"));
-  return snapshot.data().count + 1;
+  // Students are not allowed to list/count the full waitingQueue.
+  // Keep this local until a dedicated queueStats document is added.
+  return 1;
 }
 
 export async function estimateWaitTime() {
