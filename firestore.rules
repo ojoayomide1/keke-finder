@@ -258,10 +258,11 @@ service cloud.firestore {
     function validQueueCreate() {
       return isStudent()
         && request.resource.data.keys().hasOnly([
-          "studentId", "requestId", "pickup", "dropoff",
+          "studentId", "studentName", "requestId", "pickup", "dropoff",
           "joinedAt", "position", "estimatedWait", "notified"
         ])
         && request.resource.data.studentId == request.auth.uid
+        && (!("studentName" in request.resource.data) || validShortString(request.resource.data.studentName, 80))
         && request.resource.data.requestId is string
         && validPoint(request.resource.data.pickup)
         && validPoint(request.resource.data.dropoff)

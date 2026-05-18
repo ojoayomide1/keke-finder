@@ -226,18 +226,15 @@ export async function drainWaitingQueueForRide(rideId) {
     try {
       const matched = await runTransaction(db, async (transaction) => {
         const rideSnap = await transaction.get(rideRef);
-        const requestSnap = await transaction.get(requestRef);
 
-        if (!rideSnap.exists() || !requestSnap.exists()) return false;
+        if (!rideSnap.exists()) return false;
 
         const ride = rideSnap.data();
-        const requestDoc = requestSnap.data();
 
         if (ride.riderId !== state.currentUser?.uid) return false;
         if (!["waiting", "active"].includes(ride.status)) return false;
         if ((ride.seats?.available || 0) <= 0) return false;
-        if (requestDoc.status !== "queued") return false;
-        if (requestDoc.studentId !== queued.studentId) return false;
+        if (!queued.requestId || !queued.studentId) return false;
         if (queued.studentId in (ride.passengers || {})) return false;
 
         const pickupDistance = getDistance(ride.currentLocation, queued.pickup);
@@ -245,7 +242,7 @@ export async function drainWaitingQueueForRide(rideId) {
 
         const request = {
           studentId: queued.studentId,
-          studentName: requestDoc.studentName,
+          studentName: queued.studentName || "Queued Student",
           pickup: queued.pickup,
           dropoff: queued.dropoff
         };

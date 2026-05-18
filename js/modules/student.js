@@ -59,6 +59,7 @@ export async function runMatching(requestId, request) {
   // No keke available — add to waiting queue
   const queueRef = await addDoc(collection(db, "waitingQueue"), {
     studentId: request.studentId,
+    studentName: request.studentName,
     requestId: requestId,
     pickup: request.pickup,
     dropoff: request.dropoff,
