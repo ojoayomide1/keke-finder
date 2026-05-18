@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // 1. Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
+    }
+
+    // 2. Rides (Kekes) Collection
+    match /rides/{rideId} {
+      allow read: if isSignedIn();
+      
+      // Riders can create/update their own ride
+      // Students can update a ride to claim a seat (via transaction)
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if false; // For safety, only mark as 'completed'
+    }
+
+    // 3. Ride Requests Collection
+    match /rideRequests/{requestId} {
+      allow read: if isSignedIn();
+      
+      // Students can create their own requests
+      allow create: if isSignedIn();
+      
+      // Students can cancel, Riders can update status to 'matched'
+      allow update: if isSignedIn();
+    }
+
+    // 4. Waiting Queue Collection
+    match /waitingQueue/{queueId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    // 5. Scheduled Rides Collection
+    match /scheduledRides/{scheduleId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+    }
+  }
+}
