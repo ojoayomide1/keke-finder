@@ -11,14 +11,17 @@ const MAX_DETOUR_IDLE = 800; // metres
 export async function runMatching(requestId, request) {
   // Try active keke first
   const activeSnap = await getDocs(
-    query(collection(db, "rides"), where("status", "==", "active"), where("seats.available", ">", 0))
+    query(collection(db, "rides"), where("status", "==", "active"))
   );
 
   let bestRide = null;
   let bestScore = Infinity;
 
   activeSnap.forEach((docSnap) => {
-    const ride = { id: docSnap.id, ...docSnap.data() };
+    const data = docSnap.data();
+    if (data.seats.available <= 0) return; // Client-side filter
+
+    const ride = { id: docSnap.id, ...data };
     const score = calculateDetourScore(ride, request);
     if (score < bestScore && score < MAX_DETOUR_ACTIVE) {
       bestScore = score;
@@ -33,11 +36,14 @@ export async function runMatching(requestId, request) {
 
   // Try idle keke
   const idleSnap = await getDocs(
-    query(collection(db, "rides"), where("status", "==", "waiting"), where("seats.available", ">", 0))
+    query(collection(db, "rides"), where("status", "==", "waiting"))
   );
 
   idleSnap.forEach((docSnap) => {
-    const ride = { id: docSnap.id, ...docSnap.data() };
+    const data = docSnap.data();
+    if (data.seats.available <= 0) return; // Client-side filter
+
+    const ride = { id: docSnap.id, ...data };
     const score = getDistance(ride.currentLocation, request.pickup);
     if (score < bestScore && score < MAX_DETOUR_IDLE) {
       bestScore = score;
