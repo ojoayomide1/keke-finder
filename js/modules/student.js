@@ -160,36 +160,41 @@ export async function fetchRideHistory() {
   if (!list || !state.currentUser || state.currentUser.isGuest) return;
   const q = query(collection(db, "rideRequests"), orderBy("requestedAt", "desc"));
   onSnapshot(q, (snapshot) => {
-    const history = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      if (data.studentId === state.currentUser.uid) {
-        history.push({ id: doc.id, ...data });
-      }
-    });
-    if (history.length === 0) {
-      list.innerHTML = '<p class="empty-state">No recent activity</p>';
-      return;
+  const history = [];
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    // Only show if not deleted by student
+    if (data.studentId === state.currentUser.uid && !data.deletedByStudent) {
+      history.push({ id: doc.id, ...data });
     }
-    list.innerHTML = history.map(h => {
-      const isActive = ["searching", "matched", "queued"].includes(h.status);
-      return `
-        <div class="activity-item">
-          <div class="activity-info">
-            <h4>Ride to ${h.dropoff?.label || 'Campus'}</h4>
-            <p>${h.requestedAt ? new Date(h.requestedAt.seconds * 1000).toLocaleString() : 'Just now'}</p>
-          </div>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span class="status-pill ${h.status}" style="font-size:10px;">${h.status}</span>
-            <button class="iconBtn" style="font-size:11px; width:auto; padding:5px 8px; border-radius:6px; background:#f3f4f6;" onclick="viewRideDetails('${h.id}')">Details</button>
-            <button class="iconBtn" style="font-size:11px; width:auto; padding:5px 8px; border-radius:6px; background:${isActive ? '#22c55e' : '#e5e7eb'}; color:${isActive ? 'white' : '#9ca3af'};" 
-              ${isActive ? `onclick="visitRide('${h.id}')"` : 'disabled'}>Visit</button>
-          </div>
-        </div>
-      `;
-    }).join("");
   });
-}
+  if (history.length === 0) {
+    list.innerHTML = '<p class="empty-state">No recent activity</p>';
+    return;
+  }
+  list.innerHTML = history.map(h => {
+    const isActive = ["searching", "matched", "queued"].includes(h.status);
+    return `
+      <div class="activity-item">
+        <div class="activity-info">
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <h4>Ride to ${h.dropoff?.label || 'Campus'}</h4>
+            <button class="iconBtn" style="color:#ef4444; font-size:14px; width:auto;" onclick="deleteRideRecord('${h.id}')">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
+          <p>${h.requestedAt ? new Date(h.requestedAt.seconds * 1000).toLocaleString() : 'Just now'}</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+          <span class="status-pill ${h.status}" style="font-size:10px;">${h.status}</span>
+          <button class="iconBtn" style="font-size:11px; width:auto; padding:5px 8px; border-radius:6px; background:#f3f4f6;" onclick="viewRideDetails('${h.id}')">Details</button>
+          <button class="iconBtn" style="font-size:11px; width:auto; padding:5px 8px; border-radius:6px; background:${isActive ? '#22c55e' : '#e5e7eb'}; color:${isActive ? 'white' : '#9ca3af'};" 
+            ${isActive ? `onclick="visitRide('${h.id}')"` : 'disabled'}>Visit</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+  });}
 
 // These will be bound to window in app.js
 export async function requestKeke() {
@@ -327,14 +332,66 @@ export function listenToQueuePosition(queueDocId) {
 }
 
 export async function cancelRide() {
-  if (state.currentRequestId) {
-    await updateDoc(doc(db, "rideRequests", state.currentRequestId), { status: "cancelled" });
+  if (!state.currentRequestId && !state.currentRideId) return;
+
+  try {
+    const batch = [];
+    
+    // 1. Cancel the Request
+    if (state.currentRequestId) {
+      const requestRef = doc(db, "rideRequests", state.currentRequestId);
+      await updateDoc(requestRef, { 
+        status: "cancelled",
+        cancelledAt: serverTimestamp() 
+      });
+    }
+
+    // 2. If already matched, notify the Rider by updating the Ride document
+    if (state.currentRideId) {
+      const rideRef = doc(db, "rides", state.currentRideId);
+      const rideSnap = await getDoc(rideRef);
+      
+      if (rideSnap.exists()) {
+        const ride = rideSnap.data();
+        const updatedQueue = ride.stopQueue.filter(s => s.passengerId !== state.currentUser.uid);
+        
+        const updates = {
+          stopQueue: updatedQueue,
+          [`passengers.${state.currentUser.uid}.pickupStatus`]: "cancelled",
+          "seats.occupied": Math.max(0, (ride.seats.occupied || 1) - 1),
+          "seats.available": Math.min(ride.seats.total, (ride.seats.available || 0) + 1),
+          updatedAt: serverTimestamp()
+        };
+        
+        await updateDoc(rideRef, updates);
+      }
+    }
+
     state.currentRequestId = null;
-  }
-  if (state.currentRideId) {
-    // Logic for cancelling an already matched ride could be more complex (notify rider, etc.)
     state.currentRideId = null;
+    
+    document.getElementById("studentSheet").classList.add("hidden");
+    if (window.switchTab) window.switchTab('home');
+    showToast("Ride cancelled successfully");
+  } catch (err) {
+    console.error("Cancel failed:", err);
+    showToast("Failed to cancel ride", "error");
   }
-  document.getElementById("studentSheet").classList.add("hidden");
-  showToast("Ride cancelled");
 }
+
+export async function deleteRideRecord(requestId) {
+  if (!confirm("Are you sure you want to delete this ride from your history?")) return;
+  
+  try {
+    await updateDoc(doc(db, "rideRequests", requestId), {
+      deletedByStudent: true // Soft delete so rider keeps record, or use deleteDoc if preferred
+    });
+    showToast("Record removed");
+  } catch (err) {
+    console.error(err);
+    showToast("Failed to remove record", "error");
+  }
+}
+
+// Bind to window for HTML access
+window.deleteRideRecord = deleteRideRecord;
