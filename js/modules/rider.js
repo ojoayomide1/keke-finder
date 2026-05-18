@@ -1,7 +1,10 @@
 import { state } from "./state.js";
-import { db, collection, addDoc, updateDoc, doc } from "../firebase.js";
-import { showToast, setButtonVisible } from "./ui.js";
+import { db, collection, addDoc, updateDoc, doc, getDoc, getDocs, serverTimestamp, onSnapshot, query, orderBy } from "../firebase.js";
+import { showToast, setButtonVisible, updateBottomSheet, updateRideDetails } from "./ui.js";
 import { initMap, animateMarker } from "./map-manager.js";
+import { getDistance } from "./ride-helpers.js";
+
+let previousStatus = null;
 
 export function updateRiderDashboardUI() {
   if (!state.currentUser) return;
@@ -10,41 +13,150 @@ export function updateRiderDashboardUI() {
 }
 
 export function updateAvailableRidesList(rides) {
+  // This might be repurposed for "Upcoming Stops" or similar if needed on dashboard
   const list = document.getElementById("availableRidesList");
   if (!list) return;
   if (rides.length === 0) {
-    list.innerHTML = '<p class="empty-state">No requests yet. Stay tuned!</p>';
+    list.innerHTML = '<p class="empty-state">No active passengers. Stay tuned!</p>';
     return;
   }
+  // List current passengers in the keke
   list.innerHTML = rides.map(r => `
     <div class="ride-item">
       <div class="ride-info">
-        <h4>From: ${r.pickupName}</h4>
-        <p>To: ${r.dropoffName}</p>
-        <p>Student: ${r.studentName}</p>
+        <h4>Passenger: ${r.name}</h4>
+        <p>Fare: ₦${r.fare}</p>
+        <p>Status: ${r.pickupStatus === 'completed' ? 'On board' : 'Waiting for pickup'}</p>
       </div>
-      <button class="accept-btn" onclick="acceptRide('${r.id}')">Accept</button>
     </div>
   `).join("");
 }
 
-export function updateRiderControls(nextState) {
+export function updateRiderControls(ride) {
   const container = document.getElementById("riderControls");
   if (!container) return;
-  if (nextState === "arriving") {
-    container.innerHTML = `<button onclick="setArriving()" class="yellow">I've Arrived</button>`;
-  } else if (nextState === "picked_up") {
-    container.innerHTML = `<button onclick="startRide()" class="green">Student Picked Up</button>`;
-  } else if (nextState === "completed") {
-    container.innerHTML = `<button onclick="completeRide()" class="green">Complete Ride</button>`;
+
+  const nextStop = ride.stopQueue.find(s => s.status === "pending");
+  if (!nextStop) {
+    container.innerHTML = `<p>All stops completed!</p>`;
+    return;
+  }
+
+  const label = nextStop.type === "pickup" ? `Pick up ${nextStop.passengerName}` : `Drop off ${nextStop.passengerName}`;
+  const btnClass = nextStop.type === "pickup" ? "yellow" : "green";
+
+  container.innerHTML = `
+    <div style="margin-bottom:10px; font-weight:bold;">Next: ${label}</div>
+    <div style="font-size:0.9em; margin-bottom:15px; color:#666;">${nextStop.locationLabel}</div>
+    <button onclick="markStopComplete('${ride.id}', '${nextStop.stopId}', ${JSON.stringify(nextStop).replace(/"/g, '&quot;')})" class="${btnClass}">
+      Arrived at ${nextStop.type === 'pickup' ? 'Pickup' : 'Drop-off'}
+    </button>
+  `;
+}
+
+export async function markStopComplete(rideId, stopId, stop) {
+  try {
+    const rideRef  = doc(db, "rides", rideId);
+    const rideSnap = await getDoc(rideRef);
+    const ride     = rideSnap.data();
+
+    const updatedQueue = ride.stopQueue.map(s =>
+      s.stopId === stopId ? { ...s, status: "completed" } : s
+    );
+
+    const updates = {
+      stopQueue:  updatedQueue,
+      updatedAt:  serverTimestamp()
+    };
+
+    if (stop.type === "pickup") {
+      updates[`passengers.${stop.passengerId}.pickupStatus`] = "completed";
+      // If first pickup, mark ride as active
+      if (ride.status === "waiting") updates.status = "active";
+    }
+
+    if (stop.type === "dropoff") {
+      updates[`passengers.${stop.passengerId}.dropoffStatus`] = "completed";
+      // Deduct fare logic here (could be an update to student's balance or just a log)
+      console.log(`Deducting fare for ${stop.passengerId}: ${ride.passengers[stop.passengerId].fare}`);
+    }
+
+    // Close the ride if all stops are done
+    const allDone = updatedQueue.every(s => s.status === "completed");
+    if (allDone) updates.status = "completed";
+
+    await updateDoc(rideRef, updates);
+    showToast(`${stop.type === 'pickup' ? 'Pickup' : 'Drop-off'} completed`);
+  } catch (err) {
+    console.error(err);
+    showToast("Failed to update stop", "error");
+  }
+}
+
+export function listenToActiveRide(rideId) {
+  return onSnapshot(doc(db, "rides", rideId), async (snapshot) => {
+    const ride = snapshot.data();
+    if (!ride) return;
+
+    if (ride.status === "completed") {
+        showToast("All stops completed!");
+        state.currentRideId = null;
+        document.getElementById("riderSheet").classList.add("hidden");
+        if (window.hideRiderMap) window.hideRiderMap();
+        
+        // Detect when ride just completed (Client-Side Patch)
+        if (previousStatus !== "completed") {
+          await notifyQueuedStudentsNearby(ride.currentLocation);
+        }
+        previousStatus = "completed";
+        return;
+    }
+
+    previousStatus = ride.status;
+
+    updateRiderControls({ id: snapshot.id, ...ride });
+    
+    const nextStop = ride.stopQueue.find(s => s.status === "pending");
+    const upcomingStops = ride.stopQueue.filter(s => s.status === "pending").slice(1);
+
+    updateBottomSheet(
+      nextStop ? (nextStop.type === 'pickup' ? "Heading to Pickup" : "Heading to Drop-off") : "Trip Completed",
+      nextStop ? nextStop.locationLabel : "All done",
+      "rider"
+    );
+
+    updateRideDetails("rider", [
+      { label: "Seats", value: `${ride.seats.occupied}/${ride.seats.total}` },
+      { label: "Passengers", value: Object.keys(ride.passengers).length },
+      { label: "Next Stop", value: nextStop ? nextStop.passengerName : "None" }
+    ]);
+  });
+}
+
+async function notifyQueuedStudentsNearby(completedLocation) {
+  const queueSnap = await getDocs(
+    query(collection(db, "waitingQueue"), orderBy("joinedAt"))
+  );
+
+  for (const docSnap of queueSnap.docs) {
+    const student = docSnap.data();
+    const distance = getDistance(completedLocation, student.pickup);
+    if (distance < 500) {
+      // Update their queue doc so their onSnapshot fires and shows the message
+      await updateDoc(docSnap.ref, { notified: true });
+      break; // Only notify the first eligible student (FIFO)
+    }
   }
 }
 
 export async function completeRide() {
+  // Manual override to complete ride if needed
   if (!state.currentRideId) return;
-  await updateDoc(doc(db, "requests", state.currentRideId), { status: "completed" });
+  await updateDoc(doc(db, "rides", state.currentRideId), { status: "completed" });
   state.currentRideId = null;
   document.getElementById("riderSheet").classList.add("hidden");
-  // hideRiderMap will be called from app.js
-  showToast("Ride completed");
+  showToast("Ride completed manually");
 }
+
+// Global binding for the markStopComplete called from HTML
+window.markStopComplete = markStopComplete;

@@ -3,6 +3,7 @@ export const state = {
   currentRole: null,
   currentUser: null,
   currentRideId: null,
+  currentRequestId: null,
   riderDocId: null,
   currentRiderName: "",
   riderWatchId: null,

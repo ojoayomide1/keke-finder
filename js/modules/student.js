@@ -1,8 +1,117 @@
 import { state } from "./state.js";
-import { db, collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, getDoc } from "../firebase.js";
+import { db, collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, getDoc, getDocs, where, serverTimestamp, runTransaction } from "../firebase.js";
 import { CAMPUS_MAP_DATA } from "../campus-data.js";
 import { showToast, updateBottomSheet, updateRideDetails } from "./ui.js";
 import { initMap } from "./map-manager.js";
+import { calculateDetourScore, getDistance, getQueuePosition, estimateWaitTime, insertStopsIntoQueue, calculateFare } from "./ride-helpers.js";
+
+const MAX_DETOUR_ACTIVE = 300; // metres
+const MAX_DETOUR_IDLE = 800; // metres
+
+export async function runMatching(requestId, request) {
+  // Try active keke first
+  const activeSnap = await getDocs(
+    query(collection(db, "rides"), where("status", "==", "active"), where("seats.available", ">", 0))
+  );
+
+  let bestRide = null;
+  let bestScore = Infinity;
+
+  activeSnap.forEach((docSnap) => {
+    const ride = { id: docSnap.id, ...docSnap.data() };
+    const score = calculateDetourScore(ride, request);
+    if (score < bestScore && score < MAX_DETOUR_ACTIVE) {
+      bestScore = score;
+      bestRide = ride;
+    }
+  });
+
+  if (bestRide) {
+    await claimSeat(bestRide.id, requestId, request);
+    return;
+  }
+
+  // Try idle keke
+  const idleSnap = await getDocs(
+    query(collection(db, "rides"), where("status", "==", "waiting"), where("seats.available", ">", 0))
+  );
+
+  idleSnap.forEach((docSnap) => {
+    const ride = { id: docSnap.id, ...docSnap.data() };
+    const score = getDistance(ride.currentLocation, request.pickup);
+    if (score < bestScore && score < MAX_DETOUR_IDLE) {
+      bestScore = score;
+      bestRide = ride;
+    }
+  });
+
+  if (bestRide) {
+    await claimSeat(bestRide.id, requestId, request);
+    return;
+  }
+
+  // No keke available — add to waiting queue
+  const queueRef = await addDoc(collection(db, "waitingQueue"), {
+    studentId: request.studentId,
+    requestId: requestId,
+    pickup: request.pickup,
+    dropoff: request.dropoff,
+    joinedAt: serverTimestamp(),
+    position: await getQueuePosition(),
+    estimatedWait: await estimateWaitTime(),
+    notified: false
+  });
+
+  await updateDoc(doc(db, "rideRequests", requestId), {
+    status: "queued",
+    queueDocId: queueRef.id
+  });
+}
+
+async function claimSeat(rideId, requestId, request) {
+  const rideRef = doc(db, "rides", rideId);
+  const requestRef = doc(db, "rideRequests", requestId);
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const rideSnap = await transaction.get(rideRef);
+      const ride = rideSnap.data();
+
+      // Re-check inside transaction — seats may have filled since we queried
+      if (!rideSnap.exists() || ride.seats.available <= 0) {
+        throw new Error("SEAT_GONE");
+      }
+
+      const updatedQueue = insertStopsIntoQueue(ride.stopQueue, request);
+
+      transaction.update(rideRef, {
+        stopQueue: updatedQueue,
+        [`passengers.${request.studentId}`]: {
+          name: request.studentName,
+          pickupStatus: "pending",
+          dropoffStatus: "pending",
+          fare: calculateFare(request.pickup, request.dropoff)
+        },
+        "seats.occupied": ride.seats.occupied + 1,
+        "seats.available": ride.seats.available - 1,
+        updatedAt: serverTimestamp()
+      });
+
+      transaction.update(requestRef, {
+        status: "matched",
+        matchedRideId: rideId
+      });
+    });
+  } catch (err) {
+    if (err.message === "SEAT_GONE") {
+      // That keke filled up between query and transaction
+      // Re-run matching to find the next best option
+      await runMatching(requestId, request);
+    } else {
+      console.error("Transaction failed:", err);
+    }
+  }
+}
 
 export function populateLocations() {
   const pickup = document.getElementById("pickupSelect");
@@ -34,7 +143,7 @@ export function updateStudentProfileUI() {
 export async function fetchRideHistory() {
   const list = document.getElementById("activityList");
   if (!list || !state.currentUser || state.currentUser.isGuest) return;
-  const q = query(collection(db, "requests"), orderBy("time", "desc"));
+  const q = query(collection(db, "rideRequests"), orderBy("requestedAt", "desc"));
   onSnapshot(q, (snapshot) => {
     const history = [];
     snapshot.forEach(doc => {
@@ -48,12 +157,12 @@ export async function fetchRideHistory() {
       return;
     }
     list.innerHTML = history.map(h => {
-      const isActive = ["waiting", "accepted", "arriving", "picked_up"].includes(h.status);
+      const isActive = ["searching", "matched", "queued"].includes(h.status);
       return `
         <div class="activity-item">
           <div class="activity-info">
-            <h4>Ride to ${h.dropoffName || 'Campus'}</h4>
-            <p>${new Date(h.time).toLocaleString()}</p>
+            <h4>Ride to ${h.dropoff?.label || 'Campus'}</h4>
+            <p>${h.requestedAt ? new Date(h.requestedAt.seconds * 1000).toLocaleString() : 'Just now'}</p>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
             <span class="status-pill ${h.status}" style="font-size:10px;">${h.status}</span>
@@ -87,36 +196,47 @@ export async function requestKeke() {
     const pickupLoc = CAMPUS_MAP_DATA.locations.find(l => l.id === pickupId);
     const dropoffLoc = CAMPUS_MAP_DATA.locations.find(l => l.id === dropoffId);
     btn.innerText = "Finding Keke...";
-    const rideData = {
-      pickupId,
-      pickupName: pickupLoc.name,
-      pickupLat: pickupLoc.lat,
-      pickupLng: pickupLoc.lng,
-      dropoffId,
-      dropoffName: dropoffLoc.name,
-      dropoffLat: dropoffLoc.lat,
-      dropoffLng: dropoffLoc.lng,
-      status: "waiting",
+
+    const requestData = {
       studentId: state.currentUser?.uid || (state.currentUser?.isGuest ? "guest" : "unknown"),
       studentName: state.currentUser?.displayName || "Guest",
-      time: Date.now()
+      pickup: {
+        lat: pickupLoc.lat,
+        lng: pickupLoc.lng,
+        label: pickupLoc.name
+      },
+      dropoff: {
+        lat: dropoffLoc.lat,
+        lng: dropoffLoc.lng,
+        label: dropoffLoc.name
+      },
+      rideType: "pool",
+      status: "searching",
+      matchedRideId: null,
+      requestedAt: serverTimestamp()
     };
-    const ref = await addDoc(collection(db, "requests"), rideData);
-    state.currentRideId = ref.id;
+
+    const ref = await addDoc(collection(db, "rideRequests"), requestData);
+    state.currentRequestId = ref.id;
     
     // Switch to Live Tab via app.js global
     if (window.switchTab) window.switchTab('live');
     
-    // startListeners will be called from app.js
+    listenToRequest(ref.id);
     
-    updateBottomSheet("Live Trip", "Waiting for rider to accept");
+    // Try to match immediately (Client-Side Patch)
+    await runMatching(ref.id, requestData);
+    
+    updateBottomSheet("Searching", "Finding your ride...");
+    import("./ui.js").then(m => m.toggleControls(true, "student"));
     updateRideDetails("student", [
-      { label: "Status", value: "Waiting" },
+      { label: "Status", value: "Searching" },
       { label: "From", value: pickupLoc.name },
       { label: "To", value: dropoffLoc.name }
     ]);
     showToast("Ride requested successfully");
   } catch (err) {
+    console.error(err);
     showToast("Failed to request ride", "error");
   } finally {
     btn.disabled = false;
@@ -124,11 +244,76 @@ export async function requestKeke() {
   }
 }
 
+export function listenToRequest(requestId) {
+  return onSnapshot(doc(db, "rideRequests", requestId), (snapshot) => {
+    const request = snapshot.data();
+    if (!request) return;
+
+    if (request.status === "matched") {
+      showToast("Ride matched!", "success");
+      state.currentRideId = request.matchedRideId;
+      listenToRide(request.matchedRideId, state.currentUser?.uid);
+    }
+
+    if (request.status === "queued") {
+      updateBottomSheet("In Queue", `Position: #${request.queuePosition || '?'}`);
+      if (request.queueDocId) {
+        listenToQueuePosition(request.queueDocId);
+      }
+    }
+  });
+}
+
+export function listenToRide(matchedRideId, currentUserId) {
+  return onSnapshot(doc(db, "rides", matchedRideId), (snapshot) => {
+    const ride = snapshot.data();
+    if (!ride) return;
+
+    const pendingStops = ride.stopQueue.filter(s => s.status === "pending");
+    const myPickup     = pendingStops.find(
+      s => s.passengerId === currentUserId && s.type === "pickup"
+    );
+
+    const stopsAway = myPickup
+      ? pendingStops.filter((s, idx) => idx < pendingStops.indexOf(myPickup)).length
+      : 0;
+
+    const myInfo = ride.passengers[currentUserId];
+
+    updateRideDetails("student", [
+      { label: "Status", value: myInfo?.pickupStatus === "completed" ? "On Trip" : "Coming to you" },
+      { label: "Stops Away", value: stopsAway },
+      { label: "Seats", value: `${ride.seats.occupied}/${ride.seats.total}` },
+      { label: "Fare", value: `₦${myInfo?.fare || 0}` }
+    ]);
+
+    updateBottomSheet(
+      myInfo?.pickupStatus === "completed" ? "On Trip" : "Keke is on the way!",
+      myInfo?.pickupStatus === "completed" ? `Heading to ${ride.stopQueue.find(s => s.passengerId === currentUserId && s.type === "dropoff")?.locationLabel}` : `${stopsAway} stops away`
+    );
+    
+    // Update map etc. (could be handled in app.js or here)
+    if (window.updateRideUI) window.updateRideUI(ride);
+  });
+}
+
+export function listenToQueuePosition(queueDocId) {
+  return onSnapshot(doc(db, "waitingQueue", queueDocId), (snapshot) => {
+    const queue = snapshot.data();
+    if (!queue) return;
+    updateBottomSheet("In Queue", `Position: #${queue.position} (Est: ${queue.estimatedWait})`);
+  });
+}
+
 export async function cancelRide() {
-  if (!state.currentRideId) return;
-  await updateDoc(doc(db, "requests", state.currentRideId), { status: "cancelled" });
-  state.currentRideId = null;
+  if (state.currentRequestId) {
+    await updateDoc(doc(db, "rideRequests", state.currentRequestId), { status: "cancelled" });
+    state.currentRequestId = null;
+  }
+  if (state.currentRideId) {
+    // Logic for cancelling an already matched ride could be more complex (notify rider, etc.)
+    state.currentRideId = null;
+  }
   document.getElementById("studentSheet").classList.add("hidden");
-  // hideMap will be called from app.js
   showToast("Ride cancelled");
 }

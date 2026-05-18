@@ -9,7 +9,8 @@ import {
   getDocs,
   where,
   db,
-  addDoc
+  addDoc,
+  serverTimestamp
 } from "./firebase.js";
 import { initAuth } from "./auth.js";
 import { state } from "./modules/state.js";
@@ -39,8 +40,10 @@ import {
   updateRiderDashboardUI, 
   updateAvailableRidesList, 
   updateRiderControls,
+  listenToActiveRide,
   completeRide as _completeRide
 } from "./modules/rider.js";
+import { startScheduledRidesProcessor } from "./modules/scheduled-rides.js";
 
 // ================= GLOBAL BINDINGS =================
 function toggleSidebar() {
@@ -206,32 +209,31 @@ function bindAppGlobals() {
 
 bindAppGlobals();
 
-window.visitRide = async (rideId) => {
-  state.currentRideId = rideId;
-  const docRef = doc(db, "requests", rideId);
+window.visitRide = async (requestId) => {
+  state.currentRequestId = requestId;
+  const docRef = doc(db, "rideRequests", requestId);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
     const r = docSnap.data();
     switchTab('live');
     document.getElementById("studentSheet").classList.remove("hidden");
-    startListeners();
-    updateRideUI(r);
-    updateBottomSheet(r.status === "waiting" ? "Ride Requested" : "Trip Active", r.status);
+    import("./modules/student.js").then(m => m.listenToRequest(requestId));
+    updateBottomSheet(r.status === "searching" ? "Searching" : "Trip Active", r.status);
     updateRideDetails("student", [
       { label: "Status", value: r.status },
-      { label: "From", value: r.pickupName },
-      { label: "To", value: r.dropoffName }
+      { label: "From", value: r.pickup.label },
+      { label: "To", value: r.dropoff.label }
     ]);
   }
 };
 
-window.viewRideDetails = async (rideId) => {
+window.viewRideDetails = async (requestId) => {
   const content = document.getElementById("rideDetailContent");
   if (!content) return;
   content.innerHTML = '<p class="empty-state">Loading details...</p>';
   window.switchStudentView('detail');
   try {
-    const docRef = doc(db, "requests", rideId);
+    const docRef = doc(db, "rideRequests", requestId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const r = docSnap.data();
@@ -240,10 +242,9 @@ window.viewRideDetails = async (rideId) => {
           <h3>Ride Info</h3>
           <div class="settings-list" style="text-align:left;">
             <div class="settings-item"><span>Status</span><strong>${r.status}</strong></div>
-            <div class="settings-item"><span>From</span><strong>${r.pickupName}</strong></div>
-            <div class="settings-item"><span>To</span><strong>${r.dropoffName}</strong></div>
-            <div class="settings-item"><span>Rider</span><strong>${r.riderName || 'N/A'}</strong></div>
-            <div class="settings-item"><span>Time</span><strong>${new Date(r.time).toLocaleString()}</strong></div>
+            <div class="settings-item"><span>From</span><strong>${r.pickup.label}</strong></div>
+            <div class="settings-item"><span>To</span><strong>${r.dropoff.label}</strong></div>
+            <div class="settings-item"><span>Requested</span><strong>${r.requestedAt ? new Date(r.requestedAt.seconds * 1000).toLocaleString() : 'N/A'}</strong></div>
           </div>
         </div>
       `;
@@ -255,7 +256,7 @@ window.viewRideDetails = async (rideId) => {
 
 window.restoreActiveRideUI = async () => {
   if (!state.currentRideId) return;
-  const docRef = doc(db, "requests", state.currentRideId);
+  const docRef = doc(db, "rides", state.currentRideId);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
     document.getElementById("riderDashboard").classList.add("hidden");
@@ -263,58 +264,9 @@ window.restoreActiveRideUI = async () => {
     document.getElementById("riderSheet").classList.remove("hidden");
     document.getElementById("riderMapBackBtn").classList.remove("hidden");
     initMap("riderMap");
-    startListeners();
-    updateRideUI(docSnap.data());
+    listenToActiveRide(state.currentRideId);
+    window.updateRideUI(docSnap.data());
     showToast("Trip map restored");
-  }
-};
-
-window.acceptRide = async (rideId) => {
-  if (state.currentRideId) return showToast("Finish current ride first", "error");
-  document.getElementById("riderDashboard").classList.add("hidden");
-  document.getElementById("riderMap").classList.remove("hidden");
-  document.getElementById("riderSheet").classList.remove("hidden");
-  document.getElementById("riderMapBackBtn").classList.remove("hidden");
-  updateBottomSheet("Accepting...", "Syncing with student...", "rider");
-  initMap("riderMap");
-  state.currentRideId = rideId;
-  
-  const performAccept = async (lat, lng) => {
-    try {
-      await updateDoc(doc(db, "requests", rideId), {
-        status: "accepted",
-        riderId: state.currentUser.uid,
-        riderName: state.currentUser.displayName,
-        riderLat: lat,
-        riderLng: lng
-      });
-      showToast("Ride accepted");
-      startListeners();
-    } catch (err) {
-      showToast("Failed to accept ride", "error");
-      window.hideRiderMap();
-    }
-  };
-  
-  if (state.lastRiderLoc) {
-    performAccept(state.lastRiderLoc.lat, state.lastRiderLoc.lng);
-  } else {
-    showToast("Fetching location...", "info");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (pos.coords.accuracy > 100) {
-          showToast("GPS accuracy too low. Try again.", "error");
-          window.hideRiderMap();
-          return;
-        }
-        performAccept(pos.coords.latitude, pos.coords.longitude);
-      },
-      (err) => {
-        showToast("Location required to accept", "error");
-        window.hideRiderMap();
-      },
-      { enableHighAccuracy: true, timeout: 5000 }
-    );
   }
 };
 
@@ -323,7 +275,7 @@ window.becomeAvailable = () => {
   setButtonVisible("goLiveBtn", false);
   document.getElementById("riderTitle").innerText = "Online";
   document.getElementById("riderSub").innerText = "Activating GPS...";
-  document.getElementById("availableRidesSection").classList.remove("hidden");
+  // document.getElementById("availableRidesSection").classList.remove("hidden"); // We'll show current passengers instead
   showToast("Activating GPS...", "info");
   initMap("riderMap");
   
@@ -335,7 +287,7 @@ window.becomeAvailable = () => {
       return;
     }
     
-    document.getElementById("riderSub").innerText = "Looking for nearby students";
+    document.getElementById("riderSub").innerText = "Keke Online & Ready";
     
     const distMoved = state.lastRiderLoc ? getDistance(state.lastRiderLoc.lat, state.lastRiderLoc.lng, latitude, longitude) : 999;
     if (distMoved < 3) return; 
@@ -353,19 +305,37 @@ window.becomeAvailable = () => {
     
     if (!state.riderDocId) {
       state.riderDocId = "creating...";
-      const ref = await addDoc(collection(db, "kekes"), {
-        name: state.currentUser.displayName,
+      // Check one more time if a ride was found by checkForActiveRide during this same session
+      if (state.currentRideId && state.currentRideId !== "creating...") {
+        state.riderDocId = state.currentRideId;
+        return;
+      }
+      const ref = await addDoc(collection(db, "rides"), {
         riderId: state.currentUser.uid,
-        lat: latitude,
-        lng: longitude
+        riderName: state.currentUser.displayName,
+        status: "waiting",
+        seats: {
+          total: 4,
+          occupied: 0,
+          available: 4
+        },
+        currentLocation: {
+          lat: latitude,
+          lng: longitude
+        },
+        stopQueue: [],
+        passengers: {},
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
       state.riderDocId = ref.id;
+      state.currentRideId = ref.id;
+      listenToActiveRide(ref.id);
     } else if (state.riderDocId !== "creating...") {
-      await updateDoc(doc(db, "kekes", state.riderDocId), { lat: latitude, lng: longitude });
-    }
-    
-    if (state.currentRideId) {
-      await updateDoc(doc(db, "requests", state.currentRideId), { riderLat: latitude, riderLng: longitude });
+      await updateDoc(doc(db, "rides", state.riderDocId), { 
+        currentLocation: { lat: latitude, lng: longitude },
+        updatedAt: serverTimestamp()
+      });
     }
   }, (err) => {
     showToast("Location access required", "error");
@@ -374,21 +344,21 @@ window.becomeAvailable = () => {
     maximumAge: 0,
     timeout: 10000
   });
-  startListeners();
 };
 
 window.setArriving = async () => {
-  if (state.currentRideId) await updateDoc(doc(db, "requests", state.currentRideId), { status: "arriving" });
+  // Logic handled via markStopComplete in rider.js
 };
 
 window.startRide = async () => {
-  if (state.currentRideId) await updateDoc(doc(db, "requests", state.currentRideId), { status: "picked_up" });
+  // Logic handled via markStopComplete in rider.js
 };
 
 // ================= ORCHESTRATION =================
 
 async function transitionToDashboard(user) {
   document.getElementById("loginScreen").classList.add("hidden");
+  startScheduledRidesProcessor();
   if (user.role === "student") {
     state.currentRole = "student";
     document.getElementById("studentUI").classList.remove("hidden");
@@ -396,161 +366,82 @@ async function transitionToDashboard(user) {
     updateStudentProfileUI();
     window.switchStudentView('dashboard');
     await checkForActiveRide("student");
-    if (state.currentRideId) startListeners();
+    // Listeners are started within requestKeke or checkForActiveRide
   } else {
     state.currentRole = "rider";
     document.getElementById("riderUI").classList.remove("hidden");
     updateRiderDashboardUI();
     await checkForActiveRide("rider");
-    if (state.currentRideId) startListeners();
   }
 }
 
 async function checkForActiveRide(role) {
-  const q = query(
-    collection(db, "requests"), 
-    where(role === "student" ? "studentId" : "riderId", "==", state.currentUser?.uid || (state.currentUser?.isGuest ? "guest" : "unknown")),
-    where("status", "in", ["waiting", "accepted", "arriving", "picked_up"])
-  );
-  const querySnapshot = await getDocs(q);
-  if (!querySnapshot.empty) {
-    const activeRide = querySnapshot.docs[0];
-    state.currentRideId = activeRide.id;
-    if (role === "rider") {
-      document.getElementById("riderActiveRideSection").classList.remove("hidden");
-      document.getElementById("riderActiveRideSub").innerText = `Active ride from ${activeRide.data().pickupName}`;
+  if (role === "student") {
+    const q = query(
+      collection(db, "rideRequests"), 
+      where("studentId", "==", state.currentUser?.uid),
+      where("status", "in", ["searching", "matched", "queued"])
+    );
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const activeRequest = querySnapshot.docs[0];
+      state.currentRequestId = activeRequest.id;
+      import("./modules/student.js").then(m => m.listenToRequest(activeRequest.id));
     }
   } else {
-    if (role === "rider") {
-      const el = document.getElementById("riderActiveRideSection");
-      if (el) el.classList.add("hidden");
+    const q = query(
+      collection(db, "rides"), 
+      where("riderId", "==", state.currentUser?.uid),
+      where("status", "in", ["waiting", "active"])
+    );
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      // Use the most recent active ride
+      const sortedDocs = querySnapshot.docs.sort((a, b) => 
+        (b.data().updatedAt?.seconds || 0) - (a.data().updatedAt?.seconds || 0)
+      );
+      
+      const activeRide = sortedDocs[0];
+      state.riderDocId = activeRide.id;
+      state.currentRideId = activeRide.id;
+      document.getElementById("riderActiveRideSection").classList.remove("hidden");
+      document.getElementById("riderActiveRideSub").innerText = `Keke Online - ${activeRide.data().seats.occupied} passengers`;
+      import("./modules/rider.js").then(m => m.listenToActiveRide(activeRide.id));
+
+      // Clean up any other "stale" active sessions for this rider
+      for (let i = 1; i < sortedDocs.length; i++) {
+        await updateDoc(doc(db, "rides", sortedDocs[i].id), { 
+          status: "completed", 
+          reason: "stale_cleanup" 
+        });
+      }
     }
   }
 }
 
 function startListeners() {
-  if (state.unsubscribeRequests) state.unsubscribeRequests();
-  
-  const q = query(collection(db, "requests"), orderBy("time", "desc"));
-  let lastData = null;
-
-  state.unsubscribeRequests = onSnapshot(q, (snapshot) => {
-    const availableRides = [];
-    if (state.map) {
-      state.requestMarkers.forEach(m => state.map.removeLayer(m));
-      state.requestMarkers = [];
-    }
-    
-    snapshot.forEach(docSnap => {
-      const r = docSnap.data();
-      const rideId = docSnap.id;
-      
-      if (r.status === "waiting" && state.currentRole === "rider") {
-        availableRides.push({ id: rideId, ...r });
-        if (state.map) {
-          const marker = L.circleMarker([r.pickupLat, r.pickupLng], { color: '#ef4444' }).addTo(state.map);
-          marker.bindPopup(`<b>Ride from ${r.pickupName}</b><br><button onclick="acceptRide('${rideId}')">Accept</button>`);
-          state.requestMarkers.push(marker);
-        }
-      }
-      
-      if (rideId === state.currentRideId) {
-        const currentDataStr = JSON.stringify({ 
-          status: r.status, 
-          riderLat: r.riderLat, 
-          riderLng: r.riderLng,
-          pickupLat: r.pickupLat,
-          pickupLng: r.pickupLng
-        });
-        
-        if (currentDataStr !== lastData) {
-          lastData = currentDataStr;
-          updateRideUI(r);
-        }
-      }
-    });
-    
-    if (state.currentRole === "rider") {
-      updateAvailableRidesList(availableRides);
-    }
-  });
+  // Old startListeners removed as we use per-ride/per-request listeners now
 }
 
-function updateRideUI(r) {
+window.updateRideUI = (ride) => {
   if (!state.map) return;
-  const activeCard = document.getElementById("riderActiveRideSection");
-  if (state.currentRole === "rider" && activeCard) {
-    if (["accepted", "arriving", "picked_up"].includes(r.status)) {
-      activeCard.classList.remove("hidden");
-      const sub = document.getElementById("riderActiveRideSub");
-      if (sub) sub.innerText = `Active trip to ${r.status === 'picked_up' ? r.dropoffName : r.pickupName}`;
-    } else {
-      activeCard.classList.add("hidden");
-    }
-  }
   
-  const distToPickup = r.riderLat ? state.map.distance([r.riderLat, r.riderLng], [r.pickupLat, r.pickupLng]) : 0;
-  const distToDropoff = r.riderLat ? state.map.distance([r.riderLat, r.riderLng], [r.dropoffLat, r.dropoffLng]) : 0;
-  
-  if (r.riderLat) {
+  const currentLocation = ride.currentLocation;
+  if (currentLocation) {
     if (!state.riderMarker) {
-      state.riderMarker = L.circleMarker([r.riderLat, r.riderLng], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(state.map);
+      state.riderMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(state.map);
     } else {
-      animateMarker(state.riderMarker, r.riderLat, r.riderLng, 1000);
-    }
-    if (state.currentRole === "rider") {
-      state.map.panTo([r.riderLat, r.riderLng], { animate: true, duration: 1.0 });
+      animateMarker(state.riderMarker, currentLocation.lat, currentLocation.lng, 1000);
     }
   }
-  
-  if (state.currentRole === "rider") {
-    if (!state.userMarker) {
-      state.userMarker = L.circleMarker([r.pickupLat, r.pickupLng], { radius: 6, color: '#ef4444', fillOpacity: 1 }).addTo(state.map);
-      state.userMarker.bindPopup("Pickup: " + r.pickupName);
-    }
-    if (r.status === "picked_up") {
-      animateMarker(state.userMarker, r.dropoffLat, r.dropoffLng, 1000);
-      state.userMarker.setPopupContent("Drop-off: " + r.dropoffName);
-    }
-  }
-  
-  if (state.currentRole === "student") {
-    if (r.status === "accepted") updateBottomSheet("Rider Coming", `${Math.round(distToPickup)}m away`);
-    else if (r.status === "arriving") updateBottomSheet("Rider Arriving", "Get ready");
-    else if (r.status === "picked_up") updateBottomSheet("On Trip", `Heading to ${r.dropoffName}`);
-    else if (r.status === "completed") {
-      updateBottomSheet("Completed", "Ride finished");
-      setTimeout(() => {
-        document.getElementById("studentSheet").classList.add("hidden");
-        window.hideMap();
-      }, 3000);
-    }
-  } else {
-    if (r.status === "accepted") {
-      updateBottomSheet("Heading to Pickup", `${Math.round(distToPickup)}m away`, "rider");
-      toggleControls(true, "rider");
-      updateRiderControls("arriving");
-    } else if (r.status === "arriving") {
-      updateBottomSheet("Arrived at Pickup", "Wait for student", "rider");
-      updateRiderControls("picked_up");
-    } else if (r.status === "picked_up") {
-      updateBottomSheet("Heading to Drop-off", `${Math.round(distToDropoff)}m away`, "rider");
-      updateRiderControls("completed");
-    } else if (r.status === "completed") {
-      updateBottomSheet("Job Done", "Payment received", "rider");
-      setTimeout(() => {
-        document.getElementById("riderSheet").classList.add("hidden");
-        window.hideRiderMap();
-      }, 3000);
-    }
-  }
-  
-  if (r.riderLat) {
-    const targetLat = (r.status === "picked_up") ? r.dropoffLat : r.pickupLat;
-    const targetLng = (r.status === "picked_up") ? r.dropoffLng : r.pickupLng;
+
+  // Draw route to next stop
+  const pendingStops = ride.stopQueue.filter(s => s.status === "pending");
+  if (pendingStops.length > 0 && currentLocation) {
+    const nextStop = pendingStops[0];
     if (!state.routeControl) {
       state.routeControl = L.Routing.control({
-        waypoints: [L.latLng(r.riderLat, r.riderLng), L.latLng(targetLat, targetLng)],
+        waypoints: [L.latLng(currentLocation.lat, currentLocation.lng), L.latLng(nextStop.location.lat, nextStop.location.lng)],
         createMarker: () => null,
         addWaypoints: false,
         draggableWaypoints: false,
@@ -558,10 +449,23 @@ function updateRideUI(r) {
         lineOptions: { styles: [{ color: '#22c55e', weight: 6 }] }
       }).addTo(state.map);
     } else {
-      state.routeControl.setWaypoints([L.latLng(r.riderLat, r.riderLng), L.latLng(targetLat, targetLng)]);
+      state.routeControl.setWaypoints([L.latLng(currentLocation.lat, currentLocation.lng), L.latLng(nextStop.location.lat, nextStop.location.lng)]);
     }
+
+    // Add markers for stops
+    state.requestMarkers.forEach(m => state.map.removeLayer(m));
+    state.requestMarkers = [];
+    pendingStops.forEach(stop => {
+       const marker = L.circleMarker([stop.location.lat, stop.location.lng], { 
+         radius: 6, 
+         color: stop.type === 'pickup' ? '#3b82f6' : '#ef4444', 
+         fillOpacity: 1 
+       }).addTo(state.map);
+       marker.bindPopup(`${stop.type === 'pickup' ? 'Pick up' : 'Drop off'}: ${stop.passengerName}<br>${stop.locationLabel}`);
+       state.requestMarkers.push(marker);
+    });
   }
-}
+};
 
 // ================= INIT =================
 window.addEventListener("load", () => {
@@ -571,10 +475,22 @@ window.addEventListener("load", () => {
       if (user) {
         transitionToDashboard(user);
       } else {
+        // Clear all state on logout
         if (state.unsubscribeRequests) state.unsubscribeRequests();
         if (state.map) state.map.remove();
+        if (state.riderWatchId) navigator.geolocation.clearWatch(state.riderWatchId);
+        
         state.unsubscribeRequests = null;
         state.map = null;
+        state.riderWatchId = null;
+        state.riderDocId = null;
+        state.currentRideId = null;
+        state.currentRequestId = null;
+        state.lastRiderLoc = null;
+        state.riderMarker = null;
+        state.userMarker = null;
+        state.routeControl = null;
+        
         showLoginScreen();
       }
     },
