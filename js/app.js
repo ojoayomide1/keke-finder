@@ -453,9 +453,14 @@ window.updateRideUI = (ride) => {
     }
 
     // Add markers for stops
-    state.requestMarkers.forEach(m => state.map.removeLayer(m));
+    if (state.map) {
+      state.requestMarkers.forEach(m => {
+        if (m && state.map.hasLayer(m)) state.map.removeLayer(m);
+      });
+    }
     state.requestMarkers = [];
     pendingStops.forEach(stop => {
+       if (!state.map) return;
        const marker = L.circleMarker([stop.location.lat, stop.location.lng], { 
          radius: 6, 
          color: stop.type === 'pickup' ? '#3b82f6' : '#ef4444', 

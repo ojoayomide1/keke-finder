@@ -11,17 +11,21 @@ export async function processScheduledRides() {
   const now = new Date();
   const in30Mins = new Date(now.getTime() + 30 * 60 * 1000);
 
+  // Simplified query to avoid index requirement
   const snap = await getDocs(
     query(
       collection(db, "scheduledRides"),
-      where("status", "==", "pending"),
-      where("scheduledFor", ">=", now),
-      where("scheduledFor", "<=", in30Mins)
+      where("status", "==", "pending")
     )
   );
 
   for (const docSnap of snap.docs) {
     const schedule = docSnap.data();
+    
+    // Client-side date filtering
+    const scheduledTime = schedule.scheduledFor?.toDate ? schedule.scheduledFor.toDate() : new Date(schedule.scheduledFor);
+    if (scheduledTime < now || scheduledTime > in30Mins) continue;
+
     const fakeRequest = {
       studentId: schedule.studentId,
       studentName: schedule.studentName,

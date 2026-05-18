@@ -81,7 +81,15 @@ export function getDistance(lat1, lon1, lat2, lng2) {
 
 export function initMap(mapId) {
   if (state.map) {
-    state.map.remove();
+    try {
+      // Explicitly remove routing control before destroying map
+      if (state.routeControl && state.map.hasLayer(state.routeControl)) {
+        state.map.removeControl(state.routeControl);
+      }
+      state.map.remove();
+    } catch (e) {
+      console.warn("Map cleanup warning:", e);
+    }
     state.map = null;
   }
   state.riderMarker = null;
@@ -91,6 +99,9 @@ export function initMap(mapId) {
   state.activeMarkerAnimations.forEach(id => cancelAnimationFrame(id));
   state.activeMarkerAnimations.clear();
   
+  const mapElement = document.getElementById(mapId);
+  if (!mapElement) return;
+
   state.map = L.map(mapId, { tap: false }).setView([9.2880, 7.4130], 16);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19
