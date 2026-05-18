@@ -13,8 +13,7 @@ import {
   getDocs,
   where,
   serverTimestamp,
-  runTransaction,
-  getCountFromServer
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 import {
   getAuth,
@@ -53,7 +52,6 @@ export {
   where,
   serverTimestamp,
   runTransaction,
-  getCountFromServer,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   onAuthStateChanged,

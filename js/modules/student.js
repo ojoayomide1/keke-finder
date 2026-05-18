@@ -257,7 +257,7 @@ export async function requestKeke() {
 
     listenToRequest(ref.id);
     
-    // Try to match immediately (Client-Side Patch)
+    // Client-only matching: create the request first, then claim a seat transactionally.
     await runMatching(ref.id, requestData);
     
     showToast("Ride requested successfully");

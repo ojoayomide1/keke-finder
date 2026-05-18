@@ -358,10 +358,10 @@ window.startRide = async () => {
 
 async function transitionToDashboard(user) {
   document.getElementById("loginScreen").classList.add("hidden");
-  startScheduledRidesProcessor();
   if (user.role === "student") {
     state.currentRole = "student";
     document.getElementById("studentUI").classList.remove("hidden");
+    startScheduledRidesProcessor();
     populateLocations();
     updateStudentProfileUI();
     window.switchStudentView('dashboard');

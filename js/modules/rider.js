@@ -111,7 +111,7 @@ export function listenToActiveRide(rideId) {
         document.getElementById("riderTitle").innerText = "Online & Ready";
         document.getElementById("riderSub").innerText = "All passengers dropped off. Waiting for new requests.";
         
-        // Detect when ride just completed (Client-Side Patch)
+        // In the client-only flow, riders trigger nearby queue notifications.
         if (previousStatus !== "completed") {
           await notifyQueuedStudentsNearby(ride.currentLocation);
         }

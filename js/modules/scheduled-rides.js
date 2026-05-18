@@ -1,20 +1,25 @@
 import { db, collection, query, where, getDocs, addDoc, updateDoc, serverTimestamp } from "../firebase.js";
 import { runMatching } from "./student.js";
+import { state } from "./state.js";
 
-// Call this once when the app loads
+let scheduledRideTimer = null;
+
 export function startScheduledRidesProcessor() {
-  processScheduledRides(); // run once immediately
-  setInterval(processScheduledRides, 10 * 60 * 1000); // then every 10 mins
+  if (scheduledRideTimer || !state.currentUser || state.currentUser.isGuest) return;
+  processScheduledRides();
+  scheduledRideTimer = setInterval(processScheduledRides, 10 * 60 * 1000);
 }
 
 export async function processScheduledRides() {
+  if (!state.currentUser || state.currentUser.isGuest) return;
+
   const now = new Date();
   const in30Mins = new Date(now.getTime() + 30 * 60 * 1000);
 
-  // Simplified query to avoid index requirement
   const snap = await getDocs(
     query(
       collection(db, "scheduledRides"),
+      where("studentId", "==", state.currentUser.uid),
       where("status", "==", "pending")
     )
   );
@@ -22,7 +27,6 @@ export async function processScheduledRides() {
   for (const docSnap of snap.docs) {
     const schedule = docSnap.data();
     
-    // Client-side date filtering
     const scheduledTime = schedule.scheduledFor?.toDate ? schedule.scheduledFor.toDate() : new Date(schedule.scheduledFor);
     if (scheduledTime < now || scheduledTime > in30Mins) continue;
 
@@ -33,7 +37,6 @@ export async function processScheduledRides() {
       dropoff: schedule.dropoff
     };
 
-    // Write a real rideRequest so the normal matching flow handles it
     const requestRef = await addDoc(collection(db, "rideRequests"), {
       ...fakeRequest,
       rideType: "pool",
@@ -43,8 +46,6 @@ export async function processScheduledRides() {
 
     await runMatching(requestRef.id, fakeRequest);
 
-    // Mark the scheduled ride as confirmed regardless,
-    // the rideRequest doc will reflect the actual match status
     await updateDoc(docSnap.ref, { status: "confirmed" });
   }
 }
