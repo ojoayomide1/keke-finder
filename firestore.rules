@@ -220,6 +220,24 @@ service cloud.firestore {
           .data.requestId == requestId;
     }
 
+    function riderMarksQueuedRequestMatched() {
+      return isRider()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["status", "matchedRideId"])
+        && resource.data.status == "queued"
+        && request.resource.data.status == "matched"
+        && request.resource.data.matchedRideId is string
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.requestedAt == resource.data.requestedAt
+        && request.resource.data.pickup == resource.data.pickup
+        && request.resource.data.dropoff == resource.data.dropoff
+        && request.resource.data.rideType == resource.data.rideType
+        && getAfter(/databases/$(database)/documents/rides/$(request.resource.data.matchedRideId))
+          .data.riderId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/rides/$(request.resource.data.matchedRideId))
+          .data.passengers[resource.data.studentId].pickupStatus == "pending";
+    }
+
     function ownerCancelsOrHidesRequest() {
       return requestOwnerBase()
         && request.resource.data.diff(resource.data).affectedKeys()
@@ -324,6 +342,7 @@ service cloud.firestore {
       allow create: if validRideRequestCreate();
       allow update: if ownerMarksRequestMatched()
         || ownerMarksRequestQueued(requestId)
+        || riderMarksQueuedRequestMatched()
         || ownerCancelsOrHidesRequest();
       allow delete: if false;
     }

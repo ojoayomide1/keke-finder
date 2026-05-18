@@ -40,6 +40,7 @@ import {
   updateRiderDashboardUI, 
   updateAvailableRidesList, 
   updateRiderControls,
+  drainWaitingQueueForRide,
   listenToActiveRide,
   completeRide as _completeRide
 } from "./modules/rider.js";
@@ -331,11 +332,14 @@ window.becomeAvailable = () => {
       state.riderDocId = ref.id;
       state.currentRideId = ref.id;
       listenToActiveRide(ref.id);
+      listenForQueuedStudents(ref.id);
+      await drainWaitingQueueForRide(ref.id);
     } else if (state.riderDocId !== "creating...") {
       await updateDoc(doc(db, "rides", state.riderDocId), { 
         currentLocation: { lat: latitude, lng: longitude },
         updatedAt: serverTimestamp()
       });
+      await drainWaitingQueueForRide(state.riderDocId);
     }
   }, (err) => {
     showToast("Location access required", "error");
@@ -407,6 +411,8 @@ async function checkForActiveRide(role) {
       document.getElementById("riderActiveRideSection").classList.remove("hidden");
       document.getElementById("riderActiveRideSub").innerText = `Keke Online - ${activeRide.data().seats.occupied} passengers`;
       import("./modules/rider.js").then(m => m.listenToActiveRide(activeRide.id));
+      listenForQueuedStudents(activeRide.id);
+      await drainWaitingQueueForRide(activeRide.id);
 
       // Clean up any other "stale" active sessions for this rider
       for (let i = 1; i < sortedDocs.length; i++) {
@@ -421,6 +427,20 @@ async function checkForActiveRide(role) {
 
 function startListeners() {
   // Old startListeners removed as we use per-ride/per-request listeners now
+}
+
+function listenForQueuedStudents(rideId) {
+  if (state.unsubscribeQueueListener) return;
+
+  const q = query(
+    collection(db, "waitingQueue"),
+    orderBy("joinedAt")
+  );
+
+  state.unsubscribeQueueListener = onSnapshot(q, async () => {
+    if (!state.riderDocId || state.riderDocId !== rideId) return;
+    await drainWaitingQueueForRide(rideId);
+  });
 }
 
 window.updateRideUI = (ride) => {
@@ -482,10 +502,12 @@ window.addEventListener("load", () => {
       } else {
         // Clear all state on logout
         if (state.unsubscribeRequests) state.unsubscribeRequests();
+        if (state.unsubscribeQueueListener) state.unsubscribeQueueListener();
         if (state.map) state.map.remove();
         if (state.riderWatchId) navigator.geolocation.clearWatch(state.riderWatchId);
         
         state.unsubscribeRequests = null;
+        state.unsubscribeQueueListener = null;
         state.map = null;
         state.riderWatchId = null;
         state.riderDocId = null;

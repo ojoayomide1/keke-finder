@@ -13,6 +13,7 @@ export const state = {
   routeControl: null,
   userMarker: null,
   unsubscribeRequests: null,
+  unsubscribeQueueListener: null,
   activeMarkerAnimations: new Map(),
   vehicleType: null // 'keke' or 'shuttle'
 };

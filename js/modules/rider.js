@@ -1,10 +1,11 @@
 import { state } from "./state.js";
-import { db, collection, addDoc, updateDoc, doc, getDoc, getDocs, serverTimestamp, onSnapshot, query, orderBy } from "../firebase.js";
+import { db, collection, addDoc, updateDoc, doc, getDoc, getDocs, serverTimestamp, onSnapshot, query, orderBy, runTransaction } from "../firebase.js";
 import { showToast, setButtonVisible, updateBottomSheet, updateRideDetails } from "./ui.js";
 import { initMap, animateMarker } from "./map-manager.js";
-import { getDistance } from "./ride-helpers.js";
+import { calculateFare, getDistance, insertStopsIntoQueue } from "./ride-helpers.js";
 
 let previousStatus = null;
+const MAX_QUEUE_PICKUP_DISTANCE = 800;
 
 export function updateRiderDashboardUI() {
   if (!state.currentUser) return;
@@ -206,6 +207,82 @@ async function notifyQueuedStudentsNearby(completedLocation) {
       // Update their queue doc so their onSnapshot fires and shows the message
       await updateDoc(docSnap.ref, { notified: true });
       break; // Only notify the first eligible student (FIFO)
+    }
+  }
+}
+
+export async function drainWaitingQueueForRide(rideId) {
+  const rideRef = doc(db, "rides", rideId);
+  const queueSnap = await getDocs(
+    query(collection(db, "waitingQueue"), orderBy("joinedAt"))
+  );
+
+  for (const queueDoc of queueSnap.docs) {
+    const queued = queueDoc.data();
+    if (queued.notified) continue;
+
+    const requestRef = doc(db, "rideRequests", queued.requestId);
+
+    try {
+      const matched = await runTransaction(db, async (transaction) => {
+        const rideSnap = await transaction.get(rideRef);
+        const requestSnap = await transaction.get(requestRef);
+
+        if (!rideSnap.exists() || !requestSnap.exists()) return false;
+
+        const ride = rideSnap.data();
+        const requestDoc = requestSnap.data();
+
+        if (ride.riderId !== state.currentUser?.uid) return false;
+        if (!["waiting", "active"].includes(ride.status)) return false;
+        if ((ride.seats?.available || 0) <= 0) return false;
+        if (requestDoc.status !== "queued") return false;
+        if (requestDoc.studentId !== queued.studentId) return false;
+        if (queued.studentId in (ride.passengers || {})) return false;
+
+        const pickupDistance = getDistance(ride.currentLocation, queued.pickup);
+        if (pickupDistance > MAX_QUEUE_PICKUP_DISTANCE) return false;
+
+        const request = {
+          studentId: queued.studentId,
+          studentName: requestDoc.studentName,
+          pickup: queued.pickup,
+          dropoff: queued.dropoff
+        };
+
+        const updatedQueue = insertStopsIntoQueue(ride.stopQueue || [], request);
+
+        transaction.update(rideRef, {
+          stopQueue: updatedQueue,
+          [`passengers.${queued.studentId}`]: {
+            name: request.studentName,
+            pickupStatus: "pending",
+            dropoffStatus: "pending",
+            fare: calculateFare(request.pickup, request.dropoff)
+          },
+          "seats.occupied": (ride.seats.occupied || 0) + 1,
+          "seats.available": (ride.seats.available || 0) - 1,
+          updatedAt: serverTimestamp()
+        });
+
+        transaction.update(requestRef, {
+          status: "matched",
+          matchedRideId: rideId
+        });
+
+        transaction.update(queueDoc.ref, {
+          notified: true
+        });
+
+        return true;
+      });
+
+      if (!matched) continue;
+
+      const latestRide = await getDoc(rideRef);
+      if (!latestRide.exists() || (latestRide.data().seats?.available || 0) <= 0) break;
+    } catch (err) {
+      console.warn("Queue match skipped:", err);
     }
   }
 }
