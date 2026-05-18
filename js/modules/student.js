@@ -74,15 +74,23 @@ async function claimSeat(rideId, requestId, request) {
 
   try {
     await runTransaction(db, async (transaction) => {
+      console.log("Starting transaction for ride:", rideId);
       const rideSnap = await transaction.get(rideRef);
+      if (!rideSnap.exists()) {
+        console.error("Ride document does not exist:", rideId);
+        throw new Error("RIDE_NOT_FOUND");
+      }
       const ride = rideSnap.data();
+      console.log("Current ride state:", ride);
 
       // Re-check inside transaction — seats may have filled since we queried
-      if (!rideSnap.exists() || ride.seats.available <= 0) {
+      if (ride.seats.available <= 0) {
+        console.warn("Seat gone during transaction for ride:", rideId);
         throw new Error("SEAT_GONE");
       }
 
       const updatedQueue = insertStopsIntoQueue(ride.stopQueue, request);
+      console.log("Updated queue:", updatedQueue);
 
       transaction.update(rideRef, {
         stopQueue: updatedQueue,
@@ -92,8 +100,8 @@ async function claimSeat(rideId, requestId, request) {
           dropoffStatus: "pending",
           fare: calculateFare(request.pickup, request.dropoff)
         },
-        "seats.occupied": ride.seats.occupied + 1,
-        "seats.available": ride.seats.available - 1,
+        "seats.occupied": (ride.seats.occupied || 0) + 1,
+        "seats.available": (ride.seats.available || 0) - 1,
         updatedAt: serverTimestamp()
       });
 
@@ -102,13 +110,14 @@ async function claimSeat(rideId, requestId, request) {
         matchedRideId: rideId
       });
     });
+    console.log("Transaction successfully committed for ride:", rideId);
   } catch (err) {
     if (err.message === "SEAT_GONE") {
-      // That keke filled up between query and transaction
-      // Re-run matching to find the next best option
+      console.log("Re-running matching due to SEAT_GONE");
       await runMatching(requestId, request);
     } else {
-      console.error("Transaction failed:", err);
+      console.error("Transaction failed critically:", err);
+      throw err; // Re-throw to be caught by requestKeke
     }
   }
 }
