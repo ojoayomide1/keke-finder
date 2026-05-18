@@ -1,5 +1,5 @@
 import { state } from "./state.js";
-import { db, collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, getDoc, getDocs, where, serverTimestamp, runTransaction } from "../firebase.js";
+import { db, collection, query, orderBy, onSnapshot, addDoc, deleteDoc, updateDoc, doc, getDoc, getDocs, where, serverTimestamp, runTransaction } from "../firebase.js";
 import { CAMPUS_MAP_DATA } from "../campus-data.js";
 import { showToast, updateBottomSheet, updateRideDetails } from "./ui.js";
 import { initMap } from "./map-manager.js";
@@ -288,6 +288,13 @@ export function listenToRequest(requestId) {
         listenToQueuePosition(request.queueDocId);
       }
     }
+
+    if (request.status === "cancelled") {
+      state.currentRideId = null;
+      state.currentRequestId = null;
+      document.getElementById("studentSheet")?.classList.add("hidden");
+      if (window.switchTab) window.switchTab('home');
+    }
   });
 }
 
@@ -349,18 +356,34 @@ export async function cancelRide() {
   if (!state.currentRequestId && !state.currentRideId) return;
 
   try {
-    const batch = [];
-    
-    // 1. Cancel the Request
+    let request = null;
+
+    if (state.currentRideId) {
+      const rideSnap = await getDoc(doc(db, "rides", state.currentRideId));
+      const ride = rideSnap.exists() ? rideSnap.data() : null;
+      const passenger = ride?.passengers?.[state.currentUser.uid];
+
+      if (passenger?.pickupStatus === "completed") {
+        showToast("You cannot cancel after pickup", "error");
+        return;
+      }
+    }
+
     if (state.currentRequestId) {
       const requestRef = doc(db, "rideRequests", state.currentRequestId);
+      const requestSnap = await getDoc(requestRef);
+      request = requestSnap.exists() ? requestSnap.data() : null;
+
       await updateDoc(requestRef, { 
         status: "cancelled",
         cancelledAt: serverTimestamp() 
       });
+
+      if (request?.queueDocId) {
+        await deleteDoc(doc(db, "waitingQueue", request.queueDocId));
+      }
     }
 
-    // 2. If already matched, notify the Rider by updating the Ride document
     if (state.currentRideId) {
       const rideRef = doc(db, "rides", state.currentRideId);
       const rideSnap = await getDoc(rideRef);

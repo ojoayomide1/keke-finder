@@ -211,6 +211,9 @@ function continueAsGuest() {
 }
 
 async function logout() {
+  if (window.cleanupRiderSession) {
+    await window.cleanupRiderSession();
+  }
   await signOut(auth);
   showLoginScreen();
 }

@@ -138,6 +138,27 @@ async function completeRide() {
   state.currentRideId = null;
 }
 
+async function cleanupRiderSession(previousUser = state.currentUser) {
+  if (previousUser?.role !== "rider" || !state.riderDocId || state.riderDocId === "creating...") return;
+
+  try {
+    const rideRef = doc(db, "rides", state.riderDocId);
+    const rideSnap = await getDoc(rideRef);
+    if (!rideSnap.exists()) return;
+
+    const ride = rideSnap.data();
+    const hasPassengers = (ride.seats?.occupied || 0) > 0 || Object.keys(ride.passengers || {}).length > 0;
+    if (ride.riderId === previousUser.uid && ride.status === "waiting" && !hasPassengers) {
+      await updateDoc(rideRef, {
+        status: "completed",
+        updatedAt: serverTimestamp()
+      });
+    }
+  } catch (err) {
+    console.warn("Failed to clean up rider session:", err);
+  }
+}
+
 async function navigateToLandmark(landmarkId) {
   if (!landmarkId) return;
   const landmark = CAMPUS_MAP_DATA.locations.find(l => l.id === landmarkId);
@@ -205,6 +226,7 @@ function bindAppGlobals() {
   window.requestKeke = requestKeke;
   window.cancelRide = cancelRide;
   window.completeRide = completeRide;
+  window.cleanupRiderSession = cleanupRiderSession;
   window.navigateToLandmark = navigateToLandmark;
 }
 
@@ -495,11 +517,15 @@ window.updateRideUI = (ride) => {
 // ================= INIT =================
 window.addEventListener("load", () => {
   initAuth({
-    onUserChanged: (user) => {
-      state.currentUser = user;
+    onUserChanged: async (user) => {
       if (user) {
+        state.currentUser = user;
         transitionToDashboard(user);
       } else {
+        const previousUser = state.currentUser;
+        await cleanupRiderSession(previousUser);
+        state.currentUser = null;
+
         // Clear all state on logout
         if (state.unsubscribeRequests) state.unsubscribeRequests();
         if (state.unsubscribeQueueListener) state.unsubscribeQueueListener();
