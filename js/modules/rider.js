@@ -101,8 +101,15 @@ export function listenToActiveRide(rideId) {
     if (ride.status === "completed") {
         showToast("All stops completed!");
         state.currentRideId = null;
+        state.riderDocId = null; // Clear so a new ride doc is created next time they go live
         document.getElementById("riderSheet").classList.add("hidden");
         if (window.hideRiderMap) window.hideRiderMap();
+        
+        // Reset Dashboard Stats
+        const detailsContainer = document.getElementById("riderRideDetails");
+        if (detailsContainer) detailsContainer.innerHTML = "";
+        document.getElementById("riderTitle").innerText = "Online & Ready";
+        document.getElementById("riderSub").innerText = "All passengers dropped off. Waiting for new requests.";
         
         // Detect when ride just completed (Client-Side Patch)
         if (previousStatus !== "completed") {

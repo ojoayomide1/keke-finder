@@ -295,6 +295,19 @@ export function listenToRide(matchedRideId, currentUserId) {
     const ride = snapshot.data();
     if (!ride) return;
 
+    if (ride.status === "completed") {
+      const myInfo = ride.passengers[currentUserId];
+      // If I was a passenger and it's completed, it means I've arrived
+      if (myInfo) {
+        showToast("You have arrived at your destination!", "success");
+        state.currentRideId = null;
+        state.currentRequestId = null;
+        document.getElementById("studentSheet").classList.add("hidden");
+        if (window.switchTab) window.switchTab('home');
+        return;
+      }
+    }
+
     const pendingStops = ride.stopQueue.filter(s => s.status === "pending");
     const myPickup     = pendingStops.find(
       s => s.passengerId === currentUserId && s.type === "pickup"
