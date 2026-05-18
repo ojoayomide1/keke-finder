@@ -237,18 +237,24 @@ export async function requestKeke() {
     // Switch to Live Tab via app.js global
     if (window.switchTab) window.switchTab('live');
     
-    listenToRequest(ref.id);
-    
-    // Try to match immediately (Client-Side Patch)
-    await runMatching(ref.id, requestData);
-    
+    // IMMEDIATELY SHOW THE SHEET AND INITIAL STATE
+    const studentSheet = document.getElementById("studentSheet");
+    if (studentSheet) {
+      studentSheet.classList.remove("hidden");
+      document.getElementById("studentControls")?.setAttribute("style", "display:flex");
+    }
     updateBottomSheet("Searching", "Finding your ride...");
-    import("./ui.js").then(m => m.toggleControls(true, "student"));
     updateRideDetails("student", [
       { label: "Status", value: "Searching" },
       { label: "From", value: pickupLoc.name },
       { label: "To", value: dropoffLoc.name }
     ]);
+
+    listenToRequest(ref.id);
+    
+    // Try to match immediately (Client-Side Patch)
+    await runMatching(ref.id, requestData);
+    
     showToast("Ride requested successfully");
   } catch (err) {
     console.error(err);

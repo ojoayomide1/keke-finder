@@ -112,24 +112,34 @@ export function listenToActiveRide(rideId) {
         return;
     }
 
-    // AUTO-TRANSITION TO MAP UI
-    if (ride.status === "waiting" || ride.status === "active") {
-      const riderMap = document.getElementById("riderMap");
-      const riderSheet = document.getElementById("riderSheet");
-      const riderDash = document.getElementById("riderDashboard");
-      
+    // AUTO-TRANSITION TO MAP UI ONLY IF THERE ARE PENDING STOPS
+    const hasPendingStops = ride.stopQueue.some(s => s.status === "pending");
+    const riderMap = document.getElementById("riderMap");
+    const riderSheet = document.getElementById("riderSheet");
+    const riderDash = document.getElementById("riderDashboard");
+
+    if (hasPendingStops && (ride.status === "waiting" || ride.status === "active")) {
       if (riderMap && riderMap.classList.contains("hidden")) {
         riderDash.classList.add("hidden");
         riderMap.classList.remove("hidden");
         riderSheet.classList.remove("hidden");
         document.getElementById("riderMapBackBtn")?.classList.remove("hidden");
         
-        // Use a small timeout to ensure DOM is ready for Leaflet
         setTimeout(() => {
           initMap("riderMap");
           if (window.updateRideUI) window.updateRideUI(ride);
         }, 100);
       }
+    } else if (!hasPendingStops) {
+      // If no stops, stay on/return to dashboard but show online status
+      if (riderMap && !riderMap.classList.contains("hidden")) {
+        riderDash.classList.remove("hidden");
+        riderMap.classList.add("hidden");
+        riderSheet.classList.add("hidden");
+        document.getElementById("riderMapBackBtn")?.classList.add("hidden");
+      }
+      document.getElementById("riderTitle").innerText = "Online & Ready";
+      document.getElementById("riderSub").innerText = "Waiting for passengers...";
     }
 
     previousStatus = ride.status;
@@ -138,11 +148,34 @@ export function listenToActiveRide(rideId) {
     
     const nextStop = ride.stopQueue.find(s => s.status === "pending");
     
-    updateBottomSheet(
-      nextStop ? (nextStop.type === 'pickup' ? "Heading to Pickup" : "Heading to Drop-off") : "Trip Completed",
-      nextStop ? nextStop.locationLabel : "All done",
-      "rider"
-    );
+    if (nextStop) {
+      updateBottomSheet(
+        nextStop.type === 'pickup' ? "Heading to Pickup" : "Heading to Drop-off",
+        nextStop.locationLabel,
+        "rider"
+      );
+    }
+
+    // Update stats on dashboard or sheet
+    const statsHtml = `
+      <div style="display:flex; justify-content:space-around; padding:15px; background:#f9fafb; border-radius:12px; margin:10px 0;">
+        <div style="text-align:center;">
+          <div style="font-size:0.8em; color:#6b7280;">Seats</div>
+          <div style="font-weight:bold;">${ride.seats.occupied}/${ride.seats.total}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:0.8em; color:#6b7280;">Passengers</div>
+          <div style="font-weight:bold;">${Object.keys(ride.passengers).length}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:0.8em; color:#6b7280;">Next Stop</div>
+          <div style="font-weight:bold;">${nextStop ? nextStop.passengerName : "None"}</div>
+        </div>
+      </div>
+    `;
+    
+    const detailsContainer = document.getElementById("riderRideDetails");
+    if (detailsContainer) detailsContainer.innerHTML = statsHtml;
 
     updateRideDetails("rider", [
       { label: "Seats", value: `${ride.seats.occupied}/${ride.seats.total}` },
@@ -150,7 +183,6 @@ export function listenToActiveRide(rideId) {
       { label: "Next Stop", value: nextStop ? nextStop.passengerName : "None" }
     ]);
 
-    // Ensure map routing is updated
     if (window.updateRideUI) window.updateRideUI(ride);
   });
 }
