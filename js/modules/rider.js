@@ -112,13 +112,32 @@ export function listenToActiveRide(rideId) {
         return;
     }
 
+    // AUTO-TRANSITION TO MAP UI
+    if (ride.status === "waiting" || ride.status === "active") {
+      const riderMap = document.getElementById("riderMap");
+      const riderSheet = document.getElementById("riderSheet");
+      const riderDash = document.getElementById("riderDashboard");
+      
+      if (riderMap && riderMap.classList.contains("hidden")) {
+        riderDash.classList.add("hidden");
+        riderMap.classList.remove("hidden");
+        riderSheet.classList.remove("hidden");
+        document.getElementById("riderMapBackBtn")?.classList.remove("hidden");
+        
+        // Use a small timeout to ensure DOM is ready for Leaflet
+        setTimeout(() => {
+          initMap("riderMap");
+          if (window.updateRideUI) window.updateRideUI(ride);
+        }, 100);
+      }
+    }
+
     previousStatus = ride.status;
 
     updateRiderControls({ id: snapshot.id, ...ride });
     
     const nextStop = ride.stopQueue.find(s => s.status === "pending");
-    const upcomingStops = ride.stopQueue.filter(s => s.status === "pending").slice(1);
-
+    
     updateBottomSheet(
       nextStop ? (nextStop.type === 'pickup' ? "Heading to Pickup" : "Heading to Drop-off") : "Trip Completed",
       nextStop ? nextStop.locationLabel : "All done",
@@ -130,6 +149,9 @@ export function listenToActiveRide(rideId) {
       { label: "Passengers", value: Object.keys(ride.passengers).length },
       { label: "Next Stop", value: nextStop ? nextStop.passengerName : "None" }
     ]);
+
+    // Ensure map routing is updated
+    if (window.updateRideUI) window.updateRideUI(ride);
   });
 }
 
