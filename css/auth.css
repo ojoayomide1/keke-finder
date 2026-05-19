@@ -15,6 +15,74 @@
   text-shadow: 0 4px 15px rgba(0,0,0,0.5);
 }
 
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-wordmark {
+  display: block;
+  width: min(76vw, 260px);
+  height: auto;
+}
+
+.brand-wordmark.small {
+  width: 150px;
+}
+
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #111;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.brand-lockup-light {
+  color: #fff;
+}
+
+.brand-lockup-small {
+  gap: 5px;
+}
+
+.brand-icon {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+}
+
+.brand-lockup-small .brand-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.brand-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.brand-op {
+  font-size: 48px;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.brand-rides {
+  font-size: 48px;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.brand-lockup-small .brand-op,
+.brand-lockup-small .brand-rides {
+  font-size: 25px;
+}
+
 .auth-card {
   width: 90%;
   max-width: 380px;
@@ -41,7 +109,7 @@
   color: white;
   border-radius: 10px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   border: none;
   cursor: pointer;
 }
@@ -64,7 +132,7 @@
   color: white;
   border: 2px solid transparent;
   border-radius: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .role-btn.active {

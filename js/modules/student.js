@@ -216,7 +216,7 @@ export async function requestKeke() {
     }
     const pickupLoc = CAMPUS_MAP_DATA.locations.find(l => l.id === pickupId);
     const dropoffLoc = CAMPUS_MAP_DATA.locations.find(l => l.id === dropoffId);
-    btn.innerText = "Finding Keke...";
+    btn.innerText = "Looking for your keke...";
 
     const requestData = {
       studentId: state.currentUser?.uid || (state.currentUser?.isGuest ? "guest" : "unknown"),
@@ -249,7 +249,7 @@ export async function requestKeke() {
       studentSheet.classList.remove("hidden");
       document.getElementById("studentControls")?.setAttribute("style", "display:flex");
     }
-    updateBottomSheet("Searching", "Finding your ride...");
+    updateBottomSheet("Searching", "Looking for your keke...");
     updateRideDetails("student", [
       { label: "Status", value: "Searching" },
       { label: "From", value: pickupLoc.name },
@@ -261,7 +261,7 @@ export async function requestKeke() {
     // Client-only matching: create the request first, then claim a seat transactionally.
     await runMatching(ref.id, requestData);
     
-    showToast("Ride requested successfully");
+    showToast("Looking for your keke...");
   } catch (err) {
     console.error(err);
     showToast("Failed to request ride", "error");

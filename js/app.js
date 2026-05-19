@@ -78,7 +78,7 @@ function switchTab(tab) {
     if (state.currentUser?.isGuest) return showToast("Signup to view activity", "error");
     fetchRideHistory();
   } else if (tab === "map") {
-    populatePathfinderLandmarks();
+    populateCampusMapLandmarks();
   } else if (tab === "live") {
     // If opening live tab, ensure map is initialized
     setTimeout(() => initMap("studentMap"), 100);
@@ -204,7 +204,7 @@ async function navigateToLandmark(landmarkId) {
   });
 }
 
-function populatePathfinderLandmarks() {
+function populateCampusMapLandmarks() {
   const select = document.getElementById("pathfinderSelect");
   if (!select) return;
   if (select.children.length > 1) return; // Already populated

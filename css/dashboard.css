@@ -15,15 +15,23 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
+.dashboard-brand {
+  flex: 0 0 auto;
+}
+
+.dashboard-header .user-info {
+  text-align: right;
+}
+
 .user-info h2 {
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: 500;
   color: #111;
 }
 
 .role-tag {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   text-transform: uppercase;
   padding: 2px 8px;
   border-radius: 99px;
@@ -81,7 +89,7 @@
 .form-group label {
   display: block;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: #6b7280;
   margin-bottom: 6px;
 }
