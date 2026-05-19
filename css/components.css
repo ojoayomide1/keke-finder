@@ -39,7 +39,7 @@ button:disabled {
   width: 100%;
   background: white;
   border-radius: 28px 28px 0 0;
-  padding: 12px 20px 30px;
+  padding: 12px 20px 90px; /* Increased bottom padding for nav bar (70px + 20px) */
   box-shadow: 0 -8px 30px rgba(0,0,0,0.12);
   z-index: 2000;
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -47,7 +47,7 @@ button:disabled {
 }
 
 .bottomSheet.minimized {
-  transform: translateY(calc(100% - 90px));
+  transform: translateY(calc(100% - 160px)); /* Visible part: 160px (70px nav + 90px content) */
 }
 
 .bottomSheet.expanded {
