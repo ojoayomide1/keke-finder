@@ -44,20 +44,45 @@ function setAuthLoading(isLoading) {
   }
 }
 
-// Mock Matric Verification (Replace with real database check if available)
-async function verifyMatricNumber(matricNo) {
-  // For now, any matric number that isn't empty is "valid" 
-  // but in a real app, we would check a 'validMatrics' collection
-  if (!matricNo) return false;
-  
-  // Example of real check (commented out):
-  /*
-  const docRef = doc(db, "validMatrics", matricNo);
-  const docSnap = await getDoc(docRef);
-  return docSnap.exists();
-  */
-  
-  return true; 
+// Real Database Verification for Students
+async function verifyMatricNumber(name, matricNo) {
+  if (!name || !matricNo) return false;
+  try {
+    const docRef = doc(db, "authorized_students", matricNo.toUpperCase());
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      // Verify name matches (case-insensitive)
+      return data.name.toLowerCase() === name.toLowerCase();
+    }
+    return false;
+  } catch (error) {
+    console.error("Error verifying matric:", error);
+    return false;
+  }
+}
+
+// Real Database Verification for Riders
+async function verifyRiderDetails(name, phone, plateNo) {
+  if (!name || !phone || !plateNo) return false;
+  try {
+    // We use plateNo as the document ID for riders
+    const docRef = doc(db, "authorized_riders", plateNo.toUpperCase());
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      // Verify name and phone match (case-insensitive for name, normalized for phone)
+      const nameMatch = data.name.toLowerCase() === name.toLowerCase();
+      const phoneMatch = data.phone.replace(/\D/g, '').endsWith(phone.replace(/\D/g, '').slice(-10));
+      return nameMatch && phoneMatch;
+    }
+    return false;
+  } catch (error) {
+    console.error("Error verifying rider:", error);
+    return false;
+  }
 }
 
 async function createAccount() {
@@ -72,24 +97,38 @@ async function createAccount() {
   // Regex Patterns
   const nameRegex = /^[a-zA-Z\s]{3,30}$/;
   const phoneRegex = /^\+?[0-9]{10,15}$/;
-  const matricRegex = /^[A-Z0-9/-]{5,15}$/i; // Customize based on your university format
+  const matricRegex = /^[A-Z0-9/-]{5,15}$/i; 
   const plateRegex = /^[A-Z0-9\s-]{4,10}$/i;
 
   // Validation
   if (!nameRegex.test(name)) return setAuthMessage("Enter a valid full name (3-30 letters).");
-  if (!phoneRegex.test(phone)) return setAuthMessage("Enter a valid phone number (10-15 digits).");
+  if (!phoneRegex.test(phone)) return setAuthMessage("Enter a valid phone number.");
   
-  if (signupRole === "student") {
-    if (!matricRegex.test(matric)) return setAuthMessage("Enter a valid Matric Number.");
-    const isValidMatric = await verifyMatricNumber(matric);
-    if (!isValidMatric) return setAuthMessage("Invalid matric number. Access denied.");
-  } else {
-    if (!plateRegex.test(plate)) return setAuthMessage("Enter a valid Plate Number.");
-  }
-
   setAuthLoading(true);
 
   try {
+    if (signupRole === "student") {
+      if (!matricRegex.test(matric)) {
+        setAuthLoading(false);
+        return setAuthMessage("Enter a valid Matric Number.");
+      }
+      const isValidMatric = await verifyMatricNumber(name, matric);
+      if (!isValidMatric) {
+        setAuthLoading(false);
+        return setAuthMessage("Name or Matric Number does not match our authorized records.");
+      }
+    } else {
+      if (!plateRegex.test(plate)) {
+        setAuthLoading(false);
+        return setAuthMessage("Enter a valid Plate Number.");
+      }
+      const isValidRider = await verifyRiderDetails(name, phone, plate);
+      if (!isValidRider) {
+        setAuthLoading(false);
+        return setAuthMessage("Rider details (Name, Phone, or Plate) do not match our authorized records.");
+      }
+    }
+
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(credential.user, { displayName: name });
 
