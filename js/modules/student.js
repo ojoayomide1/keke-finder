@@ -86,7 +86,7 @@ export async function requestKeke() {
     }
     const pickupLoc = CAMPUS_MAP_DATA.locations.find(l => l.id === pickupId);
     const dropoffLoc = CAMPUS_MAP_DATA.locations.find(l => l.id === dropoffId);
-    btn.innerText = "Finding Keke...";
+    btn.innerText = "Looking for your keke...";
     const rideData = {
       pickupId,
       pickupName: pickupLoc.name,
@@ -109,13 +109,13 @@ export async function requestKeke() {
     
     // startListeners will be called from app.js
     
-    updateBottomSheet("Live Trip", "Waiting for rider to accept");
+    updateBottomSheet("Live Trip", "Waiting for a rider");
     updateRideDetails("student", [
       { label: "Status", value: "Waiting" },
       { label: "From", value: pickupLoc.name },
       { label: "To", value: dropoffLoc.name }
     ]);
-    showToast("Ride requested successfully");
+    showToast("Looking for your keke...");
   } catch (err) {
     showToast("Failed to request ride", "error");
   } finally {

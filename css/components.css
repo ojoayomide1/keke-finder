@@ -2,7 +2,7 @@
 button {
   padding: 16px 28px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
   border: none;
   border-radius: 12px;
   cursor: pointer;
@@ -68,7 +68,7 @@ button:disabled {
 .ride-detail span {
   display: block;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   color: #9ca3af;
   text-transform: uppercase;
   margin-bottom: 4px;
@@ -94,7 +94,7 @@ button:disabled {
   padding: 4px 10px;
   border-radius: 99px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
 }
 .status-pill.completed { background: #dcfce7; color: #15803d; }
 .status-pill.cancelled { background: #fee2e2; color: #b91c1c; }
@@ -113,7 +113,7 @@ button:disabled {
   background: #22c55e;
   color: white;
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -219,7 +219,7 @@ button:disabled {
 
 .nav-tab span {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* App-like Overlays */
