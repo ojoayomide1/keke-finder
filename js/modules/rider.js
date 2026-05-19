@@ -120,31 +120,19 @@ export function listenToActiveRide(rideId) {
         return;
     }
 
-    // AUTO-TRANSITION TO MAP UI ONLY IF THERE ARE PENDING STOPS
+    // AUTO-TRANSITION TO LIVE VIEW ONLY IF THERE ARE PENDING STOPS
     const hasPendingStops = ride.stopQueue.some(s => s.status === "pending");
-    const riderMap = document.getElementById("riderMap");
-    const riderSheet = document.getElementById("riderSheet");
-    const riderDash = document.getElementById("riderDashboard");
+    const isLiveViewHidden = document.getElementById("riderLiveView")?.classList.contains("hidden");
 
     if (hasPendingStops && (ride.status === "waiting" || ride.status === "active")) {
-      if (riderMap && riderMap.classList.contains("hidden")) {
-        riderDash.classList.add("hidden");
-        riderMap.classList.remove("hidden");
-        riderSheet.classList.remove("hidden");
-        document.getElementById("riderMapBackBtn")?.classList.remove("hidden");
-        
-        setTimeout(() => {
-          initMap("riderMap");
-          if (window.updateRideUI) window.updateRideUI(ride);
-        }, 100);
+      if (isLiveViewHidden) {
+        if (window.switchTab) window.switchTab('live');
+        document.getElementById("riderSheet")?.classList.remove("hidden");
       }
     } else if (!hasPendingStops) {
       // If no stops, stay on/return to dashboard but show online status
-      if (riderMap && !riderMap.classList.contains("hidden")) {
-        riderDash.classList.remove("hidden");
-        riderMap.classList.add("hidden");
-        riderSheet.classList.add("hidden");
-        document.getElementById("riderMapBackBtn")?.classList.add("hidden");
+      if (!isLiveViewHidden) {
+        if (window.switchTab) window.switchTab('home');
       }
       document.getElementById("riderTitle").innerText = "Online & Ready";
       document.getElementById("riderSub").innerText = "Waiting for passengers...";
@@ -184,6 +172,10 @@ export function listenToActiveRide(rideId) {
     
     const detailsContainer = document.getElementById("riderRideDetails");
     if (detailsContainer) detailsContainer.innerHTML = statsHtml;
+
+    // Also update sheet details if visible
+    const sheetDetails = document.getElementById("riderSheetDetails");
+    if (sheetDetails) sheetDetails.innerHTML = statsHtml;
 
     updateRideDetails("rider", [
       { label: "Seats", value: `${ride.seats.occupied}/${ride.seats.total}` },
@@ -289,7 +281,8 @@ export async function completeRide() {
   if (!state.currentRideId) return;
   await updateDoc(doc(db, "rides", state.currentRideId), { status: "completed" });
   state.currentRideId = null;
-  document.getElementById("riderSheet").classList.add("hidden");
+  document.getElementById("riderSheet")?.classList.add("hidden");
+  if (window.switchTab) window.switchTab('home');
   showToast("Ride completed manually");
 }
 

@@ -7,7 +7,7 @@
 }
 
 .dashboard-header {
-  padding: 24px 20px;
+  padding: 16px 20px;
   background: white;
   display: flex;
   justify-content: space-between;
@@ -15,18 +15,27 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
+.header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .dashboard-brand {
   flex: 0 0 auto;
 }
 
-.dashboard-header .user-info {
-  text-align: right;
+.user-info {
+  display: flex;
+  flex-direction: column;
 }
 
 .user-info h2 {
-  font-size: 1.25rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
   color: #111;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .role-tag {

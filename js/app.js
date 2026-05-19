@@ -57,8 +57,9 @@ function toggleSidebar() {
 }
 
 function switchTab(tab) {
-  const tabs = ["home", "vip", "live", "map", "profile", "activity"];
-  const views = {
+  const role = state.currentRole || "student";
+  
+  const studentViews = {
     home: "studentDashboard",
     vip: "vipView",
     live: "liveRideView",
@@ -67,21 +68,41 @@ function switchTab(tab) {
     activity: "activityView"
   };
 
-  // Hide all tab views
-  Object.values(views).forEach(vId => {
+  const riderViews = {
+    home: "riderDashboard",
+    live: "riderLiveView",
+    profile: "riderProfileView"
+  };
+
+  const views = role === "student" ? studentViews : riderViews;
+
+  // Hide all views for both roles to be safe
+  [...Object.values(studentViews), ...Object.values(riderViews)].forEach(vId => {
     const el = document.getElementById(vId);
     if (el) el.classList.add("hidden");
   });
 
   // Handle specific tab logic
-  if (tab === "activity") {
-    if (state.currentUser?.isGuest) return showToast("Signup to view activity", "error");
-    fetchRideHistory();
-  } else if (tab === "map") {
-    populateCampusMapLandmarks();
-  } else if (tab === "live") {
-    // If opening live tab, ensure map is initialized
-    setTimeout(() => initMap("studentMap"), 100);
+  if (role === "student") {
+    if (tab === "activity") {
+      if (state.currentUser?.isGuest) return showToast("Signup to view activity", "error");
+      fetchRideHistory();
+    } else if (tab === "map") {
+      populateCampusMapLandmarks();
+    } else if (tab === "live") {
+      setTimeout(() => initMap("studentMap"), 100);
+    }
+  } else if (role === "rider") {
+    if (tab === "profile") {
+      updateRiderProfileUI();
+    } else if (tab === "live") {
+      setTimeout(() => {
+        initMap("riderMap");
+        if (state.currentRideId) {
+          document.getElementById("riderSheet")?.classList.remove("hidden");
+        }
+      }, 100);
+    }
   }
 
   // Show selected view
@@ -91,10 +112,23 @@ function switchTab(tab) {
   }
 
   // Update bottom nav active state
-  document.querySelectorAll(".nav-tab").forEach(t => {
-    const tId = t.id.replace("tab-", "");
+  const navSelector = role === "student" ? "#studentUI .nav-tab" : "#riderUI .nav-tab";
+  document.querySelectorAll(navSelector).forEach(t => {
+    const tId = t.id.replace("tab-", "").replace("rider-", "");
     t.classList.toggle("active", tId === tab);
   });
+}
+
+function updateRiderProfileUI() {
+  if (!state.currentUser) return;
+  const user = state.currentUser;
+  const nameEl = document.getElementById("riderProfileName");
+  const emailEl = document.getElementById("riderProfileEmail");
+  const plateEl = document.getElementById("riderProfilePlate");
+  
+  if (nameEl) nameEl.innerText = user.displayName || "Rider";
+  if (emailEl) emailEl.innerText = user.email || "No email";
+  if (plateEl) plateEl.innerText = user.plateNo || "No Plate";
 }
 
 function switchStudentView(view) {
@@ -397,6 +431,7 @@ async function transitionToDashboard(user) {
     state.currentRole = "rider";
     document.getElementById("riderUI").classList.remove("hidden");
     updateRiderDashboardUI();
+    switchTab('home');
     await checkForActiveRide("rider");
   }
 }
