@@ -46,10 +46,23 @@ export function updateRiderControls(ride) {
   const label = nextStop.type === "pickup" ? `Pick up ${nextStop.passengerName}` : `Drop off ${nextStop.passengerName}`;
   const btnClass = nextStop.type === "pickup" ? "yellow" : "green";
 
+  // Update the sheet title and sub with next stop info for minimized state
+  const sheet = document.getElementById("riderSheet");
+  if (sheet) {
+    const titleEl = document.getElementById("riderSheetTitle");
+    const subEl = document.getElementById("riderSheetSub");
+    if (titleEl) titleEl.innerText = label;
+    if (subEl) subEl.innerText = nextStop.locationLabel;
+    
+    // Auto-expand if a new stop appears and we were on dashboard
+    if (sheet.classList.contains("hidden")) {
+      sheet.classList.remove("minimized");
+      sheet.classList.add("expanded");
+    }
+  }
+
   container.innerHTML = `
-    <div style="margin-bottom:10px; font-weight:bold;">Next: ${label}</div>
-    <div style="font-size:0.9em; margin-bottom:15px; color:#666;">${nextStop.locationLabel}</div>
-    <button onclick="markStopComplete('${ride.id}', '${nextStop.stopId}', ${JSON.stringify(nextStop).replace(/"/g, '&quot;')})" class="${btnClass}">
+    <button onclick="markStopComplete('${ride.id}', '${nextStop.stopId}', ${JSON.stringify(nextStop).replace(/"/g, '&quot;')})" class="${btnClass}" style="width:100%">
       Arrived at ${nextStop.type === 'pickup' ? 'Pickup' : 'Drop-off'}
     </button>
   `;

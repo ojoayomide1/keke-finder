@@ -171,20 +171,21 @@
     </div>
 
     <!-- Live Section (Map + Bottom Sheet) -->
-    <div id="liveRideView" class="view-overlay hidden tab-view">
-      <div class="view-header">
-        <h2>Live Trip</h2>
-      </div>
+    <div id="liveRideView" class="view-overlay hidden tab-view" style="padding-bottom: 0;">
       <div id="studentMap" class="map" style="flex: 1; position: relative; height: 100%;"></div>
       
       <div class="bottomSheet hidden" id="studentSheet" style="position: absolute;">
-        <div class="dragZone"></div>
-        <div class="handle"></div>
+        <div class="dragZone" onmousedown="startDrag(event, 'studentSheet')" ontouchstart="startDrag(event, 'studentSheet')">
+          <div class="handle"></div>
+        </div>
         <h3 id="studentTitle">Live Trip</h3>
         <p id="studentSub">Waiting for rider...</p>
-        <div class="ride-details" id="studentRideDetails"></div>
-        <div class="controls" id="studentControls" style="display:none">
-          <button type="button" onclick="cancelRide()" class="danger">Cancel Request</button>
+        
+        <div class="sheet-content">
+          <div class="ride-details" id="studentRideDetails"></div>
+          <div class="controls" id="studentControls" style="display:none">
+            <button type="button" onclick="cancelRide()" class="danger">Cancel Request</button>
+          </div>
         </div>
       </div>
     </div>
@@ -314,21 +315,22 @@
     </div>
 
     <!-- Live Section (Map + Sheet) -->
-    <div id="riderLiveView" class="view-overlay hidden tab-view">
-      <div class="view-header">
-        <h2>Live Trip</h2>
-      </div>
+    <div id="riderLiveView" class="view-overlay hidden tab-view" style="padding-bottom: 0;">
       <div id="riderMap" class="map" style="flex: 1; position: relative; height: 100%;"></div>
       
       <div class="bottomSheet hidden" id="riderSheet" style="position: absolute;">
-        <div class="dragZone"></div>
-        <div class="handle"></div>
+        <div class="dragZone" onmousedown="startDrag(event, 'riderSheet')" ontouchstart="startDrag(event, 'riderSheet')">
+          <div class="handle"></div>
+        </div>
         <h3 id="riderSheetTitle">Offline</h3>
         <p id="riderSheetSub">Go live to start</p>
-        <div class="ride-details" id="riderSheetDetails"></div>
-        <div class="controls" id="riderControls" style="display:flex">
-          <button onclick="setArriving()" class="yellow">Arriving</button>
-          <button onclick="completeRide()" class="green">Complete</button>
+        
+        <div class="sheet-content">
+          <div class="ride-details" id="riderSheetDetails"></div>
+          <div class="controls" id="riderControls" style="display:flex">
+            <button onclick="setArriving()" class="yellow">Arriving</button>
+            <button onclick="completeRide()" class="green">Complete</button>
+          </div>
         </div>
       </div>
     </div>

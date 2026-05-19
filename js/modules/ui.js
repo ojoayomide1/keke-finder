@@ -8,12 +8,79 @@ export function updateBottomSheet(title, sub, target = "student") {
 }
 
 export function updateRideDetails(target, details) {
-  const container = document.getElementById(`${target}RideDetails`);
+  const containerId = target === "rider" ? "riderSheetDetails" : "studentRideDetails";
+  const container = document.getElementById(containerId);
   if (!container) return;
   container.innerHTML = details.map(d => `
     <div class="ride-detail"><span>${d.label}</span><strong>${d.value}</strong></div>
   `).join("");
 }
+
+// ================= BOTTOM SHEET DRAGGING =================
+let startY = 0;
+let currentY = 0;
+let draggingSheet = null;
+
+export function startDrag(e, sheetId) {
+  draggingSheet = document.getElementById(sheetId);
+  if (!draggingSheet) return;
+
+  startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+  draggingSheet.style.transition = 'none';
+
+  document.addEventListener('mousemove', handleDrag);
+  document.addEventListener('touchmove', handleDrag, { passive: false });
+  document.addEventListener('mouseup', endDrag);
+  document.addEventListener('touchend', endDrag);
+}
+
+function handleDrag(e) {
+  if (!draggingSheet) return;
+  if (e.type === 'touchmove') e.preventDefault();
+
+  const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+  const deltaY = clientY - startY;
+
+  // Only allow dragging down if expanded, or up if minimized
+  const isMinimized = draggingSheet.classList.contains('minimized');
+  
+  if (isMinimized && deltaY > 0) return; // Can't drag further down if minimized
+  if (!isMinimized && deltaY < 0) return; // Can't drag further up if expanded
+
+  draggingSheet.style.transform = `translateY(${deltaY}px)`;
+  currentY = deltaY;
+}
+
+function endDrag() {
+  if (!draggingSheet) return;
+
+  draggingSheet.style.transition = '';
+  const threshold = 80;
+
+  if (Math.abs(currentY) > threshold) {
+    // Snap to new state
+    const isMinimized = draggingSheet.classList.contains('minimized');
+    if (isMinimized && currentY < -threshold) {
+      draggingSheet.classList.remove('minimized');
+      draggingSheet.classList.add('expanded');
+    } else if (!isMinimized && currentY > threshold) {
+      draggingSheet.classList.add('minimized');
+      draggingSheet.classList.remove('expanded');
+    }
+  }
+
+  draggingSheet.style.transform = '';
+  draggingSheet = null;
+  currentY = 0;
+
+  document.removeEventListener('mousemove', handleDrag);
+  document.removeEventListener('touchmove', handleDrag);
+  document.removeEventListener('mouseup', endDrag);
+  document.removeEventListener('touchend', endDrag);
+}
+
+// Bind to window for HTML access
+window.startDrag = startDrag;
 
 export function toggleControls(show, target = "student") {
   const el = document.getElementById(`${target}Controls`);

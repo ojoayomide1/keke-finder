@@ -273,7 +273,11 @@ window.visitRide = async (requestId) => {
   if (docSnap.exists()) {
     const r = docSnap.data();
     switchTab('live');
-    document.getElementById("studentSheet").classList.remove("hidden");
+    const sheet = document.getElementById("studentSheet");
+    if (sheet) {
+      sheet.classList.remove("hidden", "minimized");
+      sheet.classList.add("expanded");
+    }
     import("./modules/student.js").then(m => m.listenToRequest(requestId));
     updateBottomSheet(r.status === "searching" ? "Searching" : "Trip Active", r.status);
     updateRideDetails("student", [

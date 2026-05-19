@@ -38,45 +38,103 @@ button:disabled {
   left: 0;
   width: 100%;
   background: white;
-  border-radius: 24px 24px 0 0;
-  padding: 15px 20px 30px;
-  box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+  border-radius: 28px 28px 0 0;
+  padding: 12px 20px 30px;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.12);
   z-index: 2000;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.bottomSheet.minimized {
+  transform: translateY(calc(100% - 90px));
+}
+
+.bottomSheet.expanded {
+  transform: translateY(0);
+}
+
+.dragZone {
+  width: 100%;
+  height: 40px;
+  margin-top: -12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
 
 .handle {
-  width: 40px;
-  height: 4px;
+  width: 36px;
+  height: 5px;
   background: #e5e7eb;
   border-radius: 99px;
-  margin: 0 auto 15px;
+}
+
+.bottomSheet h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #111;
+  margin-bottom: 4px;
+}
+
+.bottomSheet p {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-bottom: 15px;
+}
+
+.sheet-content {
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+
+.bottomSheet.minimized .sheet-content {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .ride-details {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-top: 15px;
+  gap: 12px;
+  margin: 15px 0;
 }
 
 .ride-detail {
-  padding: 12px;
-  background: #f3f4f6;
-  border-radius: 12px;
+  padding: 14px;
+  background: #f8fafc;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
 }
 
 .ride-detail span {
   display: block;
   font-size: 10px;
-  font-weight: 500;
-  color: #9ca3af;
+  font-weight: 600;
+  color: #64748b;
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
 }
 
 .ride-detail strong {
   font-size: 14px;
-  color: #111;
+  color: #1e293b;
+}
+
+.controls {
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.controls button {
+  flex: 1;
+  padding: 14px;
+  font-size: 15px;
 }
 
 /* Activity & Profile Items */
