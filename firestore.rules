@@ -81,7 +81,7 @@ service cloud.firestore {
         && (
           (
             request.resource.data.role == "student"
-            && validShortString(request.resource.data.matricNo, 30)
+            && validShortString(request.resource.data.matricNo, 50)
             // We transform slashes to dashes for the authorized check
             && exists(/databases/$(database)/documents/authorized_students/$(request.resource.data.matricNo.replace('/', '-').replace('/', '-').replace('/', '-')))
             && !("plateNo" in request.resource.data)
@@ -90,7 +90,7 @@ service cloud.firestore {
           ||
           (
             request.resource.data.role == "rider"
-            && validShortString(request.resource.data.plateNo, 20)
+            && validShortString(request.resource.data.plateNo, 30)
             && exists(/databases/$(database)/documents/authorized_riders/$(request.resource.data.plateNo))
             && request.resource.data.vehicleType in ["keke", "shuttle"]
             && !("matricNo" in request.resource.data)

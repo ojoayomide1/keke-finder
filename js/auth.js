@@ -97,10 +97,10 @@ async function createAccount() {
   const vType = document.getElementById("vehicleType").value;
 
   // Regex Patterns
-  const nameRegex = /^[a-zA-Z\s]{3,30}$/;
+  const nameRegex = /^[a-zA-Z\s.']{3,60}$/;
   const phoneRegex = /^\+?[0-9]{10,15}$/;
-  const matricRegex = /^[A-Z0-9/-]{5,15}$/i; 
-  const plateRegex = /^[A-Z0-9\s-]{4,10}$/i;
+  const matricRegex = /^[A-Z0-9/-]{5,30}$/i; 
+  const plateRegex = /^[A-Z0-9\s-]{4,15}$/i;
 
   // Validation
   if (!nameRegex.test(name)) return setAuthMessage("Enter a valid full name (3-30 letters).");
