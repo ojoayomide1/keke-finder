@@ -320,12 +320,12 @@ service cloud.firestore {
 
     match /authorized_students/{matricNo} {
       allow get: if true;
-      allow write: if true; // TEMPORARY: Change back to false after seeding!
+      allow write: if false;
     }
 
     match /authorized_riders/{plateNo} {
       allow get: if true;
-      allow write: if true; // TEMPORARY: Change back to false after seeding!
+      allow write: if false;
     }
 
     match /users/{userId} {
