@@ -319,13 +319,13 @@ service cloud.firestore {
     }
 
     match /authorized_students/{matricNo} {
-      allow get: if true; // Allowed for registration pre-check
-      allow list, write: if false;
+      allow get: if true;
+      allow write: if true; // TEMPORARY: Change back to false after seeding!
     }
 
     match /authorized_riders/{plateNo} {
-      allow get: if true; // Allowed for registration pre-check
-      allow list, write: if false;
+      allow get: if true;
+      allow write: if true; // TEMPORARY: Change back to false after seeding!
     }
 
     match /users/{userId} {
