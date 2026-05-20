@@ -48,7 +48,9 @@ function setAuthLoading(isLoading) {
 async function verifyMatricNumber(name, matricNo) {
   if (!name || !matricNo) return false;
   try {
-    const docRef = doc(db, "authorized_students", matricNo.toUpperCase());
+    // Document IDs cannot have slashes, so we replace them with dashes for the lookup
+    const sanitizedMatric = matricNo.trim().toUpperCase().replace(/\//g, '-');
+    const docRef = doc(db, "authorized_students", sanitizedMatric);
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
