@@ -433,7 +433,17 @@ window.startRide = async () => {
 // ================= ORCHESTRATION =================
 
 async function transitionToDashboard(user) {
+  if (!user || !user.role) {
+    console.warn("User role missing during transition, staying on login screen.");
+    return;
+  }
+
   document.getElementById("loginScreen").classList.add("hidden");
+  
+  // Hide all role UIs first to ensure a clean state
+  document.getElementById("studentUI").classList.add("hidden");
+  document.getElementById("riderUI").classList.add("hidden");
+
   if (user.role === "student") {
     state.currentRole = "student";
     document.getElementById("studentUI").classList.remove("hidden");
@@ -441,16 +451,18 @@ async function transitionToDashboard(user) {
     populateLocations();
     updateStudentProfileUI();
     listenToStudentWallet();
-    window.switchStudentView('dashboard');
+    if (window.switchStudentView) window.switchStudentView('dashboard');
     await checkForActiveRide("student");
-    // Listeners are started within requestKeke or checkForActiveRide
-  } else {
+  } else if (user.role === "rider") {
     state.currentRole = "rider";
     document.getElementById("riderUI").classList.remove("hidden");
     updateRiderDashboardUI();
     listenToRiderWallet();
     switchTab('home');
     await checkForActiveRide("rider");
+  } else {
+    console.error("Unknown user role:", user.role);
+    showLoginScreen();
   }
 }
 

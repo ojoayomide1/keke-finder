@@ -291,13 +291,24 @@ export function initAuth(options) {
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       // Fetch role from Firestore
-      const userDoc = await getDoc(doc(db, "users", user.uid));
+      let userDoc = await getDoc(doc(db, "users", user.uid));
+      
+      // Retry once after a short delay if not found, to handle race condition during signup
+      if (!userDoc.exists()) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        userDoc = await getDoc(doc(db, "users", user.uid));
+      }
+
       let finalUser = user;
       if (userDoc.exists()) {
         const data = userDoc.data();
         finalUser = { ...user, ...data };
+        onUserChanged(finalUser);
+      } else {
+        // If still no doc, it might be a guest or a brand new user whose doc is still being created.
+        // We'll call onUserChanged anyway, but app.js should handle the missing role.
+        onUserChanged(user);
       }
-      onUserChanged(finalUser);
     } else {
       onUserChanged(null);
     }
