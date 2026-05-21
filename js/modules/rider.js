@@ -145,10 +145,13 @@ async function applyFareSplit(transaction, studentId, riderId, rideId) {
 
   if (currentBalance >= TOTAL_FARE_KOBO) {
     const studentNewBalance = currentBalance - TOTAL_FARE_KOBO;
-    transaction.update(studentRef, {
+    const studentUpdate = {
       "wallet.balance": studentNewBalance,
       "wallet.lastDeduction": serverTimestamp()
-    });
+    };
+    if (!student.wallet?.currency) studentUpdate["wallet.currency"] = "NGN";
+    
+    transaction.update(studentRef, studentUpdate);
     transaction.update(riderRef, {
       "earnings.balance": riderBalance + RIDER_SHARE_KOBO,
       "earnings.totalEarned": riderTotalEarned + RIDER_SHARE_KOBO
@@ -165,13 +168,16 @@ async function applyFareSplit(transaction, studentId, riderId, rideId) {
   const riderActual = Math.floor(currentBalance * (RIDER_SHARE_KOBO / TOTAL_FARE_KOBO));
   const adminActual = currentBalance - riderActual;
 
-  transaction.update(studentRef, {
+  const studentUpdate = {
     "wallet.balance": 0,
     "wallet.lastDeduction": serverTimestamp(),
     "debt.amount": debtAmount,
     "debt.rideId": rideId,
     "debt.incurredAt": serverTimestamp()
-  });
+  };
+  if (!student.wallet?.currency) studentUpdate["wallet.currency"] = "NGN";
+
+  transaction.update(studentRef, studentUpdate);
   transaction.update(riderRef, {
     "earnings.balance": riderBalance + riderActual,
     "earnings.totalEarned": riderTotalEarned + riderActual

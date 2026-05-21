@@ -169,7 +169,9 @@ service cloud.firestore {
         && request.auth.uid != userId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["wallet", "debt"])
         && validWallet(request.resource.data.wallet)
-        && validDebt(request.resource.data.debt);
+        && (
+          !("debt" in request.resource.data) || validDebt(request.resource.data.debt)
+        );
     }
 
     function riderEarningsUpdate(userId) {
@@ -239,8 +241,8 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["balance", "totalEarned", "lastUpdated"])
         && request.resource.data.balance is int
         && request.resource.data.totalEarned is int
-        && request.resource.data.balance >= resource.data.balance
-        && request.resource.data.totalEarned >= resource.data.totalEarned
+        && request.resource.data.balance >= (resource.data.get("balance", 0))
+        && request.resource.data.totalEarned >= (resource.data.get("totalEarned", 0))
         && request.resource.data.lastUpdated == request.time;
     }
 
