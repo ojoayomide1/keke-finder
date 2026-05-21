@@ -141,6 +141,11 @@ function updateRiderProfileUI() {
   if (nameEl) nameEl.innerText = user.displayName || "Rider";
   if (emailEl) emailEl.innerText = user.email || "No email";
   if (plateEl) plateEl.innerText = user.plateNo || "No Plate";
+
+  const adminLink = document.getElementById("adminLinkRider");
+  if (adminLink) {
+    adminLink.classList.toggle("hidden", !user.isAdmin);
+  }
 }
 
 function switchStudentView(view) {

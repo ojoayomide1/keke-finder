@@ -279,6 +279,10 @@
             <span>Wallet</span>
             <i class="fas fa-chevron-right"></i>
           </div>
+          <div class="settings-item hidden" id="adminLinkStudent" onclick="window.location.href='/admin.html'">
+            <span style="color: #22c55e; font-weight: bold;">Admin Dashboard</span>
+            <i class="fas fa-shield-alt" style="color: #22c55e;"></i>
+          </div>
           <div class="settings-item">
             <span>App Version</span>
             <strong>1.2.0</strong>
@@ -446,12 +450,15 @@
             <span>App Version</span>
             <strong>1.2.0</strong>
           </div>
-          <div class="settings-item" onclick="switchTab('earnings')">
-            <span>Earnings</span>
+          <div class="settings-item" onclick="switchTab('activity')">
+            <span>Ride Activity</span>
             <i class="fas fa-chevron-right"></i>
           </div>
-        </div>
-        
+          <div class="settings-item hidden" id="adminLinkRider" onclick="window.location.href='/admin.html'">
+            <span style="color: #22c55e; font-weight: bold;">Admin Dashboard</span>
+            <i class="fas fa-shield-alt" style="color: #22c55e;"></i>
+          </div>
+          </div>        
         <button onclick="logout()" class="danger-text">Logout from account</button>
       </div>
     </div>

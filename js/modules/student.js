@@ -155,6 +155,11 @@ export function updateStudentProfileUI() {
   if (profName) profName.innerText = name;
   if (profEmail) profEmail.innerText = email;
   if (avatar && name) avatar.innerText = name.charAt(0).toUpperCase();
+
+  const adminLink = document.getElementById("adminLinkStudent");
+  if (adminLink) {
+    adminLink.classList.toggle("hidden", !state.currentUser.isAdmin);
+  }
 }
 
 export async function fetchRideHistory() {

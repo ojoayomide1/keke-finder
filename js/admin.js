@@ -71,6 +71,67 @@ function listenToOverview() {
     const data = snapshot.data() || {};
     setText("adminWalletBalance", formatNaira(data.balance || data.wallet?.balance || 0));
   });
+
+  listenToAuthorizedRiders();
+}
+
+function listenToAuthorizedRiders() {
+  onSnapshot(query(collection(db, "authorized_riders"), orderBy("updatedAt", "desc")), (snapshot) => {
+    renderAuthorizedRiders(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+  });
+}
+
+function renderAuthorizedRiders(riders) {
+  const list = document.getElementById("authorizedRidersList");
+  if (!list) return;
+  if (!riders.length) {
+    list.innerHTML = '<p class="empty-state">No authorized riders</p>';
+    return;
+  }
+
+  list.innerHTML = riders.map(r => `
+    <article class="admin-card">
+      <dl>
+        <dt>Plate</dt><dd><strong>${r.id}</strong></dd>
+        <dt>Name</dt><dd>${r.name}</dd>
+        <dt>Phone</dt><dd>${r.phone}</dd>
+      </dl>
+      <div class="admin-actions">
+        <button class="danger" onclick="removeRider('${r.id}')">Remove</button>
+      </div>
+    </article>
+  `).join("");
+}
+
+async function handleAddRider(e) {
+  e.preventDefault();
+  const plate = document.getElementById("newRiderPlate").value.trim().toUpperCase();
+  const name = document.getElementById("newRiderName").value.trim();
+  const phone = document.getElementById("newRiderPhone").value.trim();
+
+  if (!plate || !name || !phone) return;
+
+  try {
+    await setDoc(doc(db, "authorized_riders", plate), {
+      name,
+      phone,
+      updatedAt: serverTimestamp()
+    });
+    document.getElementById("addRiderForm").reset();
+  } catch (err) {
+    console.error("Error adding rider:", err);
+    alert("Failed to add rider. Check console.");
+  }
+}
+
+async function removeRider(plate) {
+  if (!confirm(`Are you sure you want to remove authorized rider ${plate}?`)) return;
+  try {
+    await deleteDoc(doc(db, "authorized_riders", plate));
+  } catch (err) {
+    console.error("Error removing rider:", err);
+    alert("Failed to remove rider.");
+  }
 }
 
 function listenToWithdrawals() {
@@ -212,6 +273,7 @@ window.markWithdrawalPaid = markWithdrawalPaid;
 window.rejectWithdrawalPrompt = rejectWithdrawalPrompt;
 window.listenToTransactions = listenToTransactions;
 window.adminLogout = adminLogout;
+window.removeRider = removeRider;
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -222,4 +284,9 @@ onAuthStateChanged(auth, async (user) => {
   listenToOverview();
   listenToWithdrawals();
   listenToTransactions();
+
+  const addRiderForm = document.getElementById("addRiderForm");
+  if (addRiderForm) {
+    addRiderForm.addEventListener("submit", handleAddRider);
+  }
 });

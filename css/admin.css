@@ -73,6 +73,10 @@
   padding: 18px;
 }
 
+.admin-form .input-field {
+  margin-bottom: 0;
+}
+
 .panel-head {
   display: flex;
   justify-content: space-between;
