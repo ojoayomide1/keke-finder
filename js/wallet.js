@@ -181,7 +181,16 @@ async function createPaystackVirtualAccount(studentId, user) {
     })
   });
 
-  if (!response.ok) throw new Error("Could not create transfer account");
+  if (!response.ok) {
+    let message = "Could not create transfer account";
+    try {
+      const data = await response.json();
+      message = data.error || data.paystack?.message || message;
+    } catch (err) {
+      // Keep the generic message if the Worker did not return JSON.
+    }
+    throw new Error(message);
+  }
 }
 
 function showTransferDetails(virtualAccount, amountNaira) {

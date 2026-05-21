@@ -150,7 +150,7 @@ async function handleCreateVirtualAccount(request, env) {
   const name = fields.name?.stringValue || firebaseUser.displayName || "OpRides Student";
   const [firstName, ...lastNameParts] = name.split(" ");
 
-  const customer = await paystackRequest("https://api.paystack.co/customer", env, {
+  const customer = await createOrFetchPaystackCustomer(env, {
     email,
     first_name: firstName || "OpRides",
     last_name: lastNameParts.join(" "),
@@ -158,7 +158,12 @@ async function handleCreateVirtualAccount(request, env) {
   });
 
   const customerCode = customer?.data?.customer_code;
-  if (!customerCode) return jsonResponse({ error: "Paystack customer creation failed", paystack: customer }, 502);
+  if (!customerCode) {
+    return jsonResponse({
+      error: customer?.message || "Paystack customer creation failed",
+      paystack: customer
+    }, 502);
+  }
 
   const account = await paystackRequest("https://api.paystack.co/dedicated_account", env, {
     customer: customerCode,
@@ -168,7 +173,10 @@ async function handleCreateVirtualAccount(request, env) {
 
   const accountData = account?.data;
   if (!accountData?.account_number) {
-    return jsonResponse({ error: "Paystack dedicated account creation failed", paystack: account }, 502);
+    return jsonResponse({
+      error: account?.message || "Paystack dedicated account creation failed",
+      paystack: account
+    }, 502);
   }
 
   const virtualAccount = {
@@ -218,16 +226,31 @@ async function lookupFirebaseUser(idToken, env) {
   return data.users?.[0] || null;
 }
 
+async function createOrFetchPaystackCustomer(env, payload) {
+  const created = await paystackRequest("https://api.paystack.co/customer", env, payload);
+  if (created?.status && created?.data?.customer_code) return created;
+
+  const email = encodeURIComponent(payload.email);
+  const fetched = await paystackRequest(`https://api.paystack.co/customer/${email}`, env);
+  if (fetched?.status && fetched?.data?.customer_code) return fetched;
+
+  return created;
+}
+
 async function paystackRequest(url, env, payload) {
-  const res = await fetch(url, {
-    method: "POST",
+  const options = {
+    method: payload ? "POST" : "GET",
     headers: {
       Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`,
       "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
-  return res.json();
+    }
+  };
+
+  if (payload) options.body = JSON.stringify(payload);
+
+  const res = await fetch(url, options);
+  const data = await res.json();
+  return { httpStatus: res.status, ...data };
 }
 
 function parseVirtualAccount(value) {
