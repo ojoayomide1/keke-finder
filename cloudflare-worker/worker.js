@@ -1,10 +1,12 @@
-addEventListener("fetch", event => {
-  event.respondWith(handleRequest(event.request));
-});
+const DEFAULT_FIREBASE_WEB_API_KEY = "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4";
 
-const FIREBASE_WEB_API_KEY = globalThis.FIREBASE_WEB_API_KEY || "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4";
+export default {
+  async fetch(request, env) {
+    return handleRequest(request, env);
+  }
+};
 
-async function handleRequest(request) {
+async function handleRequest(request, env) {
   try {
     const url = new URL(request.url);
 
@@ -17,11 +19,11 @@ async function handleRequest(request) {
     }
 
     if (url.pathname === "/paystack/create-virtual-account") {
-      return withCors(await handleCreateVirtualAccount(request));
+      return withCors(await handleCreateVirtualAccount(request, env));
     }
 
     if (url.pathname === "/" || url.pathname === "/paystack/webhook") {
-      return withCors(await handlePaystackWebhook(request));
+      return withCors(await handlePaystackWebhook(request, env));
     }
 
     return withCors(new Response("Not found", { status: 404 }));
@@ -30,11 +32,11 @@ async function handleRequest(request) {
   }
 }
 
-async function handlePaystackWebhook(request) {
+async function handlePaystackWebhook(request, env) {
   const body = await request.text();
   const signature = request.headers.get("x-paystack-signature") || "";
 
-  if (!(await verifyPaystackSignature(body, signature))) {
+  if (!(await verifyPaystackSignature(body, signature, env))) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -47,8 +49,8 @@ async function handlePaystackWebhook(request) {
   const studentId = metadata?.studentId;
   if (!studentId) return new Response("No studentId in metadata", { status: 400 });
 
-  const token = await getFirebaseToken();
-  const base = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+  const token = await getFirebaseToken(env);
+  const base = `https://firestore.googleapis.com/v1/projects/${env.PROJECT_ID}/databases/(default)/documents`;
 
   const duplicate = await referenceAlreadyProcessed(base, token, reference);
   if (duplicate) return new Response("Already processed", { status: 200 });
@@ -117,16 +119,16 @@ async function handlePaystackWebhook(request) {
   return new Response("OK", { status: 200 });
 }
 
-async function handleCreateVirtualAccount(request) {
+async function handleCreateVirtualAccount(request, env) {
   const authHeader = request.headers.get("Authorization") || "";
   const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
   if (!idToken) return new Response("Unauthorized", { status: 401 });
 
-  const firebaseUser = await lookupFirebaseUser(idToken);
+  const firebaseUser = await lookupFirebaseUser(idToken, env);
   if (!firebaseUser?.localId) return new Response("Unauthorized", { status: 401 });
 
-  const token = await getFirebaseToken();
-  const base = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+  const token = await getFirebaseToken(env);
+  const base = `https://firestore.googleapis.com/v1/projects/${env.PROJECT_ID}/databases/(default)/documents`;
   const studentId = firebaseUser.localId;
   const studentRes = await fetch(`${base}/users/${studentId}`, {
     headers: { Authorization: `Bearer ${token}` }
@@ -148,7 +150,7 @@ async function handleCreateVirtualAccount(request) {
   const name = fields.name?.stringValue || firebaseUser.displayName || "OpRides Student";
   const [firstName, ...lastNameParts] = name.split(" ");
 
-  const customer = await paystackRequest("https://api.paystack.co/customer", {
+  const customer = await paystackRequest("https://api.paystack.co/customer", env, {
     email,
     first_name: firstName || "OpRides",
     last_name: lastNameParts.join(" "),
@@ -158,7 +160,7 @@ async function handleCreateVirtualAccount(request) {
   const customerCode = customer?.data?.customer_code;
   if (!customerCode) return jsonResponse({ error: "Paystack customer creation failed", paystack: customer }, 502);
 
-  const account = await paystackRequest("https://api.paystack.co/dedicated_account", {
+  const account = await paystackRequest("https://api.paystack.co/dedicated_account", env, {
     customer: customerCode,
     preferred_bank: "wema-bank",
     metadata: { studentId }
@@ -204,8 +206,9 @@ async function handleCreateVirtualAccount(request) {
   return jsonResponse({ virtualAccount });
 }
 
-async function lookupFirebaseUser(idToken) {
-  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_WEB_API_KEY}`, {
+async function lookupFirebaseUser(idToken, env) {
+  const apiKey = env.FIREBASE_WEB_API_KEY || DEFAULT_FIREBASE_WEB_API_KEY;
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ idToken })
@@ -215,11 +218,11 @@ async function lookupFirebaseUser(idToken) {
   return data.users?.[0] || null;
 }
 
-async function paystackRequest(url, payload) {
+async function paystackRequest(url, env, payload) {
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+      Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify(payload)
@@ -257,10 +260,10 @@ function withCors(response) {
   });
 }
 
-async function verifyPaystackSignature(body, signature) {
+async function verifyPaystackSignature(body, signature, env) {
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(PAYSTACK_SECRET_KEY),
+    new TextEncoder().encode(env.PAYSTACK_SECRET_KEY),
     { name: "HMAC", hash: "SHA-512" },
     false,
     ["sign"]
@@ -310,11 +313,11 @@ async function createFirestoreDoc(base, token, collectionId, fields) {
   });
 }
 
-async function getFirebaseToken() {
+async function getFirebaseToken(env) {
   const now = Math.floor(Date.now() / 1000);
   const headerB64 = base64UrlEncode(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const payloadB64 = base64UrlEncode(JSON.stringify({
-    iss: SERVICE_ACCOUNT_EMAIL,
+    iss: env.SERVICE_ACCOUNT_EMAIL,
     scope: "https://www.googleapis.com/auth/datastore",
     aud: "https://oauth2.googleapis.com/token",
     exp: now + 3600,
@@ -323,7 +326,7 @@ async function getFirebaseToken() {
 
   const privateKey = await crypto.subtle.importKey(
     "pkcs8",
-    pemToDer(SERVICE_ACCOUNT_PRIVATE_KEY),
+    pemToDer(env.SERVICE_ACCOUNT_PRIVATE_KEY),
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
     false,
     ["sign"]
