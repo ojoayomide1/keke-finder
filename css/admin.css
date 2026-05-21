@@ -1,0 +1,163 @@
+.admin-page {
+  background: #f3f4f6;
+  min-height: 100vh;
+  overflow: auto;
+}
+
+.admin-shell {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.admin-header h1 {
+  font-size: 28px;
+  margin: 0 0 4px;
+}
+
+.admin-header p,
+.panel-head p,
+.admin-note p {
+  color: #6b7280;
+  margin: 0;
+}
+
+.admin-grid,
+.admin-layout {
+  display: grid;
+  gap: 14px;
+}
+
+.stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.admin-layout {
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 14px;
+}
+
+.admin-stat,
+.admin-panel,
+.admin-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.admin-stat {
+  padding: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-stat span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.admin-stat strong {
+  font-size: 28px;
+}
+
+.admin-panel {
+  padding: 18px;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.panel-head h2 {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
+
+.admin-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-card {
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-card dl {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 6px 10px;
+  margin: 0;
+}
+
+.admin-card dt {
+  color: #6b7280;
+}
+
+.admin-card dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.admin-actions button {
+  flex: 1;
+  padding: 11px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.transaction-head select {
+  max-width: 220px;
+}
+
+.admin-table {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 140px 110px;
+  gap: 12px;
+  align-items: center;
+  border-top: 1px solid #f3f4f6;
+  padding: 12px 0;
+}
+
+.admin-row span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+@media (max-width: 860px) {
+  .stats-grid,
+  .admin-layout,
+  .admin-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-header,
+  .panel-head,
+  .admin-actions {
+    flex-direction: column;
+  }
+}

@@ -144,9 +144,25 @@ async function createAccount() {
 
     if (signupRole === "student") {
       userData.matricNo = matric.toUpperCase();
+      userData.wallet = {
+        balance: 0,
+        currency: "NGN",
+        lastTopUp: null,
+        lastDeduction: null
+      };
+      userData.debt = {
+        amount: 0,
+        rideId: null,
+        incurredAt: null
+      };
     } else {
       userData.plateNo = plate.toUpperCase();
       userData.vehicleType = vType;
+      userData.earnings = {
+        balance: 0,
+        totalEarned: 0,
+        lastPayout: null
+      };
     }
 
     await setDoc(doc(db, "users", credential.user.uid), userData);

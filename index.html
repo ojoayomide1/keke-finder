@@ -157,16 +157,66 @@
       </main>
     </div>
 
-    <!-- VIP Section -->
-    <div id="vipView" class="view-overlay hidden tab-view">
+    <div id="walletView" class="view-overlay hidden tab-view">
       <div class="view-header">
-        <h2>VIP Lounge</h2>
+        <h2>My Wallet</h2>
       </div>
-      <div class="center" style="padding: 40px; color: #111;">
-        <i class="fas fa-gem" style="font-size: 48px; color: #facc15; margin-bottom: 20px;"></i>
-        <h3>VIP Perks</h3>
-        <p style="color: #6b7280;">Extra comfort for students and estate residents.</p>
-        <span class="role-tag yellow-tag" style="margin-top: 15px;">Coming Soon</span>
+      <div class="profile-content">
+        <div class="wallet-balance-panel">
+          <span>Balance</span>
+          <strong id="walletBalance">₦0</strong>
+          <p id="walletDebt" class="wallet-debt hidden"></p>
+          <button type="button" class="green" onclick="openTopUpScreen()">+ Top Up</button>
+        </div>
+        <h3 class="section-title">Recent Transactions</h3>
+        <div id="walletTransactionsList" class="wallet-list">
+          <p class="empty-state">No wallet transactions yet</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="topUpView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchTab('wallet')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Top Up Wallet</h2>
+      </div>
+      <div class="profile-content">
+        <div class="ride-form-card">
+          <h3>How much do you want to add?</h3>
+          <div id="topUpAmounts" class="amount-grid"></div>
+          <button type="button" class="green auth-primary" onclick="continueTopUp()">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="transferDetailsView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchTab('topup')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Transfer Details</h2>
+      </div>
+      <div class="profile-content">
+        <div class="ride-form-card transfer-card">
+          <p>Send exactly <strong id="transferAmount">₦0</strong> to:</p>
+          <div class="settings-list">
+            <div class="settings-item"><span>Bank</span><strong id="transferBank">Wema Bank</strong></div>
+            <div class="settings-item"><span>Account</span><strong id="transferAccountNumber">Not available</strong></div>
+            <div class="settings-item"><span>Name</span><strong id="transferAccountName">OpRides</strong></div>
+          </div>
+          <p class="wallet-note">Send the exact amount. Your wallet updates automatically after your bank confirms the transfer.</p>
+          <button type="button" class="green auth-primary" onclick="showTopUpWaitingScreen()">I've Sent The Money</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="topUpWaitingView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>Waiting for Transfer</h2>
+      </div>
+      <div class="center waiting-panel">
+        <i class="fas fa-hourglass-half"></i>
+        <h3>Waiting for your transfer...</h3>
+        <p>Your wallet will update automatically once your bank confirms the transfer.</p>
+        <button type="button" class="green" onclick="switchTab('home')">Back to Home</button>
       </div>
     </div>
 
@@ -225,6 +275,10 @@
             <span>Ride Activity</span>
             <i class="fas fa-chevron-right"></i>
           </div>
+          <div class="settings-item" onclick="switchTab('wallet')">
+            <span>Wallet</span>
+            <i class="fas fa-chevron-right"></i>
+          </div>
           <div class="settings-item">
             <span>App Version</span>
             <strong>1.2.0</strong>
@@ -252,9 +306,9 @@
         <i class="fas fa-home"></i>
         <span>Home</span>
       </button>
-      <button class="nav-tab" id="tab-vip" onclick="switchTab('vip')">
-        <i class="fas fa-gem"></i>
-        <span>VIP</span>
+      <button class="nav-tab" id="tab-wallet" onclick="switchTab('wallet')">
+        <i class="fas fa-wallet"></i>
+        <span>Wallet</span>
       </button>
       <button class="nav-tab" id="tab-live" onclick="switchTab('live')">
         <i class="fas fa-satellite-dish"></i>
@@ -336,6 +390,43 @@
     </div>
 
     <!-- Profile Section -->
+    <div id="riderEarningsView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>My Earnings</h2>
+      </div>
+      <div class="profile-content">
+        <div class="wallet-balance-panel yellow-panel">
+          <span>Available Balance</span>
+          <strong id="riderEarningsBalance">₦0</strong>
+          <span>Total Earned</span>
+          <b id="riderTotalEarned">₦0</b>
+          <button type="button" class="yellow" onclick="openWithdrawalScreen()">Request Withdrawal</button>
+        </div>
+        <h3 class="section-title">Recent Earnings</h3>
+        <div id="riderEarningsList" class="wallet-list">
+          <p class="empty-state">No earnings yet</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="riderWithdrawalView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchTab('earnings')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Request Withdrawal</h2>
+      </div>
+      <div class="profile-content">
+        <div class="ride-form-card">
+          <p id="withdrawAvailable" class="wallet-note">Available: ₦0</p>
+          <div class="form-group"><label>Amount to withdraw</label><input id="withdrawAmount" class="input-field" inputmode="numeric" placeholder="₦"></div>
+          <div class="form-group"><label>Bank Name</label><input id="withdrawBankName" class="input-field"></div>
+          <div class="form-group"><label>Account Number</label><input id="withdrawAccountNumber" class="input-field" inputmode="numeric"></div>
+          <div class="form-group"><label>Account Name</label><input id="withdrawAccountName" class="input-field"></div>
+          <button type="button" class="yellow auth-primary" onclick="submitWithdrawalRequest()">Submit Request</button>
+          <p class="wallet-note">Processed within 24 hours.</p>
+        </div>
+      </div>
+    </div>
+
     <div id="riderProfileView" class="view-overlay hidden tab-view">
       <div class="view-header">
         <h2>Profile</h2>
@@ -355,6 +446,10 @@
             <span>App Version</span>
             <strong>1.2.0</strong>
           </div>
+          <div class="settings-item" onclick="switchTab('earnings')">
+            <span>Earnings</span>
+            <i class="fas fa-chevron-right"></i>
+          </div>
         </div>
         
         <button onclick="logout()" class="danger-text">Logout from account</button>
@@ -370,6 +465,10 @@
       <button class="nav-tab" id="tab-rider-live" onclick="switchTab('live')">
         <i class="fas fa-satellite-dish"></i>
         <span>Live</span>
+      </button>
+      <button class="nav-tab" id="tab-rider-earnings" onclick="switchTab('earnings')">
+        <i class="fas fa-wallet"></i>
+        <span>Earnings</span>
       </button>
       <button class="nav-tab" id="tab-rider-profile" onclick="switchTab('profile')">
         <i class="fas fa-user"></i>

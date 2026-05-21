@@ -4,6 +4,7 @@ import { CAMPUS_MAP_DATA } from "../campus-data.js";
 import { showToast, updateBottomSheet, updateRideDetails } from "./ui.js";
 import { initMap } from "./map-manager.js";
 import { calculateDetourScore, getDistance, getQueuePosition, estimateWaitTime, insertStopsIntoQueue, calculateFare } from "./ride-helpers.js";
+import { checkDebtBeforeRide, formatNaira } from "../wallet.js";
 
 const MAX_DETOUR_ACTIVE = 300; // metres
 const MAX_DETOUR_IDLE = 800; // metres
@@ -204,6 +205,11 @@ export async function requestKeke() {
   btn.disabled = true;
   btn.innerText = "Checking...";
   try {
+    if (state.currentUser?.isGuest) {
+      showToast("Login required to request rides", "error");
+      return;
+    }
+    await checkDebtBeforeRide(state.currentUser.uid);
     const pickupId = document.getElementById("pickupSelect").value;
     const dropoffId = document.getElementById("dropoffSelect").value;
     if (!pickupId || !dropoffId) {
@@ -264,7 +270,13 @@ export async function requestKeke() {
     showToast("Looking for your keke...");
   } catch (err) {
     console.error(err);
-    showToast("Failed to request ride", "error");
+    if (err.message?.startsWith("DEBT_OUTSTANDING:")) {
+      const amount = Number(err.message.split(":")[1] || 0);
+      showToast(`Outstanding balance ${formatNaira(amount)}. Top up to continue.`, "error");
+      if (window.openTopUpScreen) window.openTopUpScreen();
+    } else {
+      showToast("Failed to request ride", "error");
+    }
   } finally {
     btn.disabled = false;
     btn.innerText = "Request a ride";

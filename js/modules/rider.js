@@ -3,9 +3,13 @@ import { db, collection, addDoc, updateDoc, doc, getDoc, getDocs, serverTimestam
 import { showToast, setButtonVisible, updateBottomSheet, updateRideDetails } from "./ui.js";
 import { initMap, animateMarker } from "./map-manager.js";
 import { calculateFare, getDistance, insertStopsIntoQueue } from "./ride-helpers.js";
+import { checkLowBalance } from "../wallet.js";
 
 let previousStatus = null;
 const MAX_QUEUE_PICKUP_DISTANCE = 800;
+const RIDER_SHARE_KOBO = 10000;
+const ADMIN_SHARE_KOBO = 5000;
+const TOTAL_FARE_KOBO = 15000;
 
 export function updateRiderDashboardUI() {
   if (!state.currentUser) return;
@@ -71,40 +75,135 @@ export function updateRiderControls(ride) {
 export async function markStopComplete(rideId, stopId, stop) {
   try {
     const rideRef  = doc(db, "rides", rideId);
-    const rideSnap = await getDoc(rideRef);
-    const ride     = rideSnap.data();
+    let updatedStudentBalance = null;
 
-    const updatedQueue = ride.stopQueue.map(s =>
-      s.stopId === stopId ? { ...s, status: "completed" } : s
-    );
+    await runTransaction(db, async (transaction) => {
+      const rideSnap = await transaction.get(rideRef);
+      if (!rideSnap.exists()) throw new Error("Ride not found");
 
-    const updates = {
-      stopQueue:  updatedQueue,
-      updatedAt:  serverTimestamp()
-    };
+      const ride = rideSnap.data();
+      if (ride.riderId !== state.currentUser?.uid) throw new Error("Only this ride's rider can complete stops");
 
-    if (stop.type === "pickup") {
-      updates[`passengers.${stop.passengerId}.pickupStatus`] = "completed";
-      // If first pickup, mark ride as active
-      if (ride.status === "waiting") updates.status = "active";
-    }
+      const currentStop = (ride.stopQueue || []).find(s => s.stopId === stopId);
+      if (!currentStop || currentStop.status === "completed") return;
+
+      const updatedQueue = ride.stopQueue.map(s =>
+        s.stopId === stopId ? { ...s, status: "completed" } : s
+      );
+
+      const updates = {
+        stopQueue: updatedQueue,
+        updatedAt: serverTimestamp()
+      };
+
+      if (currentStop.type === "pickup") {
+        updates[`passengers.${currentStop.passengerId}.pickupStatus`] = "completed";
+        if (ride.status === "waiting") updates.status = "active";
+      }
+
+      if (currentStop.type === "dropoff") {
+        updates[`passengers.${currentStop.passengerId}.dropoffStatus`] = "completed";
+        await applyFareSplit(transaction, currentStop.passengerId, ride.riderId, rideId);
+      }
+
+      if (updatedQueue.every(s => s.status === "completed")) updates.status = "completed";
+      transaction.update(rideRef, updates);
+    });
 
     if (stop.type === "dropoff") {
-      updates[`passengers.${stop.passengerId}.dropoffStatus`] = "completed";
-      // Deduct fare logic here (could be an update to student's balance or just a log)
-      console.log(`Deducting fare for ${stop.passengerId}: ${ride.passengers[stop.passengerId].fare}`);
+      const studentSnap = await getDoc(doc(db, "users", stop.passengerId));
+      updatedStudentBalance = studentSnap.data()?.wallet?.balance || 0;
+      checkLowBalance(updatedStudentBalance);
     }
 
-    // Close the ride if all stops are done
-    const allDone = updatedQueue.every(s => s.status === "completed");
-    if (allDone) updates.status = "completed";
-
-    await updateDoc(rideRef, updates);
     showToast(`${stop.type === 'pickup' ? 'Pickup' : 'Drop-off'} completed`);
   } catch (err) {
     console.error(err);
     showToast("Failed to update stop", "error");
   }
+}
+
+async function applyFareSplit(transaction, studentId, riderId, rideId) {
+  const studentRef = doc(db, "users", studentId);
+  const riderRef = doc(db, "users", riderId);
+  const adminRef = doc(db, "adminWallet", "main");
+
+  const studentSnap = await transaction.get(studentRef);
+  const riderSnap = await transaction.get(riderRef);
+  const adminSnap = await transaction.get(adminRef);
+
+  if (!studentSnap.exists() || !riderSnap.exists()) throw new Error("Missing wallet user");
+
+  const student = studentSnap.data();
+  const rider = riderSnap.data();
+  const admin = adminSnap.exists() ? adminSnap.data() : { balance: 0, totalEarned: 0 };
+  const currentBalance = student.wallet?.balance || 0;
+  const riderBalance = rider.earnings?.balance || 0;
+  const riderTotalEarned = rider.earnings?.totalEarned || 0;
+  const adminBalance = admin.balance || admin.wallet?.balance || 0;
+  const adminTotalEarned = admin.totalEarned || admin.wallet?.totalEarned || 0;
+
+  if (currentBalance >= TOTAL_FARE_KOBO) {
+    const studentNewBalance = currentBalance - TOTAL_FARE_KOBO;
+    transaction.update(studentRef, {
+      "wallet.balance": studentNewBalance,
+      "wallet.lastDeduction": serverTimestamp()
+    });
+    transaction.update(riderRef, {
+      "earnings.balance": riderBalance + RIDER_SHARE_KOBO,
+      "earnings.totalEarned": riderTotalEarned + RIDER_SHARE_KOBO
+    });
+    transaction.update(adminRef, {
+      balance: adminBalance + ADMIN_SHARE_KOBO,
+      totalEarned: adminTotalEarned + ADMIN_SHARE_KOBO,
+      lastUpdated: serverTimestamp()
+    });
+
+    addWalletTransaction(transaction, studentId, "deduction", TOTAL_FARE_KOBO, currentBalance, studentNewBalance, "Ride fare", rideId);
+    addWalletTransaction(transaction, riderId, "earning", RIDER_SHARE_KOBO, riderBalance, riderBalance + RIDER_SHARE_KOBO, "Ride fare received", rideId);
+    addWalletTransaction(transaction, "admin", "commission", ADMIN_SHARE_KOBO, adminBalance, adminBalance + ADMIN_SHARE_KOBO, "Commission from ride", rideId);
+    return;
+  }
+
+  const debtAmount = TOTAL_FARE_KOBO - currentBalance;
+  const riderActual = Math.floor(currentBalance * (RIDER_SHARE_KOBO / TOTAL_FARE_KOBO));
+  const adminActual = currentBalance - riderActual;
+
+  transaction.update(studentRef, {
+    "wallet.balance": 0,
+    "wallet.lastDeduction": serverTimestamp(),
+    "debt.amount": debtAmount,
+    "debt.rideId": rideId,
+    "debt.incurredAt": serverTimestamp()
+  });
+  transaction.update(riderRef, {
+    "earnings.balance": riderBalance + riderActual,
+    "earnings.totalEarned": riderTotalEarned + riderActual
+  });
+  transaction.update(adminRef, {
+    balance: adminBalance + adminActual,
+    totalEarned: adminTotalEarned + adminActual,
+    lastUpdated: serverTimestamp()
+  });
+
+  addWalletTransaction(transaction, studentId, "deduction", currentBalance, currentBalance, 0, `Partial fare - ${debtAmount / 100} NGN debt recorded`, rideId);
+  if (riderActual > 0) addWalletTransaction(transaction, riderId, "earning", riderActual, riderBalance, riderBalance + riderActual, "Partial ride fare received", rideId);
+  if (adminActual > 0) addWalletTransaction(transaction, "admin", "commission", adminActual, adminBalance, adminBalance + adminActual, "Partial commission from ride", rideId);
+}
+
+function addWalletTransaction(transaction, userId, type, amount, balanceBefore, balanceAfter, description, rideId) {
+  transaction.set(doc(collection(db, "walletTransactions")), {
+    userId,
+    type,
+    amount,
+    balanceBefore,
+    balanceAfter,
+    description,
+    reference: null,
+    rideId,
+    status: "success",
+    createdAt: serverTimestamp()
+  });
 }
 
 export function listenToActiveRide(rideId) {
