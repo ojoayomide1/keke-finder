@@ -153,11 +153,7 @@ async function applyFareSplit(transaction, studentId, riderId, rideId) {
       "earnings.balance": riderBalance + RIDER_SHARE_KOBO,
       "earnings.totalEarned": riderTotalEarned + RIDER_SHARE_KOBO
     });
-    transaction.update(adminRef, {
-      balance: adminBalance + ADMIN_SHARE_KOBO,
-      totalEarned: adminTotalEarned + ADMIN_SHARE_KOBO,
-      lastUpdated: serverTimestamp()
-    });
+    writeAdminWalletTotals(transaction, adminRef, adminBalance + ADMIN_SHARE_KOBO, adminTotalEarned + ADMIN_SHARE_KOBO);
 
     addWalletTransaction(transaction, studentId, "deduction", TOTAL_FARE_KOBO, currentBalance, studentNewBalance, "Ride fare", rideId);
     addWalletTransaction(transaction, riderId, "earning", RIDER_SHARE_KOBO, riderBalance, riderBalance + RIDER_SHARE_KOBO, "Ride fare received", rideId);
@@ -180,15 +176,21 @@ async function applyFareSplit(transaction, studentId, riderId, rideId) {
     "earnings.balance": riderBalance + riderActual,
     "earnings.totalEarned": riderTotalEarned + riderActual
   });
-  transaction.update(adminRef, {
-    balance: adminBalance + adminActual,
-    totalEarned: adminTotalEarned + adminActual,
-    lastUpdated: serverTimestamp()
-  });
+  writeAdminWalletTotals(transaction, adminRef, adminBalance + adminActual, adminTotalEarned + adminActual);
 
   addWalletTransaction(transaction, studentId, "deduction", currentBalance, currentBalance, 0, `Partial fare - ${debtAmount / 100} NGN debt recorded`, rideId);
   if (riderActual > 0) addWalletTransaction(transaction, riderId, "earning", riderActual, riderBalance, riderBalance + riderActual, "Partial ride fare received", rideId);
   if (adminActual > 0) addWalletTransaction(transaction, "admin", "commission", adminActual, adminBalance, adminBalance + adminActual, "Partial commission from ride", rideId);
+}
+
+function writeAdminWalletTotals(transaction, adminRef, balance, totalEarned) {
+  transaction.set(adminRef, {
+      balance,
+      totalEarned,
+      lastUpdated: serverTimestamp()
+    },
+    { merge: true }
+  );
 }
 
 function addWalletTransaction(transaction, userId, type, amount, balanceBefore, balanceAfter, description, rideId) {

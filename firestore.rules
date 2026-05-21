@@ -244,6 +244,18 @@ service cloud.firestore {
         && request.resource.data.lastUpdated == request.time;
     }
 
+    function validAdminWalletCreate() {
+      return isRider()
+        && request.resource.data.keys().hasOnly(["balance", "totalEarned", "lastUpdated"])
+        && request.resource.data.balance is int
+        && request.resource.data.totalEarned is int
+        && request.resource.data.balance >= 0
+        && request.resource.data.balance <= 5000
+        && request.resource.data.totalEarned >= 0
+        && request.resource.data.totalEarned == request.resource.data.balance
+        && request.resource.data.lastUpdated == request.time;
+    }
+
     function validRideCreate() {
       return isRider()
         && request.resource.data.keys().hasOnly([
@@ -525,7 +537,7 @@ service cloud.firestore {
 
     match /adminWallet/{walletId} {
       allow read: if isAdmin() || isRider();
-      allow create: if false;
+      allow create: if walletId == "main" && validAdminWalletCreate();
       allow update: if walletId == "main" && validAdminWalletUpdate();
       allow delete: if false;
     }
