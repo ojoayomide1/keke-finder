@@ -5,25 +5,29 @@ addEventListener("fetch", event => {
 const FIREBASE_WEB_API_KEY = globalThis.FIREBASE_WEB_API_KEY || "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4";
 
 async function handleRequest(request) {
-  const url = new URL(request.url);
+  try {
+    const url = new URL(request.url);
 
-  if (request.method === "OPTIONS") {
-    return withCors(new Response(null, { status: 204 }));
+    if (request.method === "OPTIONS") {
+      return withCors(new Response(null, { status: 204 }));
+    }
+
+    if (request.method !== "POST") {
+      return withCors(new Response("OK", { status: 200 }));
+    }
+
+    if (url.pathname === "/paystack/create-virtual-account") {
+      return withCors(await handleCreateVirtualAccount(request));
+    }
+
+    if (url.pathname === "/" || url.pathname === "/paystack/webhook") {
+      return withCors(await handlePaystackWebhook(request));
+    }
+
+    return withCors(new Response("Not found", { status: 404 }));
+  } catch (err) {
+    return withCors(jsonResponse({ error: err.message || "Worker error" }, 500));
   }
-
-  if (request.method !== "POST") {
-    return withCors(new Response("OK", { status: 200 }));
-  }
-
-  if (url.pathname === "/paystack/create-virtual-account") {
-    return withCors(await handleCreateVirtualAccount(request));
-  }
-
-  if (url.pathname === "/" || url.pathname === "/paystack/webhook") {
-    return handlePaystackWebhook(request);
-  }
-
-  return withCors(new Response("Not found", { status: 404 }));
 }
 
 async function handlePaystackWebhook(request) {
@@ -245,6 +249,7 @@ function withCors(response) {
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type, x-paystack-signature");
+  headers.set("Access-Control-Max-Age", "86400");
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
