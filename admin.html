@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpRides Admin</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/admin.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="admin-page">
+  <main class="admin-shell">
+    <header class="admin-header">
+      <div>
+        <h1>OpRides Admin</h1>
+        <p>Wallets, rides, and withdrawals</p>
+      </div>
+      <button type="button" class="danger" onclick="adminLogout()">Logout</button>
+    </header>
+
+    <section class="admin-grid stats-grid">
+      <article class="admin-stat"><span>Total rides today</span><strong id="totalRidesToday">0</strong></article>
+      <article class="admin-stat"><span>Active rides now</span><strong id="activeRidesNow">0</strong></article>
+      <article class="admin-stat"><span>Pending withdrawals</span><strong id="pendingWithdrawals">0</strong></article>
+      <article class="admin-stat"><span>Admin wallet balance</span><strong id="adminWalletBalance">₦0</strong></article>
+    </section>
+
+    <section class="admin-layout">
+      <div class="admin-panel">
+        <div class="panel-head">
+          <h2>Pending Withdrawals</h2>
+          <p>Pay riders manually in Paystack, then mark each request paid.</p>
+        </div>
+        <div id="withdrawalList" class="admin-list"></div>
+      </div>
+
+      <div class="admin-panel">
+        <div class="panel-head">
+          <h2>Active Rides</h2>
+          <p>Live monitor for currently active rides.</p>
+        </div>
+        <div id="activeRidesList" class="admin-list"></div>
+      </div>
+
+      <div class="admin-panel">
+        <div class="panel-head">
+          <h2>Rider Management</h2>
+          <p>Authorize new riders and manage existing ones.</p>
+        </div>
+        <form id="addRiderForm" class="admin-form" style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
+            <div>
+              <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Plate Number</label>
+              <input type="text" id="newRiderPlate" class="input-field" placeholder="KJA-123-XY" required style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Full Name</label>
+              <input type="text" id="newRiderName" class="input-field" placeholder="John Doe" required style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Phone Number</label>
+              <input type="text" id="newRiderPhone" class="input-field" placeholder="08012345678" required style="margin-bottom: 0;">
+            </div>
+            <button type="submit" class="green">Add Rider</button>
+          </div>
+        </form>
+        <div id="authorizedRidersList" class="admin-list"></div>
+      </div>
+    </section>
+
+    <section class="admin-panel">
+      <div class="panel-head transaction-head">
+        <div>
+          <h2>Transaction History</h2>
+          <p>All wallet movements ordered newest first.</p>
+        </div>
+        <select id="transactionTypeFilter" class="input-field" onchange="listenToTransactions(this.value)">
+          <option value="">All types</option>
+          <option value="topup">Top-up</option>
+          <option value="deduction">Deduction</option>
+          <option value="earning">Earning</option>
+          <option value="commission">Commission</option>
+          <option value="withdrawal">Withdrawal</option>
+          <option value="refund">Refund</option>
+        </select>
+      </div>
+      <div id="transactionList" class="admin-table"></div>
+    </section>
+
+    <section class="admin-panel admin-note">
+      <h2>Admin Wallet</h2>
+      <p>To withdraw your commission, go to your Paystack dashboard.</p>
+    </section>
+  </main>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

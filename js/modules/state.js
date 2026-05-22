@@ -17,3 +17,6 @@ export const state = {
   activeMarkerAnimations: new Map(),
   vehicleType: null // 'keke' or 'shuttle'
 };
+
+// Explicitly attach to window for global debugging
+window.state = state;
