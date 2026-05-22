@@ -182,9 +182,11 @@
       </div>
       <div class="profile-content">
         <div class="ride-form-card">
-          <h3>How much do you want to add?</h3>
-          <div id="topUpAmounts" class="amount-grid"></div>
-          <button type="button" class="green auth-primary" onclick="continueTopUp()">Continue</button>
+          <h3>Enter Amount</h3>
+          <div class="form-group">
+            <input type="number" id="topUpAmountInput" class="input-field" placeholder="₦0.00" style="font-size: 24px; text-align: center; padding: 20px;">
+          </div>
+          <button type="button" class="green auth-primary" onclick="continueTopUp()">Generate Account</button>
         </div>
       </div>
     </div>

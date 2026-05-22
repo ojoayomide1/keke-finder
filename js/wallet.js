@@ -142,8 +142,11 @@ export function selectCustomTopUpAmount(value) {
 }
 
 export async function continueTopUp() {
+  const input = document.getElementById("topUpAmountInput");
+  const amount = Number(input?.value) || 0;
+  
   try {
-    await initiateTopUp(state.currentUser.uid, selectedTopUpAmount);
+    await initiateTopUp(state.currentUser.uid, amount);
   } catch (err) {
     showToast(err.message || "Unable to start top-up", "error");
   }
