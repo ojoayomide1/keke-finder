@@ -166,7 +166,14 @@ async function createAccount() {
       };
     }
 
-    await setDoc(doc(db, "users", credential.user.uid), userData);
+    try {
+      console.log("Attempting to write user document to:", credential.user.uid);
+      await setDoc(doc(db, "users", credential.user.uid), userData);
+      console.log("User document successfully written.");
+    } catch (dbError) {
+      console.error("Firestore setDoc failed:", dbError);
+      throw dbError; // Propagate to outer catch to show error in UI
+    }
     
     setAuthMessage("Account created successfully.", "success");
   } catch (error) {
@@ -303,6 +310,7 @@ export function initAuth(options) {
       let finalUser = user;
       if (userDoc.exists()) {
         const data = userDoc.data();
+        console.log("User document fetched:", data);
         finalUser = { ...user, ...data };
         onUserChanged(finalUser);
       } else {
