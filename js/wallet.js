@@ -192,11 +192,16 @@ function showTransferDetails(virtualAccount, amountNaira) {
   const bankEl = document.getElementById("transferBank");
   const numberEl = document.getElementById("transferAccountNumber");
   const nameEl = document.getElementById("transferAccountName");
+  const expiryEl = document.getElementById("transferAccountExpiry");
 
   if (amountEl) amountEl.innerText = formatNaira(amountNaira * 100);
   if (bankEl) bankEl.innerText = virtualAccount?.bankName || "Wema Bank";
   if (numberEl) numberEl.innerText = virtualAccount?.accountNumber || "Not available";
   if (nameEl) nameEl.innerText = virtualAccount?.accountName || "OpRides";
+  if (expiryEl) {
+    const expiry = new Date(virtualAccount.expiry);
+    expiryEl.innerText = expiry.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
   if (window.switchTab) window.switchTab("transfer");
 }
 
