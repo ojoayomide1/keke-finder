@@ -18,4 +18,5 @@ export const state = {
   vehicleType: null // 'keke' or 'shuttle'
 };
 
+// Explicitly attach to window for global debugging
 window.state = state;
