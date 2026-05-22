@@ -462,6 +462,26 @@
         <button onclick="logout()" class="danger-text">Logout from account</button>
       </div>
       </div>
+
+      <!-- Bottom Navigation Bar -->
+      <nav class="bottom-nav">
+      <button class="nav-tab active" id="tab-home" onclick="switchTab('home')">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+      </button>
+      <button class="nav-tab" id="tab-earnings" onclick="switchTab('earnings')">
+        <i class="fas fa-money-bill-wave"></i>
+        <span>Earnings</span>
+      </button>
+      <button class="nav-tab" id="tab-live" onclick="switchTab('live')">
+        <i class="fas fa-satellite-dish"></i>
+        <span>Live</span>
+      </button>
+      <button class="nav-tab" id="tab-profile" onclick="switchTab('profile')">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+      </button>
+      </nav>
   </div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
