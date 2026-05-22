@@ -450,9 +450,9 @@
             <span>App Version</span>
             <strong>1.2.0</strong>
           </div>
-          <div class="settings-item" onclick="switchTab('activity')">
-            <span>Ride Activity</span>
-            <i class="fas fa-chevron-right"></i>
+          <div class="settings-item">
+            <span>Status</span>
+            <button id="statusToggleBtn" onclick="toggleOnlineStatus()" class="yellow-tag">Go Offline</button>
           </div>
           <div class="settings-item hidden" id="adminLinkRider" onclick="window.location.href='/admin.html'">
             <span style="color: #22c55e; font-weight: bold;">Admin Dashboard</span>

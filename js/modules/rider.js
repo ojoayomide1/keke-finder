@@ -406,5 +406,35 @@ export async function completeRide() {
   showToast("Ride completed manually");
 }
 
+export async function toggleOnlineStatus() {
+  const btn = document.getElementById("statusToggleBtn");
+  const isOnline = btn.innerText === "Go Offline";
+  
+  if (isOnline) {
+    // Go Offline Logic
+    if (state.currentRideId) {
+      await updateDoc(doc(db, "rides", state.currentRideId), { status: "completed" });
+      state.currentRideId = null;
+      state.riderDocId = null;
+    }
+    if (state.riderWatchId) {
+      navigator.geolocation.clearWatch(state.riderWatchId);
+      state.riderWatchId = null;
+    }
+    btn.innerText = "Go Online";
+    btn.className = "green-tag";
+    document.getElementById("riderTitle").innerText = "Offline";
+    document.getElementById("riderSub").innerText = "Go live to start receiving requests";
+    showToast("You are now offline", "info");
+  } else {
+    // Go Online Logic
+    window.becomeAvailable();
+    btn.innerText = "Go Offline";
+    btn.className = "yellow-tag";
+    // UI update handled by becomeAvailable
+  }
+}
+
 // Global binding for the markStopComplete called from HTML
 window.markStopComplete = markStopComplete;
+window.toggleOnlineStatus = toggleOnlineStatus;
