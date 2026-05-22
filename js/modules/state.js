@@ -17,3 +17,5 @@ export const state = {
   activeMarkerAnimations: new Map(),
   vehicleType: null // 'keke' or 'shuttle'
 };
+
+window.state = state;

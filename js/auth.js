@@ -336,3 +336,6 @@ export function initAuth(options) {
 
 // Bind globals immediately upon module load
 bindAuthGlobals();
+
+// Safety binding for when DOM is ready
+window.addEventListener('DOMContentLoaded', bindAuthGlobals);
