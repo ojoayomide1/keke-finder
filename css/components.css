@@ -234,6 +234,131 @@ button:disabled {
 }
 .toast.show { opacity: 1; }
 .toast.error { background: #ef4444; }
+.toast.warning { background: #f59e0b; }
+
+/* Wallet */
+.wallet-balance-panel {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 22px;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.wallet-balance-panel span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.wallet-balance-panel strong {
+  color: #111827;
+  font-size: 38px;
+  line-height: 1.05;
+}
+
+.wallet-balance-panel b {
+  font-size: 22px;
+}
+
+.yellow-panel {
+  border-color: #fde68a;
+}
+
+.wallet-debt {
+  color: #b91c1c;
+  margin: 0;
+  font-size: 13px;
+}
+
+.section-title {
+  font-size: 15px;
+  margin: 0 0 12px;
+}
+
+.wallet-list {
+  display: grid;
+  gap: 10px;
+}
+
+.wallet-row {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.wallet-row div {
+  display: grid;
+  gap: 4px;
+}
+
+.wallet-row strong {
+  font-size: 14px;
+}
+
+.wallet-row span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.wallet-row b {
+  white-space: nowrap;
+}
+
+.wallet-row .credit { color: #15803d; }
+.wallet-row .debit { color: #b91c1c; }
+
+.amount-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0 20px;
+}
+
+.amount-chip {
+  background: #f3f4f6;
+  color: #111827;
+  border-radius: 8px;
+  padding: 14px 10px;
+}
+
+.amount-chip.active {
+  background: #22c55e;
+  color: white;
+}
+
+.amount-input {
+  min-height: 48px;
+  border-radius: 8px;
+}
+
+.transfer-card .settings-list {
+  margin: 14px 0;
+}
+
+.wallet-note {
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.waiting-panel {
+  padding: 36px 24px;
+  color: #111827;
+  text-align: center;
+  gap: 12px;
+}
+
+.waiting-panel i {
+  color: #22c55e;
+  font-size: 36px;
+}
 
 /* Bottom Navigation */
 .bottom-nav {

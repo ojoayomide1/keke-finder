@@ -46,6 +46,8 @@ import {
   completeRide as _completeRide
 } from "./modules/rider.js";
 import { startScheduledRidesProcessor } from "./modules/scheduled-rides.js";
+import { listenToStudentWallet, renderStudentWallet } from "./wallet.js";
+import { listenToRiderWallet, renderRiderWallet } from "./riderWallet.js";
 
 // ================= GLOBAL BINDINGS =================
 function toggleSidebar() {
@@ -62,7 +64,10 @@ function switchTab(tab) {
   
   const studentViews = {
     home: "studentDashboard",
-    vip: "vipView",
+    wallet: "walletView",
+    topup: "topUpView",
+    transfer: "transferDetailsView",
+    "topup-waiting": "topUpWaitingView",
     live: "liveRideView",
     map: "pathfinderView",
     profile: "profileView",
@@ -71,6 +76,8 @@ function switchTab(tab) {
 
   const riderViews = {
     home: "riderDashboard",
+    earnings: "riderEarningsView",
+    withdraw: "riderWithdrawalView",
     live: "riderLiveView",
     profile: "riderProfileView"
   };
@@ -88,6 +95,8 @@ function switchTab(tab) {
     if (tab === "activity") {
       if (state.currentUser?.isGuest) return showToast("Signup to view activity", "error");
       fetchRideHistory();
+    } else if (tab === "wallet") {
+      renderStudentWallet();
     } else if (tab === "map") {
       populateCampusMapLandmarks();
     } else if (tab === "live") {
@@ -96,6 +105,8 @@ function switchTab(tab) {
   } else if (role === "rider") {
     if (tab === "profile") {
       updateRiderProfileUI();
+    } else if (tab === "earnings" || tab === "withdraw") {
+      renderRiderWallet();
     } else if (tab === "live") {
       setTimeout(() => {
         initMap("riderMap");
@@ -130,6 +141,11 @@ function updateRiderProfileUI() {
   if (nameEl) nameEl.innerText = user.displayName || "Rider";
   if (emailEl) emailEl.innerText = user.email || "No email";
   if (plateEl) plateEl.innerText = user.plateNo || "No Plate";
+
+  const adminLink = document.getElementById("adminLinkRider");
+  if (adminLink) {
+    adminLink.classList.toggle("hidden", !user.isAdmin);
+  }
 }
 
 function switchStudentView(view) {
@@ -422,22 +438,46 @@ window.startRide = async () => {
 // ================= ORCHESTRATION =================
 
 async function transitionToDashboard(user) {
+  console.log("Transitioning to dashboard for user:", user);
+  if (!user || !user.role) {
+    console.warn("User role missing during transition, staying on login screen.");
+    // Fallback: assume student for testing purposes if user exists but role is missing
+    if (user) user.role = 'student';
+    else return;
+  }
+
   document.getElementById("loginScreen").classList.add("hidden");
+  
+  // Hide all role UIs first to ensure a clean state
+  document.getElementById("studentUI").classList.add("hidden");
+  document.getElementById("riderUI").classList.add("hidden");
+
   if (user.role === "student") {
+    console.log("Setting role to student and showing studentUI");
     state.currentRole = "student";
     document.getElementById("studentUI").classList.remove("hidden");
     startScheduledRidesProcessor();
     populateLocations();
     updateStudentProfileUI();
-    window.switchStudentView('dashboard');
+    listenToStudentWallet();
+    
+    // Explicitly make the wallet tab visible in case it was hidden
+    const walletTab = document.getElementById("tab-wallet");
+    if (walletTab) walletTab.classList.remove("hidden");
+    
+    if (window.switchStudentView) window.switchStudentView('dashboard');
     await checkForActiveRide("student");
-    // Listeners are started within requestKeke or checkForActiveRide
-  } else {
+  } else if (user.role === "rider") {
+    console.log("Setting role to rider and showing riderUI");
     state.currentRole = "rider";
     document.getElementById("riderUI").classList.remove("hidden");
     updateRiderDashboardUI();
+    listenToRiderWallet();
     switchTab('home');
     await checkForActiveRide("rider");
+  } else {
+    console.error("Unknown user role:", user.role);
+    showLoginScreen();
   }
 }
 

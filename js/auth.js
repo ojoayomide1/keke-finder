@@ -141,15 +141,39 @@ async function createAccount() {
       role: signupRole,
       createdAt: serverTimestamp()
     };
+    console.log("Creating user with role:", signupRole);
 
     if (signupRole === "student") {
       userData.matricNo = matric.toUpperCase();
+      userData.wallet = {
+        balance: 0,
+        currency: "NGN",
+        lastTopUp: null,
+        lastDeduction: null
+      };
+      userData.debt = {
+        amount: 0,
+        rideId: null,
+        incurredAt: null
+      };
     } else {
       userData.plateNo = plate.toUpperCase();
       userData.vehicleType = vType;
+      userData.earnings = {
+        balance: 0,
+        totalEarned: 0,
+        lastPayout: null
+      };
     }
 
-    await setDoc(doc(db, "users", credential.user.uid), userData);
+    try {
+      console.log("Attempting to write user document to:", credential.user.uid);
+      await setDoc(doc(db, "users", credential.user.uid), userData);
+      console.log("User document successfully written.");
+    } catch (dbError) {
+      console.error("Firestore setDoc failed:", dbError);
+      throw dbError; // Propagate to outer catch to show error in UI
+    }
     
     setAuthMessage("Account created successfully.", "success");
   } catch (error) {
@@ -275,13 +299,25 @@ export function initAuth(options) {
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       // Fetch role from Firestore
-      const userDoc = await getDoc(doc(db, "users", user.uid));
+      let userDoc = await getDoc(doc(db, "users", user.uid));
+      
+      // Retry once after a short delay if not found, to handle race condition during signup
+      if (!userDoc.exists()) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        userDoc = await getDoc(doc(db, "users", user.uid));
+      }
+
       let finalUser = user;
       if (userDoc.exists()) {
         const data = userDoc.data();
+        console.log("User document fetched:", data);
         finalUser = { ...user, ...data };
+        onUserChanged(finalUser);
+      } else {
+        // If still no doc, it might be a guest or a brand new user whose doc is still being created.
+        // We'll call onUserChanged anyway, but app.js should handle the missing role.
+        onUserChanged(user);
       }
-      onUserChanged(finalUser);
     } else {
       onUserChanged(null);
     }
@@ -300,3 +336,6 @@ export function initAuth(options) {
 
 // Bind globals immediately upon module load
 bindAuthGlobals();
+
+// Safety binding for when DOM is ready
+window.addEventListener('DOMContentLoaded', bindAuthGlobals);
