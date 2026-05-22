@@ -165,7 +165,6 @@ export async function initiateTopUp(studentId, amountNaira) {
     amount: amountNaira * 100, // Amount in kobo
     email: state.currentUser.email,
     currency: "NGN",
-    channels: ['transfer'],
     metadata: {
       studentId: studentId,
       custom_fields: [{
