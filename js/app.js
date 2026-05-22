@@ -15,6 +15,7 @@ import {
 import { initAuth } from "./auth.js";
 import "./seeding.js";
 import { state } from "./modules/state.js";
+window.state = state;
 import { CAMPUS_MAP_DATA } from "./campus-data.js";
 import { 
   showToast, 
