@@ -152,42 +152,35 @@ export async function continueTopUp() {
   }
 }
 
+const PAYSTACK_PUBLIC_KEY = "pk_test_YOUR_ACTUAL_PUBLIC_KEY"; // Replace with your real key
+
 export async function initiateTopUp(studentId, amountNaira) {
   if (!studentId || state.currentUser?.isGuest) throw new Error("Login required to top up");
   if (amountNaira < MIN_TOPUP_NAIRA) throw new Error(`Minimum top-up is ${formatNaira(MIN_TOPUP_NAIRA * 100)}`);
 
-  // Ephemeral: Always request a new account for the specific amount/transaction
-  const virtualAccount = await createEphemeralVirtualAccount(studentId, amountNaira);
-  showTransferDetails(virtualAccount, amountNaira);
-}
-
-async function createEphemeralVirtualAccount(studentId, amountNaira) {
-  const token = await auth.currentUser?.getIdToken();
-  if (!token) throw new Error("Login required to create transfer account");
-
-  const response = await fetch(VIRTUAL_ACCOUNT_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json"
+  // Initialize Paystack Checkout
+  const paystack = new PaystackPop();
+  paystack.newTransaction({
+    key: PAYSTACK_PUBLIC_KEY,
+    amount: amountNaira * 100, // Amount in kobo
+    email: state.currentUser.email,
+    currency: "NGN",
+    metadata: {
+      studentId: studentId,
+      custom_fields: [{
+        display_name: "Student ID",
+        variable_name: "student_id",
+        value: studentId
+      }]
     },
-    body: JSON.stringify({
-      studentId,
-      amount: amountNaira * 100 // Convert to kobo for Paystack
-    })
+    onSuccess: (transaction) => {
+      showToast("Payment successful! Updating wallet...", "success");
+      // The webhook will handle the final wallet update
+    },
+    onCancel: () => {
+      showToast("Payment cancelled", "info");
+    }
   });
-
-  if (!response.ok) {
-    let message = "Could not create temporary transfer account";
-    try {
-      const data = await response.json();
-      message = data.error || data.paystack?.message || message;
-    } catch (err) {}
-    throw new Error(message);
-  }
-
-  const data = await response.json();
-  return data.virtualAccount;
 }
 
 function showTransferDetails(virtualAccount, amountNaira) {
