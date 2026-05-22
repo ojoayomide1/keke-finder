@@ -152,7 +152,7 @@ export async function continueTopUp() {
   }
 }
 
-const PAYSTACK_PUBLIC_KEY = "pk_test_YOUR_ACTUAL_PUBLIC_KEY"; // Replace with your real key
+const PAYSTACK_PUBLIC_KEY = "pk_live_cd5305502fcec15b34ded0dcfc9d56f84b85482a"; // Replace with your real key
 
 export async function initiateTopUp(studentId, amountNaira) {
   if (!studentId || state.currentUser?.isGuest) throw new Error("Login required to top up");
