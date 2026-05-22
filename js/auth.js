@@ -141,6 +141,7 @@ async function createAccount() {
       role: signupRole,
       createdAt: serverTimestamp()
     };
+    console.log("Creating user with role:", signupRole);
 
     if (signupRole === "student") {
       userData.matricNo = matric.toUpperCase();

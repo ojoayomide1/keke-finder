@@ -31,7 +31,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return hasUserDoc() && currentUserDoc().data.isAdmin == true;
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
     function validShortString(value, maxLength) {
