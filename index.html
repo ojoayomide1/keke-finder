@@ -358,17 +358,10 @@
         <div class="status-card">
           <h3 id="riderTitle">Offline</h3>
           <p id="riderSub">Go live to start receiving requests</p>
-          <button class="fab yellow" id="goLiveBtn" onclick="becomeAvailable()">Go Live</button>
+          <button class="fab yellow" id="statusToggleBtn" onclick="toggleOnlineStatus()">Go Online</button>
         </div>
 
         <div id="riderRideDetails" class="ride-details-container"></div>
-
-        <!-- Active Ride Section for Rider -->
-        <div id="riderActiveRideSection" class="ride-form-card hidden" style="margin-bottom: 20px;">
-          <h3 style="margin-bottom:10px;">Active Trip</h3>
-          <p id="riderActiveRideSub" style="font-size:13px; color:#6b7280; margin-bottom:15px;">You have a ride in progress.</p>
-          <button onclick="switchTab('live')" class="yellow" style="width:100%;">Visit Trip Map</button>
-        </div>
       </main>
     </div>
 
@@ -449,10 +442,6 @@
           <div class="settings-item">
             <span>App Version</span>
             <strong>1.2.0</strong>
-          </div>
-          <div class="settings-item">
-            <span>Status</span>
-            <button id="statusToggleBtn" onclick="toggleOnlineStatus()" class="yellow-tag">Go Offline</button>
           </div>
           <div class="settings-item hidden" id="adminLinkRider" onclick="window.location.href='/admin.html'">
             <span style="color: #22c55e; font-weight: bold;">Admin Dashboard</span>
