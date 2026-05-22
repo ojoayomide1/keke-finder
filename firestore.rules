@@ -533,6 +533,10 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /{path=**}/walletTransactions/{transactionId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
     match /topUpRequests/{requestId} {
       allow get, list: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
       allow write: if false;
