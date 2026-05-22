@@ -157,7 +157,7 @@ button:disabled {
 .status-pill.completed { background: #dcfce7; color: #15803d; }
 .status-pill.cancelled { background: #fee2e2; color: #b91c1c; }
 
-.profile-content { padding: 24px 20px; }
+.profile-content { padding: 24px 20px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .profile-card {
   background: white;
   padding: 30px;
