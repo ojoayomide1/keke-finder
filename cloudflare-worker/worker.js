@@ -127,9 +127,21 @@ async function handleCreateVirtualAccount(request, env) {
   const firebaseUser = await lookupFirebaseUser(idToken, env);
   if (!firebaseUser?.localId) return new Response("Unauthorized", { status: 401 });
 
+  // Parse amount from request body
+  let amount = 0;
+  try {
+    const body = await request.json();
+    amount = Number(body.amount);
+  } catch (e) {
+    return jsonResponse({ error: "Invalid request body" }, 400);
+  }
+
+  if (!amount || amount < 100) return jsonResponse({ error: "Invalid amount" }, 400);
+
   const token = await getFirebaseToken(env);
   const base = `https://firestore.googleapis.com/v1/projects/${env.PROJECT_ID}/databases/(default)/documents`;
   const studentId = firebaseUser.localId;
+
   const studentRes = await fetch(`${base}/users/${studentId}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
@@ -139,13 +151,9 @@ async function handleCreateVirtualAccount(request, env) {
   const studentDoc = await studentRes.json();
   const fields = studentDoc.fields || {};
   const role = fields.role?.stringValue;
-  if (role !== "student") return new Response("Only students can create transfer accounts", { status: 403 });
+  if (role !== "student") return new Response("Only students can top up", { status: 403 });
 
-  const existingAccount = parseVirtualAccount(fields.virtualAccount);
-  if (existingAccount) {
-    return jsonResponse({ virtualAccount: existingAccount });
-  }
-
+  // Get/Create Customer
   const email = fields.email?.stringValue || firebaseUser.email;
   const name = fields.name?.stringValue || firebaseUser.displayName || "OpRides Student";
   const [firstName, ...lastNameParts] = name.split(" ");
@@ -158,59 +166,36 @@ async function handleCreateVirtualAccount(request, env) {
   });
 
   const customerCode = customer?.data?.customer_code;
-  if (!customerCode) {
-    return jsonResponse({
-      error: customer?.message || "Paystack customer creation failed",
-      paystack: customer
-    }, 502);
-  }
+  if (!customerCode) return jsonResponse({ error: "Customer setup failed" }, 502);
 
-  const account = await paystackRequest("https://api.paystack.co/dedicated_account", env, {
+  // Create Ephemeral Account
+  // Using Paystack's endpoint for temporary accounts (e.g., dynamic virtual accounts)
+  const account = await paystackRequest("https://api.paystack.co/dedicated_account/assign", env, {
     customer: customerCode,
     preferred_bank: "wema-bank",
-    metadata: { studentId }
+    metadata: { studentId, amount }
   });
 
   const accountData = account?.data;
-  if (!accountData?.account_number) {
-    return jsonResponse({
-      error: account?.message || "Paystack dedicated account creation failed",
-      paystack: account
-    }, 502);
-  }
+  if (!accountData?.account_number) return jsonResponse({ error: "Ephemeral account creation failed" }, 502);
 
   const virtualAccount = {
     bankName: accountData.bank?.name || "Wema Bank",
     accountNumber: accountData.account_number,
-    accountName: accountData.account_name || `OpRides - ${name}`
+    accountName: accountData.account_name || `OpRides - ${name}`,
+    expiry: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 mins
   };
 
-  const updateRes = await fetch(
-    `${base}/users/${studentId}?updateMask.fieldPaths=paystackCustomerCode&updateMask.fieldPaths=virtualAccount`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        fields: {
-          paystackCustomerCode: { stringValue: customerCode },
-          virtualAccount: {
-            mapValue: {
-              fields: {
-                bankName: { stringValue: virtualAccount.bankName },
-                accountNumber: { stringValue: virtualAccount.accountNumber },
-                accountName: { stringValue: virtualAccount.accountName }
-              }
-            }
-          }
-        }
-      })
-    }
-  );
+  // Create pending transaction record
+  await createFirestoreDoc(base, token, "topUpRequests", {
+    studentId: { stringValue: studentId },
+    amount: { integerValue: amount.toString() },
+    accountNumber: { stringValue: virtualAccount.accountNumber },
+    status: { stringValue: "pending" },
+    createdAt: { timestampValue: new Date().toISOString() },
+    expiresAt: { timestampValue: virtualAccount.expiry }
+  });
 
-  if (!updateRes.ok) return new Response("Could not save virtual account", { status: 500 });
   return jsonResponse({ virtualAccount });
 }
 

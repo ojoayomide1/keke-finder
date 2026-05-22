@@ -153,18 +153,12 @@ export async function initiateTopUp(studentId, amountNaira) {
   if (!studentId || state.currentUser?.isGuest) throw new Error("Login required to top up");
   if (amountNaira < MIN_TOPUP_NAIRA) throw new Error(`Minimum top-up is ${formatNaira(MIN_TOPUP_NAIRA * 100)}`);
 
-  const userSnap = await getDoc(doc(db, "users", studentId));
-  const user = userSnap.data();
-  if (!user.virtualAccount) {
-    await createPaystackVirtualAccount(studentId, user);
-    const updatedSnap = await getDoc(doc(db, "users", studentId));
-    showTransferDetails(updatedSnap.data().virtualAccount, amountNaira);
-  } else {
-    showTransferDetails(user.virtualAccount, amountNaira);
-  }
+  // Ephemeral: Always request a new account for the specific amount/transaction
+  const virtualAccount = await createEphemeralVirtualAccount(studentId, amountNaira);
+  showTransferDetails(virtualAccount, amountNaira);
 }
 
-async function createPaystackVirtualAccount(studentId, user) {
+async function createEphemeralVirtualAccount(studentId, amountNaira) {
   const token = await auth.currentUser?.getIdToken();
   if (!token) throw new Error("Login required to create transfer account");
 
@@ -176,21 +170,21 @@ async function createPaystackVirtualAccount(studentId, user) {
     },
     body: JSON.stringify({
       studentId,
-      email: user.email,
-      name: user.name || user.displayName || "OpRides Student"
+      amount: amountNaira * 100 // Convert to kobo for Paystack
     })
   });
 
   if (!response.ok) {
-    let message = "Could not create transfer account";
+    let message = "Could not create temporary transfer account";
     try {
       const data = await response.json();
       message = data.error || data.paystack?.message || message;
-    } catch (err) {
-      // Keep the generic message if the Worker did not return JSON.
-    }
+    } catch (err) {}
     throw new Error(message);
   }
+
+  const data = await response.json();
+  return data.virtualAccount;
 }
 
 function showTransferDetails(virtualAccount, amountNaira) {
