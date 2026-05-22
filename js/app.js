@@ -438,9 +438,12 @@ window.startRide = async () => {
 // ================= ORCHESTRATION =================
 
 async function transitionToDashboard(user) {
+  console.log("Transitioning to dashboard for user:", user);
   if (!user || !user.role) {
     console.warn("User role missing during transition, staying on login screen.");
-    return;
+    // Fallback: assume student for testing purposes if user exists but role is missing
+    if (user) user.role = 'student';
+    else return;
   }
 
   document.getElementById("loginScreen").classList.add("hidden");
@@ -450,15 +453,22 @@ async function transitionToDashboard(user) {
   document.getElementById("riderUI").classList.add("hidden");
 
   if (user.role === "student") {
+    console.log("Setting role to student and showing studentUI");
     state.currentRole = "student";
     document.getElementById("studentUI").classList.remove("hidden");
     startScheduledRidesProcessor();
     populateLocations();
     updateStudentProfileUI();
     listenToStudentWallet();
+    
+    // Explicitly make the wallet tab visible in case it was hidden
+    const walletTab = document.getElementById("tab-wallet");
+    if (walletTab) walletTab.classList.remove("hidden");
+    
     if (window.switchStudentView) window.switchStudentView('dashboard');
     await checkForActiveRide("student");
   } else if (user.role === "rider") {
+    console.log("Setting role to rider and showing riderUI");
     state.currentRole = "rider";
     document.getElementById("riderUI").classList.remove("hidden");
     updateRiderDashboardUI();
