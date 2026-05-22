@@ -19,11 +19,12 @@ service cloud.firestore {
     }
 
     function isStudent() {
-      return hasUserDoc() && userRole() == "student";
+      // Allow if user has a document OR if the user is authenticated and just created (to handle race condition during signup)
+      return (hasUserDoc() && userRole() == "student") || (isSignedIn() && request.auth.token.role == "student");
     }
 
     function isRider() {
-      return hasUserDoc() && userRole() == "rider";
+      return (hasUserDoc() && userRole() == "rider") || (isSignedIn() && request.auth.token.role == "rider");
     }
 
     function isOwner(userId) {
