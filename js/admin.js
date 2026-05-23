@@ -67,6 +67,9 @@ function listenToOverview() {
 
   onSnapshot(query(collection(db, "withdrawalRequests"), where("status", "==", "pending")), (snapshot) => {
     setText("pendingWithdrawals", snapshot.size);
+    setText("withdrawal-badge", snapshot.size);
+    const badge = document.getElementById("withdrawal-badge");
+    if (badge) badge.style.display = snapshot.size > 0 ? "block" : "none";
   });
 
   onSnapshot(doc(db, "adminWallet", "main"), (snapshot) => {
@@ -75,6 +78,29 @@ function listenToOverview() {
   });
 
   listenToAuthorizedRiders();
+  initSidebarNav();
+}
+
+function initSidebarNav() {
+  const navItems = document.querySelectorAll(".admin-nav-item");
+  const sections = document.querySelectorAll(".admin-section");
+
+  navItems.forEach(item => {
+    item.addEventListener("click", () => {
+      const targetSection = item.dataset.section;
+      
+      navItems.forEach(i => i.classList.remove("active"));
+      item.classList.add("active");
+
+      sections.forEach(section => {
+        if (section.id === `section-${targetSection}`) {
+          section.classList.remove("hidden");
+        } else {
+          section.classList.add("hidden");
+        }
+      });
+    });
+  });
 }
 
 function listenToAuthorizedRiders() {

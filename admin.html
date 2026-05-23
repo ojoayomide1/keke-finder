@@ -7,92 +7,138 @@
   <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="css/admin.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 </head>
 <body class="admin-page">
-  <main class="admin-shell">
-    <header class="admin-header">
-      <div>
-        <h1>OpRides Admin</h1>
-        <p>Wallets, rides, and withdrawals</p>
-      </div>
-      <button type="button" class="danger" onclick="adminLogout()">Logout</button>
-    </header>
-
-    <section class="admin-grid stats-grid">
-      <article class="admin-stat"><span>Total rides today</span><strong id="totalRidesToday">0</strong></article>
-      <article class="admin-stat"><span>Active rides now</span><strong id="activeRidesNow">0</strong></article>
-      <article class="admin-stat"><span>Pending withdrawals</span><strong id="pendingWithdrawals">0</strong></article>
-      <article class="admin-stat"><span>Admin wallet balance</span><strong id="adminWalletBalance">₦0</strong></article>
-    </section>
-
-    <section class="admin-layout">
-      <div class="admin-panel">
-        <div class="panel-head">
-          <h2>Pending Withdrawals</h2>
-          <p>Pay riders manually in Paystack, then mark each request paid.</p>
-        </div>
-        <div id="withdrawalList" class="admin-list"></div>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="admin-sidebar-logo">
+        <span class="logo-text">OP<span>rides</span></span>
+        <span class="admin-badge">ADMIN</span>
       </div>
 
-      <div class="admin-panel">
-        <div class="panel-head">
-          <h2>Active Rides</h2>
-          <p>Live monitor for currently active rides.</p>
+      <nav>
+        <div class="admin-nav-item active" data-section="overview">
+          <span class="admin-nav-icon">📊</span>
+          Overview
         </div>
-        <div id="activeRidesList" class="admin-list"></div>
-      </div>
+        <div class="admin-nav-item" data-section="withdrawals">
+          <span class="admin-nav-icon">💸</span>
+          Withdrawals
+          <span class="admin-nav-badge" id="withdrawal-badge">0</span>
+        </div>
+        <div class="admin-nav-item" data-section="riders">
+          <span class="admin-nav-icon">🛺</span>
+          Riders
+        </div>
+        <div class="admin-nav-item" data-section="transactions">
+          <span class="admin-nav-icon">📋</span>
+          Transactions
+        </div>
+      </nav>
 
-      <div class="admin-panel">
-        <div class="panel-head">
-          <h2>Rider Management</h2>
-          <p>Authorize new riders and manage existing ones.</p>
-        </div>
-        <form id="addRiderForm" class="admin-form" style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px;">
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
-            <div>
-              <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Plate Number</label>
-              <input type="text" id="newRiderPlate" class="input-field" placeholder="KJA-123-XY" required style="margin-bottom: 0;">
-            </div>
-            <div>
-              <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Full Name</label>
-              <input type="text" id="newRiderName" class="input-field" placeholder="John Doe" required style="margin-bottom: 0;">
-            </div>
-            <div>
-              <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Phone Number</label>
-              <input type="text" id="newRiderPhone" class="input-field" placeholder="08012345678" required style="margin-bottom: 0;">
-            </div>
-            <button type="submit" class="green">Add Rider</button>
+      <div style="margin-top: auto; padding: var(--space-lg);">
+        <button class="btn btn-danger" onclick="adminLogout()">Logout</button>
+      </div>
+    </aside>
+
+    <main class="admin-main">
+      <!-- Overview Section -->
+      <section id="section-overview" class="admin-section fade-in">
+        <h2 class="admin-section-title">📊 Platform Overview</h2>
+        
+        <div class="admin-stats-grid">
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Admin Commission</div>
+            <div class="admin-stat-value accent" id="adminWalletBalance">₦0</div>
+            <div class="admin-stat-sub">From all rides</div>
           </div>
-        </form>
-        <div id="authorizedRidersList" class="admin-list"></div>
-      </div>
-    </section>
-
-    <section class="admin-panel">
-      <div class="panel-head transaction-head">
-        <div>
-          <h2>Transaction History</h2>
-          <p>All wallet movements ordered newest first.</p>
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Total Rides Today</div>
+            <div class="admin-stat-value" id="totalRidesToday">0</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Active Rides Now</div>
+            <div class="admin-stat-value" id="activeRidesNow">0</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-label">Pending Withdrawals</div>
+            <div class="admin-stat-value" id="pendingWithdrawals">0</div>
+          </div>
         </div>
-        <select id="transactionTypeFilter" class="input-field" onchange="listenToTransactions(this.value)">
-          <option value="">All types</option>
-          <option value="topup">Top-up</option>
-          <option value="deduction">Deduction</option>
-          <option value="earning">Earning</option>
-          <option value="commission">Commission</option>
-          <option value="withdrawal">Withdrawal</option>
-          <option value="refund">Refund</option>
-        </select>
-      </div>
-      <div id="transactionList" class="admin-table"></div>
-    </section>
 
-    <section class="admin-panel admin-note">
-      <h2>Admin Wallet</h2>
-      <p>To withdraw your commission, go to your Paystack dashboard.</p>
-    </section>
-  </main>
+        <div class="admin-panel">
+          <div class="panel-head">
+            <h2>Active Rides</h2>
+            <p>Live monitor for currently active rides.</p>
+          </div>
+          <div id="activeRidesList" class="admin-list"></div>
+        </div>
+      </section>
+
+      <!-- Withdrawals Section -->
+      <section id="section-withdrawals" class="admin-section hidden fade-in">
+        <h2 class="admin-section-title">💸 Pending Withdrawals</h2>
+        <p style="margin-bottom: var(--space-lg); color: var(--color-text-secondary);">Pay riders manually in Paystack, then mark each request paid.</p>
+        <div id="withdrawalList" class="admin-list"></div>
+      </section>
+
+      <!-- Riders Section -->
+      <section id="section-riders" class="admin-section hidden fade-in">
+        <h2 class="admin-section-title">🛺 Rider Management</h2>
+        
+        <div class="admin-panel" style="margin-bottom: var(--space-lg);">
+          <div class="panel-head">
+            <h2>Add New Rider</h2>
+          </div>
+          <form id="addRiderForm" class="admin-form">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: var(--space-md); align-items: end;">
+              <div class="input-group" style="margin-bottom: 0;">
+                <label class="input-label">Plate Number</label>
+                <input type="text" id="newRiderPlate" class="input-field" placeholder="KJA-123-XY" required>
+              </div>
+              <div class="input-group" style="margin-bottom: 0;">
+                <label class="input-label">Full Name</label>
+                <input type="text" id="newRiderName" class="input-field" placeholder="John Doe" required>
+              </div>
+              <div class="input-group" style="margin-bottom: 0;">
+                <label class="input-label">Phone Number</label>
+                <input type="text" id="newRiderPhone" class="input-field" placeholder="08012345678" required>
+              </div>
+              <button type="submit" class="btn btn-primary" style="width: auto;">Add Rider</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="admin-panel">
+          <div class="panel-head">
+            <h2>Authorized Riders</h2>
+          </div>
+          <div id="authorizedRidersList" class="admin-list"></div>
+        </div>
+      </section>
+
+      <!-- Transactions Section -->
+      <section id="section-transactions" class="admin-section hidden fade-in">
+        <div class="panel-head transaction-head">
+          <div>
+            <h2 class="admin-section-title" style="margin-bottom: 0;">📋 Transaction History</h2>
+            <p>All wallet movements ordered newest first.</p>
+          </div>
+          <select id="transactionTypeFilter" class="input-field" onchange="listenToTransactions(this.value)" style="max-width: 200px;">
+            <option value="">All types</option>
+            <option value="topup">Top-up</option>
+            <option value="deduction">Deduction</option>
+            <option value="earning">Earning</option>
+            <option value="commission">Commission</option>
+            <option value="withdrawal">Withdrawal</option>
+            <option value="refund">Refund</option>
+          </select>
+        </div>
+        <div id="transactionList" class="admin-table"></div>
+      </section>
+    </main>
+  </div>
 
   <script type="module" src="js/admin.js"></script>
 </body>

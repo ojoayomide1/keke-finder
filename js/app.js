@@ -22,8 +22,13 @@ import {
   updateRideDetails, 
   toggleControls, 
   setButtonVisible,
-  showLoginScreen 
+  showLoginScreen,
+  initSplashScreen,
+  getGreeting
 } from "./modules/ui.js";
+
+// Initialize splash screen on app start
+initSplashScreen();
 import { 
   initMap, 
   animateMarker, 
@@ -452,10 +457,21 @@ async function transitionToDashboard(user) {
   document.getElementById("studentUI").classList.add("hidden");
   document.getElementById("riderUI").classList.add("hidden");
 
+  // Global welcome name and greeting
+  const firstName = (user.displayName || "User").split(" ")[0];
+  const greeting = getGreeting();
+
   if (user.role === "student") {
     console.log("Setting role to student and showing studentUI");
     state.currentRole = "student";
     document.getElementById("studentUI").classList.remove("hidden");
+
+    // Update welcome section
+    const welcomeName = document.getElementById("welcome-name-student");
+    const welcomeGreet = document.querySelector("#studentDashboard .welcome-greeting");
+    if (welcomeName) welcomeName.innerHTML = `${firstName}<span>.</span>`;
+    if (welcomeGreet) welcomeGreet.textContent = greeting;
+
     startScheduledRidesProcessor();
     populateLocations();
     updateStudentProfileUI();
@@ -471,6 +487,13 @@ async function transitionToDashboard(user) {
     console.log("Setting role to rider and showing riderUI");
     state.currentRole = "rider";
     document.getElementById("riderUI").classList.remove("hidden");
+
+    // Update welcome section
+    const welcomeName = document.getElementById("welcome-name-rider");
+    const welcomeGreet = document.querySelector("#riderDashboard .welcome-greeting");
+    if (welcomeName) welcomeName.innerHTML = `${firstName}<span>.</span>`;
+    if (welcomeGreet) welcomeGreet.textContent = greeting;
+
     updateRiderDashboardUI();
     listenToRiderWallet();
     switchTab('home');

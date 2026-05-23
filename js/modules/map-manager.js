@@ -102,11 +102,46 @@ export function initMap(mapId) {
   const mapElement = document.getElementById(mapId);
   if (!mapElement) return;
 
-  state.map = L.map(mapId, { tap: false }).setView([9.2880, 7.4130], 16);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19
-  }).addTo(state.map);
+  state.map = L.map(mapId, { tap: false, zoomControl: false }).setView([9.2880, 7.4130], 16);
+  
+  L.tileLayer(
+    'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
+    {
+      attribution: '© <a href="https://stadiamaps.com/">Stadia Maps</a>',
+      maxZoom: 20
+    }
+  ).addTo(state.map);
   
   renderCampusMapData(state.map);
   setTimeout(() => state.map && state.map.invalidateSize(), 500);
 }
+
+// Custom icons for the new design
+export const kekeIcon = L.divIcon({
+  html: `<div style="
+    width: 36px;
+    height: 36px;
+    background: #FF5E1A;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    border: 3px solid white;
+    box-shadow: 0 4px 12px rgba(255,94,26,0.5);
+  "></div>`,
+  className: '',
+  iconSize: [36, 36],
+  iconAnchor: [18, 36]
+});
+
+export const pickupIcon = L.divIcon({
+  html: `<div style="
+    width: 14px;
+    height: 14px;
+    background: #00C48C;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 2px 8px rgba(0,196,140,0.5);
+  "></div>`,
+  className: '',
+  iconSize: [14, 14],
+  iconAnchor: [7, 7]
+});

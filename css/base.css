@@ -2,7 +2,6 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: "Poppins", system-ui, -apple-system, sans-serif;
 }
 
 html, body {
@@ -11,18 +10,18 @@ html, body {
 }
 
 body {
-  background: #111;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  -webkit-font-smoothing: antialiased;
   font-weight: 400;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-weight: 500;
-  letter-spacing: 0;
+h1, h2, h3, h4, h5, h6, .heading {
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.5px;
 }
 
 /* Common Layout Utilities */
@@ -50,15 +49,41 @@ h6 {
 }
 
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-md);
   text-align: center;
-  padding: 60px 0;
-  color: #9ca3af;
+  gap: var(--space-sm);
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: var(--space-sm);
+  opacity: 0.6;
+}
+
+.empty-state-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.empty-state-message {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  max-width: 240px;
 }
 
 .danger-text {
   width: 100%;
   padding: 18px;
-  color: #ef4444;
+  color: var(--color-error);
   font-weight: 500;
   background: transparent;
+  border: none;
+  cursor: pointer;
 }

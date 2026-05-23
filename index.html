@@ -10,9 +10,16 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 </head>
 <body>
+
+  <!-- SPLASH SCREEN -->
+  <div class="splash-screen" id="splash">
+    <div class="splash-logo">OP<span>rides</span></div>
+    <div class="splash-tagline">Move smarter on campus</div>
+    <div class="splash-dot"></div>
+  </div>
 
   <!-- AUTH SCREEN -->
   <div id="loginScreen" class="screen center">
@@ -110,47 +117,51 @@
 
   <!-- STUDENT UI -->
   <div id="studentUI" class="screen hidden">
+    <header class="app-header">
+      <div class="app-logo">OP<span>rides</span></div>
+      <div class="header-right">
+        <a class="balance-chip" onclick="switchTab('wallet')">
+          <span class="balance-icon">₦</span>
+          <span class="balance-amount" id="header-balance-student">0</span>
+          <span class="add-btn">+</span>
+        </a>
+      </div>
+    </header>
+
     <!-- Home / VeriRide Section -->
     <div id="studentDashboard" class="dashboard-container tab-view">
-      <header class="dashboard-header">
-        <div class="header-main">
-          <div class="brand-lockup brand-lockup-small dashboard-brand" role="img" aria-label="OpRides">
-            <svg class="brand-icon" viewBox="0 0 96 96" aria-hidden="true">
-              <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
-                <path d="M14 32h22" />
-                <path d="M8 48h28" />
-                <path d="M14 64h22" />
-                <path d="M58 14c15 0 27 12 27 27 0 20-27 43-27 43S31 61 31 41c0-15 12-27 27-27Z" />
-                <circle cx="58" cy="41" r="8" />
-              </g>
-            </svg>
-            <span class="brand-text" aria-hidden="true"><span class="brand-op">OP</span><span class="brand-rides">rides</span></span>
-          </div>
-          <div class="user-info">
-            <h2 id="studentDashName">Student Name</h2>
-            <span class="role-tag">Student</span>
-          </div>
+      <main class="dashboard-body fade-in">
+        <div class="welcome-section">
+          <p class="welcome-greeting">Good morning ☀️</p>
+          <h1 class="welcome-name" id="welcome-name-student">Student<span>.</span></h1>
         </div>
-      </header>
 
-      <main class="dashboard-body">
+        <!-- Active Ride Banner (Hidden by default) -->
+        <div id="activeRideBanner" class="active-ride-banner ride-pulse hidden" onclick="switchTab('live')">
+          <div class="active-ride-banner-left">
+            <span class="active-ride-banner-icon">🛺</span>
+            <span class="active-ride-banner-text" id="activeRideStatusText">Your ride is on the way</span>
+          </div>
+          <span class="active-ride-banner-arrow">→</span>
+        </div>
+
         <div class="ride-form-card">
-          <h3 style="margin-bottom: 8px;">Request a ride</h3>
-          <p style="font-size: 13px; color: #6b7280; margin-bottom: 20px;">Quick campus rides around Veritas.</p>
+          <h3>Request a ride</h3>
+          <p style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 20px;">Quick campus rides around Veritas.</p>
           
           <div class="form-group">
-            <label>Pickup Location</label>
+            <label class="input-label">Pickup Location</label>
             <select id="pickupSelect" class="input-field">
               <option value="">Select Pickup Location</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Drop-off Location</label>
+            <label class="input-label">Drop-off Location</label>
             <select id="dropoffSelect" class="input-field">
               <option value="">Select Drop-off Location</option>
             </select>
           </div>
-          <button type="button" id="requestBtn" onclick="requestKeke()" class="green auth-primary">
+          <button type="button" id="requestBtn" onclick="requestKeke()" class="btn btn-primary">
             Request a ride
           </button>
         </div>
@@ -340,34 +351,35 @@
 
   <!-- RIDER UI -->
   <div id="riderUI" class="screen hidden">
+    <header class="app-header">
+      <div class="app-logo">OP<span>rides</span></div>
+      <div class="header-right">
+        <a class="balance-chip" onclick="switchTab('earnings')">
+          <span class="balance-icon">₦</span>
+          <span class="balance-amount" id="header-balance-rider">0</span>
+          <span class="add-btn">+</span>
+        </a>
+      </div>
+    </header>
+
     <!-- Home Section -->
     <div id="riderDashboard" class="dashboard-container tab-view">
-      <header class="dashboard-header">
-        <div class="header-main">
-          <div class="brand-lockup brand-lockup-small dashboard-brand" role="img" aria-label="OpRides">
-            <svg class="brand-icon" viewBox="0 0 96 96" aria-hidden="true">
-              <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
-                <path d="M14 32h22" />
-                <path d="M8 48h28" />
-                <path d="M14 64h22" />
-                <path d="M58 14c15 0 27 12 27 27 0 20-27 43-27 43S31 61 31 41c0-15 12-27 27-27Z" />
-                <circle cx="58" cy="41" r="8" />
-              </g>
-            </svg>
-            <span class="brand-text" aria-hidden="true"><span class="brand-op">OP</span><span class="brand-rides">rides</span></span>
-          </div>
-          <div class="user-info">
-            <h2 id="riderDashName">Rider Name</h2>
-            <span id="riderDashRole" class="role-tag yellow-tag">Rider</span>
-          </div>
+      <main class="dashboard-body fade-in">
+        <div class="welcome-section">
+          <p class="welcome-greeting">Good evening 🌙</p>
+          <h1 class="welcome-name" id="welcome-name-rider">Rider<span>.</span></h1>
         </div>
-      </header>
-      
-      <main class="dashboard-body">
+
+        <div class="earnings-progress-card">
+          <div class="earnings-progress-label">Today's Earnings</div>
+          <div class="earnings-progress-value" id="riderDashEarnings">₦0</div>
+          <p style="font-size: 11px; color: var(--color-text-secondary);">Keep moving to reach your goal.</p>
+        </div>
+        
         <div class="status-card">
           <h3 id="riderTitle">Offline</h3>
           <p id="riderSub">Go live to start receiving requests</p>
-          <button class="fab yellow" id="statusToggleBtn" onclick="toggleOnlineStatus()">Go Online</button>
+          <button class="btn btn-primary yellow" id="statusToggleBtn" onclick="toggleOnlineStatus()" style="width: 100%;">Go Online</button>
         </div>
 
         <div id="riderRideDetails" class="ride-details-container"></div>

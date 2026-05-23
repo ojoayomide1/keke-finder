@@ -87,15 +87,33 @@ export function toggleControls(show, target = "student") {
   if (el) el.style.display = show ? "flex" : "none";
 }
 
-export function showToast(message, type = "success") {
+// New Styled Toast System
+export function showToast(message, type = "info", duration = 3000) {
+  const container = document.querySelector(".toast-container") ||
+    (() => {
+      const c = document.createElement("div");
+      c.className = "toast-container";
+      document.body.appendChild(c);
+      return c;
+    })();
+
   const toast = document.createElement("div");
-  toast.className = `toast ${type} show`;
-  toast.innerText = message;
-  document.body.appendChild(toast);
-  setTimeout(() => { 
-    toast.classList.remove("show"); 
-    setTimeout(() => toast.remove(), 300); 
-  }, 2500);
+  toast.className = `toast ${type}`;
+
+  const icons = {
+    success: "✅", error: "❌", warning: "⚠️", info: "ℹ️"
+  };
+
+  toast.innerHTML = `<span>${icons[type] || "ℹ️"}</span><span>${message}</span>`;
+  container.appendChild(toast);
+
+  // Trigger animation
+  setTimeout(() => toast.classList.add("show"), 10);
+
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
 }
 
 export function setButtonVisible(id, visible) {
@@ -107,4 +125,69 @@ export function showLoginScreen() {
   document.getElementById("loginScreen").classList.remove("hidden");
   document.getElementById("studentUI").classList.add("hidden");
   document.getElementById("riderUI").classList.add("hidden");
+}
+
+// Confirmation Dialogs
+export function showConfirmDialog({ title, message, confirmText, cancelText, onConfirm, danger = false }) {
+  const overlay = document.createElement("div");
+  overlay.className = "dialog-overlay";
+  overlay.innerHTML = `
+    <div class="dialog-sheet">
+      <div class="dialog-handle"></div>
+      <div class="dialog-title">${title}</div>
+      <div class="dialog-message">${message}</div>
+      <div class="dialog-actions">
+        <button class="btn ${danger ? "btn-danger" : "btn-primary"}" id="dialog-confirm">
+          ${confirmText || "Confirm"}
+        </button>
+        <button class="btn btn-ghost" id="dialog-cancel">
+          ${cancelText || "Cancel"}
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelector("#dialog-confirm").addEventListener("click", () => {
+    onConfirm();
+    overlay.remove();
+  });
+
+  overlay.querySelector("#dialog-cancel").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+}
+
+// Balance Animation
+export function animateBalance(elementId, newValue) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+  element.style.transform = "translateY(-4px)";
+  element.style.opacity = "0";
+  element.style.transition = "all 0.15s ease";
+  setTimeout(() => {
+    element.textContent = newValue;
+    element.style.transform = "translateY(0)";
+    element.style.opacity = "1";
+  }, 150);
+}
+
+// Dynamic Greetings
+export function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning ☀️";
+  if (hour < 17) return "Good afternoon 🌤️";
+  return "Good evening 🌙";
+}
+
+// Splash Screen Lifecycle
+export function initSplashScreen() {
+  setTimeout(() => {
+    const splash = document.getElementById("splash");
+    if (splash) {
+      splash.style.opacity = "0";
+      splash.style.pointerEvents = "none";
+      setTimeout(() => splash.remove(), 500);
+    }
+  }, 2500);
 }
