@@ -165,7 +165,11 @@ export function updateStudentProfileUI() {
 export async function fetchRideHistory() {
   const list = document.getElementById("activityList");
   if (!list || !state.currentUser || state.currentUser.isGuest) return;
-  const q = query(collection(db, "rideRequests"), orderBy("requestedAt", "desc"));
+  const q = query(
+    collection(db, "rideRequests"),
+    where("studentId", "==", state.currentUser.uid),
+    orderBy("requestedAt", "desc")
+  );
   onSnapshot(q, (snapshot) => {
   const history = [];
   snapshot.forEach(doc => {
@@ -201,6 +205,9 @@ export async function fetchRideHistory() {
       </div>
     `;
   }).join("");
+  }, (err) => {
+    console.warn("Ride history listener unavailable:", err.code || err.message);
+    list.innerHTML = '<p class="empty-state">Ride history is unavailable right now</p>';
   });}
 
 // These will be bound to window in app.js
@@ -312,7 +319,7 @@ export function listenToRequest(requestId) {
       document.getElementById("studentSheet")?.classList.add("hidden");
       if (window.switchTab) window.switchTab('home');
     }
-  });
+  }, (err) => console.warn("Ride request listener unavailable:", err.code || err.message));
 }
 
 export function listenToRide(matchedRideId, currentUserId) {
@@ -358,7 +365,7 @@ export function listenToRide(matchedRideId, currentUserId) {
     
     // Update map etc. (could be handled in app.js or here)
     if (window.updateRideUI) window.updateRideUI(ride);
-  });
+  }, (err) => console.warn("Student ride listener unavailable:", err.code || err.message));
 }
 
 export function listenToQueuePosition(queueDocId) {
@@ -366,7 +373,7 @@ export function listenToQueuePosition(queueDocId) {
     const queue = snapshot.data();
     if (!queue) return;
     updateBottomSheet("In Queue", `Position: #${queue.position} (Est: ${queue.estimatedWait})`);
-  });
+  }, (err) => console.warn("Queue position listener unavailable:", err.code || err.message));
 }
 
 export async function cancelRide() {

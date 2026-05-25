@@ -26,6 +26,8 @@ export function listenToRiderWallet() {
     if (!snapshot.exists()) return;
     state.currentUser = { ...state.currentUser, ...snapshot.data() };
     renderRiderWallet();
+  }, (err) => {
+    console.warn("Rider wallet listener unavailable:", err.code || err.message);
   });
 
   riderTransactionsUnsubscribe = onSnapshot(
@@ -36,7 +38,11 @@ export function listenToRiderWallet() {
       orderBy("createdAt", "desc"),
       limit(10)
     ),
-    (snapshot) => renderRiderEarnings(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
+    (snapshot) => renderRiderEarnings(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))),
+    (err) => {
+      console.warn("Rider transaction listener unavailable:", err.code || err.message);
+      renderRiderEarnings([]);
+    }
   );
 }
 

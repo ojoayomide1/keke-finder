@@ -69,6 +69,8 @@ export function listenToStudentWallet() {
       }
     }
     if (lastTopUp) lastSeenTopUp = lastTopUp;
+  }, (err) => {
+    console.warn("Student wallet listener unavailable:", err.code || err.message);
   });
 
   transactionUnsubscribe = onSnapshot(
@@ -78,7 +80,11 @@ export function listenToStudentWallet() {
       orderBy("createdAt", "desc"),
       limit(10)
     ),
-    (snapshot) => renderStudentTransactions(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
+    (snapshot) => renderStudentTransactions(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))),
+    (err) => {
+      console.warn("Student transaction listener unavailable:", err.code || err.message);
+      renderStudentTransactions([]);
+    }
   );
 }
 

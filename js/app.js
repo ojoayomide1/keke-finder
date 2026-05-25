@@ -361,6 +361,11 @@ function resetPathfinder() {
   state.requestMarkers = [];
 }
 
+function completePathfinderSession() {
+  resetPathfinder();
+  showToast("Walking session completed", "success");
+}
+
 function populateCampusMapLandmarks() {
   const select = document.getElementById("pathfinderSelect");
   if (!select) return;
@@ -387,6 +392,7 @@ function bindAppGlobals() {
   window.cleanupRiderSession = cleanupRiderSession;
   window.navigateToLandmark = navigateToLandmark;
   window.resetPathfinder = resetPathfinder;
+  window.completePathfinderSession = completePathfinderSession;
 }
 
 bindAppGlobals();
@@ -665,10 +671,17 @@ function listenForQueuedStudents(rideId) {
     orderBy("joinedAt")
   );
 
-  state.unsubscribeQueueListener = onSnapshot(q, async () => {
-    if (!state.riderDocId || state.riderDocId !== rideId) return;
-    await drainWaitingQueueForRide(rideId);
-  });
+  state.unsubscribeQueueListener = onSnapshot(
+    q,
+    async () => {
+      if (!state.riderDocId || state.riderDocId !== rideId) return;
+      await drainWaitingQueueForRide(rideId);
+    },
+    (err) => {
+      console.warn("Queue listener unavailable:", err.code || err.message);
+      state.unsubscribeQueueListener = null;
+    }
+  );
 }
 
 window.updateRideUI = (ride) => {

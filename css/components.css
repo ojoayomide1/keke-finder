@@ -230,6 +230,9 @@
   bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
   left: 0;
   width: 100%;
+  min-height: 286px;
+  max-height: calc(100dvh - var(--header-height) - var(--bottom-nav-height) - var(--safe-area-bottom));
+  overflow-y: auto;
   background: var(--color-bg-secondary);
   border-radius: 28px 28px 0 0;
   padding: 12px 20px 18px;

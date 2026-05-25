@@ -38,6 +38,63 @@
 }
 
 /* Splash Screen Animations */
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 94, 26, 0.2), transparent 34%),
+    var(--color-bg-primary);
+  color: var(--color-text-primary);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.splash-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(42px, 13vw, 72px);
+  font-weight: 800;
+  line-height: 1;
+  animation: splashLogoIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.splash-logo span {
+  color: var(--color-accent);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.splash-tagline {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  animation: fadeInUp 0.55s ease 0.18s both;
+}
+
+.splash-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 12px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 0 20px rgba(255, 94, 26, 0.75);
+  animation: splashDotPulse 0.85s ease-in-out infinite;
+}
+
+.auth-brand .brand-lockup {
+  animation: splashLogoIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.auth-brand p {
+  animation: fadeInUp 0.5s ease 0.12s both;
+}
+
+.app-logo {
+  animation: fadeInUp 0.35s ease both;
+}
+
 @keyframes splashLogoIn {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }

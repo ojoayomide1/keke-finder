@@ -304,7 +304,7 @@ export function listenToActiveRide(rideId) {
     ]);
 
     if (window.updateRideUI) window.updateRideUI(ride);
-  });
+  }, (err) => console.warn("Active ride listener unavailable:", err.code || err.message));
 }
 
 async function notifyQueuedStudentsNearby(completedLocation) {
