@@ -37,6 +37,7 @@ function setAuthMessage(message, type = "error") {
 function setAuthLoading(isLoading) {
   const submitBtn = document.getElementById("authSubmitBtn");
   submitBtn.disabled = isLoading;
+  submitBtn.classList.toggle("loading", isLoading);
   if (isLoading) {
     submitBtn.innerText = authMode === "signup" ? "Creating account..." : "Logging in...";
   } else {

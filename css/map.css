@@ -3,6 +3,28 @@
   height: 100%;
   flex: 1;
   z-index: 1;
+  min-height: 280px;
+  background: #111;
+}
+
+.pathfinder-layout {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
+}
+
+.pathfinder-map {
+  min-height: 46vh;
+}
+
+.pathfinder-layout .ride-form-card {
+  position: relative;
+  z-index: 500;
+  margin: -22px 16px 18px;
+  border-radius: 20px;
 }
 
 .backBtn {

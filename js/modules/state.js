@@ -12,6 +12,7 @@ export const state = {
   riderMarker: null,
   routeControl: null,
   userMarker: null,
+  latestRide: null,
   unsubscribeRequests: null,
   unsubscribeQueueListener: null,
   activeMarkerAnimations: new Map(),

@@ -422,7 +422,7 @@ export async function toggleOnlineStatus() {
       state.riderWatchId = null;
     }
     btn.innerText = "Go Online";
-    btn.className = "green-tag";
+    btn.className = "btn btn-primary yellow";
     document.getElementById("riderTitle").innerText = "Offline";
     document.getElementById("riderSub").innerText = "Go live to start receiving requests";
     showToast("You are now offline", "info");
@@ -430,7 +430,7 @@ export async function toggleOnlineStatus() {
     // Go Online Logic
     window.becomeAvailable();
     btn.innerText = "Go Offline";
-    btn.className = "yellow-tag";
+    btn.className = "btn btn-primary green";
     // UI update handled by becomeAvailable
   }
 }

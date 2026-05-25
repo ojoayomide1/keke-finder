@@ -59,9 +59,57 @@ function toggleSidebar() {
   const sidebar = document.getElementById("studentSidebar");
   const overlay = document.getElementById("sidebarOverlay");
   if (!sidebar || !overlay) return;
+  renderSidebarMenu();
   const isHidden = sidebar.classList.contains("hidden");
   sidebar.classList.toggle("hidden", !isHidden);
   overlay.classList.toggle("hidden", !isHidden);
+}
+
+function closeSidebar() {
+  document.getElementById("studentSidebar")?.classList.add("hidden");
+  document.getElementById("sidebarOverlay")?.classList.add("hidden");
+}
+
+function renderSidebarMenu() {
+  const nav = document.getElementById("sidebarNav");
+  if (!nav) return;
+
+  const role = state.currentRole || "student";
+  const nameEl = document.getElementById("sidebarName");
+  const emailEl = document.getElementById("sidebarEmail");
+  if (nameEl) nameEl.innerText = state.currentUser?.displayName || state.currentUser?.name || "Guest";
+  if (emailEl) emailEl.innerText = state.currentUser?.email || (role === "rider" ? "Rider account" : "Student account");
+  const items = role === "rider"
+    ? [
+        ["home", "fa-house", "Home"],
+        ["earnings", "fa-money-bill-wave", "Earnings"],
+        ["live", "fa-satellite-dish", "Live Map"],
+        ["profile", "fa-user", "Profile"]
+      ]
+    : [
+        ["home", "fa-house", "Home"],
+        ["wallet", "fa-wallet", "Wallet"],
+        ["live", "fa-satellite-dish", "Live Map"],
+        ["map", "fa-map-location-dot", "Pathfinder"],
+        ["profile", "fa-user", "Profile"]
+      ];
+
+  if (state.currentUser?.isAdmin) {
+    items.push(["admin", "fa-shield-halved", "Admin"]);
+  }
+
+  nav.innerHTML = items.map(([tab, icon, label]) => `
+    <button type="button" class="nav-item-sidebar" onclick="${tab === "admin" ? "window.location.href='/admin.html'" : `switchTab('${tab}')`}">
+      <i class="fas ${icon}"></i>
+      <span>${label}</span>
+    </button>
+  `).join("") + `
+    <div class="nav-divider"></div>
+    <button type="button" class="nav-item-sidebar logout" onclick="logout()">
+      <i class="fas fa-right-from-bracket"></i>
+      <span>Logout</span>
+    </button>
+  `;
 }
 
 function switchTab(tab) {
@@ -104,8 +152,12 @@ function switchTab(tab) {
       renderStudentWallet();
     } else if (tab === "map") {
       populateCampusMapLandmarks();
+      setTimeout(() => initMap("pathfinderMap"), 100);
     } else if (tab === "live") {
-      setTimeout(() => initMap("studentMap"), 100);
+      setTimeout(() => {
+        initMap("studentMap");
+        if (state.latestRide) window.updateRideUI(state.latestRide);
+      }, 100);
     }
   } else if (role === "rider") {
     if (tab === "profile") {
@@ -115,6 +167,7 @@ function switchTab(tab) {
     } else if (tab === "live") {
       setTimeout(() => {
         initMap("riderMap");
+        if (state.latestRide) window.updateRideUI(state.latestRide);
         if (state.currentRideId) {
           document.getElementById("riderSheet")?.classList.remove("hidden");
         }
@@ -127,6 +180,8 @@ function switchTab(tab) {
   if (targetView) {
     document.getElementById(targetView).classList.remove("hidden");
   }
+
+  closeSidebar();
 
   // Update bottom nav active state
   const navSelector = role === "student" ? "#studentUI .nav-tab" : "#riderUI .nav-tab";
@@ -173,10 +228,9 @@ function hideMap() {
 }
 
 function hideRiderMap() {
-  document.getElementById("riderDashboard").classList.remove("hidden");
-  document.getElementById("riderMap").classList.add("hidden");
-  document.getElementById("riderMapBackBtn").classList.add("hidden");
-  document.getElementById("riderSheet").classList.add("hidden");
+  document.getElementById("riderDashboard")?.classList.remove("hidden");
+  document.getElementById("riderLiveView")?.classList.add("hidden");
+  document.getElementById("riderSheet")?.classList.add("hidden");
 }
 
 async function requestKeke() {
@@ -220,12 +274,7 @@ async function navigateToLandmark(landmarkId) {
   const landmark = CAMPUS_MAP_DATA.locations.find(l => l.id === landmarkId);
   if (!landmark) return;
 
-  document.getElementById("studentDashboard").classList.add("hidden");
-  document.getElementById("pathfinderView").classList.add("hidden");
-  document.getElementById("studentMap").classList.remove("hidden");
-  document.getElementById("mapBackBtn").classList.remove("hidden");
-  
-  initMap("studentMap");
+  initMap("pathfinderMap");
   
   navigator.geolocation.getCurrentPosition((pos) => {
     const { latitude, longitude } = pos.coords;
@@ -256,7 +305,9 @@ async function navigateToLandmark(landmarkId) {
     state.map.fitBounds(L.latLngBounds([latitude, longitude], [landmark.lat, landmark.lng]), { padding: [50, 50] });
     showToast(`Pathfinding to ${landmark.name}`);
   }, (err) => {
-    showToast("GPS required for navigation", "error");
+    L.marker([landmark.lat, landmark.lng]).addTo(state.map).bindPopup(landmark.name).openPopup();
+    state.map.setView([landmark.lat, landmark.lng], 17);
+    showToast("GPS unavailable. Showing destination only.", "warning");
   });
 }
 
@@ -275,6 +326,7 @@ function populateCampusMapLandmarks() {
 function bindAppGlobals() {
   window.switchTab = switchTab;
   window.toggleSidebar = toggleSidebar;
+  window.closeSidebar = closeSidebar;
   window.switchStudentView = switchStudentView;
   window.showMap = showMap;
   window.hideMap = hideMap;
@@ -342,10 +394,8 @@ window.restoreActiveRideUI = async () => {
   const docRef = doc(db, "rides", state.currentRideId);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
-    document.getElementById("riderDashboard").classList.add("hidden");
-    document.getElementById("riderMap").classList.remove("hidden");
-    document.getElementById("riderSheet").classList.remove("hidden");
-    document.getElementById("riderMapBackBtn").classList.remove("hidden");
+    switchTab("live");
+    document.getElementById("riderSheet")?.classList.remove("hidden");
     initMap("riderMap");
     listenToActiveRide(state.currentRideId);
     window.updateRideUI(docSnap.data());
@@ -533,8 +583,10 @@ async function checkForActiveRide(role) {
       const activeRide = sortedDocs[0];
       state.riderDocId = activeRide.id;
       state.currentRideId = activeRide.id;
-      document.getElementById("riderActiveRideSection").classList.remove("hidden");
-      document.getElementById("riderActiveRideSub").innerText = `Keke Online - ${activeRide.data().seats.occupied} passengers`;
+      const activeRideSection = document.getElementById("riderActiveRideSection");
+      const activeRideSub = document.getElementById("riderActiveRideSub");
+      activeRideSection?.classList.remove("hidden");
+      if (activeRideSub) activeRideSub.innerText = `Keke Online - ${activeRide.data().seats.occupied} passengers`;
       import("./modules/rider.js").then(m => m.listenToActiveRide(activeRide.id));
       listenForQueuedStudents(activeRide.id);
       await drainWaitingQueueForRide(activeRide.id);
@@ -569,6 +621,7 @@ function listenForQueuedStudents(rideId) {
 }
 
 window.updateRideUI = (ride) => {
+  state.latestRide = ride;
   if (!state.map) return;
   
   const currentLocation = ride.currentLocation;

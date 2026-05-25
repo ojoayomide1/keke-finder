@@ -17,6 +17,51 @@
   color: var(--color-text-primary);
 }
 
+.green,
+.yellow,
+.danger,
+.auth-primary,
+.auth-secondary,
+.role-btn,
+.logoutBtn {
+  min-height: 48px;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: var(--radius-md);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.role-btn {
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border: 2px solid transparent;
+}
+
+.role-btn.active {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.green:disabled,
+.yellow:disabled,
+.danger:disabled,
+.auth-primary:disabled,
+.auth-secondary:disabled,
+.btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .btn:active {
   transform: scale(0.97);
 }
@@ -62,12 +107,18 @@
 }
 
 /* Loading state */
-.btn.loading {
+.btn.loading,
+.auth-primary.loading,
+.green.loading,
+.yellow.loading {
   opacity: 0.7;
   pointer-events: none;
 }
 
-.btn.loading::after {
+.btn.loading::after,
+.auth-primary.loading::after,
+.green.loading::after,
+.yellow.loading::after {
   content: '';
   width: 16px;
   height: 16px;
@@ -109,6 +160,10 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   background: rgba(13, 13, 13, 0.92);
+}
+
+.menuBtn {
+  flex: 0 0 auto;
 }
 
 .app-logo {

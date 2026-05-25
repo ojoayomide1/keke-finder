@@ -101,13 +101,14 @@ export function initMap(mapId) {
   
   const mapElement = document.getElementById(mapId);
   if (!mapElement) return;
+  if (mapElement.offsetParent === null) return;
 
   state.map = L.map(mapId, { tap: false, zoomControl: false }).setView([9.2880, 7.4130], 16);
   
   L.tileLayer(
-    'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
+    'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     {
-      attribution: '© <a href="https://stadiamaps.com/">Stadia Maps</a>',
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       maxZoom: 20
     }
   ).addTo(state.map);
