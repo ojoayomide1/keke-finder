@@ -258,8 +258,8 @@
     </div>
 
     <!-- Live Section (Map + Bottom Sheet) -->
-    <div id="liveRideView" class="view-overlay hidden tab-view" style="padding-bottom: 0;">
-      <div id="studentMap" class="map" style="flex: 1; position: relative; height: 100%;"></div>
+    <div id="liveRideView" class="view-overlay map-view hidden tab-view">
+      <div id="studentMap" class="map map-screen"></div>
       
       <div class="bottomSheet hidden" id="studentSheet" style="position: absolute;">
         <div class="dragZone" onmousedown="startDrag(event, 'studentSheet')" ontouchstart="startDrag(event, 'studentSheet')">
@@ -282,8 +282,7 @@
       <div class="view-header">
         <h2>Campus Map</h2>
       </div>
-      <div class="pathfinder-layout">
-        <div id="pathfinderMap" class="map pathfinder-map"></div>
+      <div id="pathfinderSelectPanel" class="profile-content">
         <div class="ride-form-card">
           <h3 style="margin-bottom: 8px;">Find your way</h3>
           <p style="font-size: 13px; color: #6b7280; margin-bottom: 20px;">Find lecture halls, hostels, and campus spots fast.</p>
@@ -293,6 +292,20 @@
             <select id="pathfinderSelect" class="input-field" onchange="navigateToLandmark(this.value)">
               <option value="">Select Landmark</option>
             </select>
+          </div>
+        </div>
+      </div>
+      <div id="pathfinderMapPanel" class="pathfinder-map-panel hidden">
+        <div id="pathfinderMap" class="map map-screen"></div>
+        <button type="button" id="pathfinderBackBtn" class="backBtn" onclick="resetPathfinder()" aria-label="Back to pathfinder"></button>
+        <div class="bottomSheet hidden" id="pathfinderSheet" style="position: absolute;">
+          <div class="dragZone" onmousedown="startDrag(event, 'pathfinderSheet')" ontouchstart="startDrag(event, 'pathfinderSheet')">
+            <div class="handle"></div>
+          </div>
+          <h3 id="pathfinderTitle">Route</h3>
+          <p id="pathfinderSub">Calculating route...</p>
+          <div class="sheet-content">
+            <div class="ride-details" id="pathfinderDetails"></div>
           </div>
         </div>
       </div>
@@ -410,8 +423,8 @@
     </div>
 
     <!-- Live Section (Map + Sheet) -->
-    <div id="riderLiveView" class="view-overlay hidden tab-view" style="padding-bottom: 0;">
-      <div id="riderMap" class="map" style="flex: 1; position: relative; height: 100%;"></div>
+    <div id="riderLiveView" class="view-overlay map-view hidden tab-view">
+      <div id="riderMap" class="map map-screen"></div>
       
       <div class="bottomSheet hidden" id="riderSheet" style="position: absolute;">
         <div class="dragZone" onmousedown="startDrag(event, 'riderSheet')" ontouchstart="startDrag(event, 'riderSheet')">

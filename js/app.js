@@ -152,7 +152,7 @@ function switchTab(tab) {
       renderStudentWallet();
     } else if (tab === "map") {
       populateCampusMapLandmarks();
-      setTimeout(() => initMap("pathfinderMap"), 100);
+      resetPathfinder();
     } else if (tab === "live") {
       setTimeout(() => {
         initMap("studentMap");
@@ -274,10 +274,20 @@ async function navigateToLandmark(landmarkId) {
   const landmark = CAMPUS_MAP_DATA.locations.find(l => l.id === landmarkId);
   if (!landmark) return;
 
+  document.getElementById("pathfinderSelectPanel")?.classList.add("hidden");
+  document.getElementById("pathfinderMapPanel")?.classList.remove("hidden");
+  const sheet = document.getElementById("pathfinderSheet");
+  sheet?.classList.remove("hidden", "minimized");
+  sheet?.classList.add("expanded");
+  updatePathfinderSheet(landmark, null, null, "Calculating route...");
+
   initMap("pathfinderMap");
   
   navigator.geolocation.getCurrentPosition((pos) => {
     const { latitude, longitude } = pos.coords;
+    const distance = getDistance(latitude, longitude, landmark.lat, landmark.lng);
+    const etaMinutes = Math.max(1, Math.round(distance / 80));
+
     if (!state.userMarker) {
       state.userMarker = L.marker([latitude, longitude]).addTo(state.map).bindPopup("Your Location");
     } else {
@@ -303,12 +313,52 @@ async function navigateToLandmark(landmarkId) {
       }).addTo(state.map);
     }
     state.map.fitBounds(L.latLngBounds([latitude, longitude], [landmark.lat, landmark.lng]), { padding: [50, 50] });
+    updatePathfinderSheet(landmark, distance, etaMinutes, "Best route ready");
     showToast(`Pathfinding to ${landmark.name}`);
   }, (err) => {
     L.marker([landmark.lat, landmark.lng]).addTo(state.map).bindPopup(landmark.name).openPopup();
     state.map.setView([landmark.lat, landmark.lng], 17);
+    updatePathfinderSheet(landmark, null, null, "GPS unavailable");
     showToast("GPS unavailable. Showing destination only.", "warning");
   });
+}
+
+function updatePathfinderSheet(landmark, distance, etaMinutes, status) {
+  const title = document.getElementById("pathfinderTitle");
+  const sub = document.getElementById("pathfinderSub");
+  const details = document.getElementById("pathfinderDetails");
+
+  if (title) title.innerText = landmark.name;
+  if (sub) sub.innerText = status;
+  if (!details) return;
+
+  const distanceText = distance == null
+    ? "Unavailable"
+    : distance >= 1000
+      ? `${(distance / 1000).toFixed(1)} km`
+      : `${Math.round(distance)} m`;
+
+  details.innerHTML = [
+    { label: "Destination", value: landmark.name },
+    { label: "ETA", value: etaMinutes == null ? "Enable GPS" : `${etaMinutes} min` },
+    { label: "Distance", value: distanceText },
+    { label: "Mode", value: "Walking route" }
+  ].map(d => `<div class="ride-detail"><span>${d.label}</span><strong>${d.value}</strong></div>`).join("");
+}
+
+function resetPathfinder() {
+  document.getElementById("pathfinderMapPanel")?.classList.add("hidden");
+  document.getElementById("pathfinderSheet")?.classList.add("hidden");
+  document.getElementById("pathfinderSelectPanel")?.classList.remove("hidden");
+  const select = document.getElementById("pathfinderSelect");
+  if (select) select.value = "";
+  if (state.map) {
+    try { state.map.remove(); } catch (e) { console.warn("Pathfinder map cleanup warning:", e); }
+  }
+  state.map = null;
+  state.userMarker = null;
+  state.routeControl = null;
+  state.requestMarkers = [];
 }
 
 function populateCampusMapLandmarks() {
@@ -336,6 +386,7 @@ function bindAppGlobals() {
   window.completeRide = completeRide;
   window.cleanupRiderSession = cleanupRiderSession;
   window.navigateToLandmark = navigateToLandmark;
+  window.resetPathfinder = resetPathfinder;
 }
 
 bindAppGlobals();
