@@ -169,7 +169,9 @@ function switchTab(tab) {
         initMap("riderMap");
         if (state.latestRide) window.updateRideUI(state.latestRide);
         if (state.currentRideId) {
-          document.getElementById("riderSheet")?.classList.remove("hidden");
+          const riderSheet = document.getElementById("riderSheet");
+          riderSheet?.classList.remove("hidden", "expanded");
+          riderSheet?.classList.add("minimized");
         }
       }, 100);
     }
@@ -277,8 +279,8 @@ async function navigateToLandmark(landmarkId) {
   document.getElementById("pathfinderSelectPanel")?.classList.add("hidden");
   document.getElementById("pathfinderMapPanel")?.classList.remove("hidden");
   const sheet = document.getElementById("pathfinderSheet");
-  sheet?.classList.remove("hidden", "minimized");
-  sheet?.classList.add("expanded");
+  sheet?.classList.remove("hidden", "expanded");
+  sheet?.classList.add("minimized");
   updatePathfinderSheet(landmark, null, null, "Calculating route...");
 
   initMap("pathfinderMap");
@@ -406,8 +408,8 @@ window.visitRide = async (requestId) => {
     switchTab('live');
     const sheet = document.getElementById("studentSheet");
     if (sheet) {
-      sheet.classList.remove("hidden", "minimized");
-      sheet.classList.add("expanded");
+      sheet.classList.remove("hidden", "expanded");
+      sheet.classList.add("minimized");
     }
     import("./modules/student.js").then(m => m.listenToRequest(requestId));
     updateBottomSheet(r.status === "searching" ? "Searching" : "Trip Active", r.status);
@@ -452,7 +454,9 @@ window.restoreActiveRideUI = async () => {
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
     switchTab("live");
-    document.getElementById("riderSheet")?.classList.remove("hidden");
+    const riderSheet = document.getElementById("riderSheet");
+    riderSheet?.classList.remove("hidden", "expanded");
+    riderSheet?.classList.add("minimized");
     initMap("riderMap");
     listenToActiveRide(state.currentRideId);
     window.updateRideUI(docSnap.data());

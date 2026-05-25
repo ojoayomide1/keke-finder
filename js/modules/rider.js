@@ -60,8 +60,8 @@ export function updateRiderControls(ride) {
     
     // Auto-expand if a new stop appears and we were on dashboard
     if (sheet.classList.contains("hidden")) {
-      sheet.classList.remove("minimized");
-      sheet.classList.add("expanded");
+      sheet.classList.remove("hidden", "expanded");
+      sheet.classList.add("minimized");
     }
   }
 
@@ -247,7 +247,9 @@ export function listenToActiveRide(rideId) {
     if (hasPendingStops && (ride.status === "waiting" || ride.status === "active")) {
       if (isLiveViewHidden) {
         if (window.switchTab) window.switchTab('live');
-        document.getElementById("riderSheet")?.classList.remove("hidden");
+        const riderSheet = document.getElementById("riderSheet");
+        riderSheet?.classList.remove("hidden", "expanded");
+        riderSheet?.classList.add("minimized");
       }
     } else if (!hasPendingStops) {
       // If no stops, stay on/return to dashboard but show online status

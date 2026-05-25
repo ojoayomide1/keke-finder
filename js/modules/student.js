@@ -264,7 +264,8 @@ export async function requestKeke() {
     // IMMEDIATELY SHOW THE SHEET AND INITIAL STATE
     const studentSheet = document.getElementById("studentSheet");
     if (studentSheet) {
-      studentSheet.classList.remove("hidden");
+      studentSheet.classList.remove("hidden", "expanded");
+      studentSheet.classList.add("minimized");
       document.getElementById("studentControls")?.setAttribute("style", "display:flex");
     }
     updateBottomSheet("Searching", "Looking for your keke...");

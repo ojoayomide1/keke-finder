@@ -230,6 +230,7 @@
   bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
   left: 0;
   width: 100%;
+  --bottom-sheet-peek: 104px;
   min-height: 286px;
   max-height: calc(100dvh - var(--header-height) - var(--bottom-nav-height) - var(--safe-area-bottom));
   overflow-y: auto;
@@ -244,10 +245,16 @@
 }
 
 .bottomSheet.minimized {
-  transform: translateY(calc(100% - 160px));
+  height: var(--bottom-sheet-peek);
+  min-height: var(--bottom-sheet-peek);
+  max-height: var(--bottom-sheet-peek);
+  overflow: hidden;
+  transform: none;
 }
 
 .bottomSheet.expanded {
+  height: auto;
+  min-height: 286px;
   transform: translateY(0);
 }
 
@@ -276,12 +283,18 @@
   font-weight: 600;
   color: var(--color-text-primary);
   margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bottomSheet p {
   font-size: 0.9rem;
   color: var(--color-text-secondary);
   margin-bottom: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sheet-content {
