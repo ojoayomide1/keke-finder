@@ -159,7 +159,7 @@
   z-index: 100;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  background: rgba(13, 13, 13, 0.92);
+  background: var(--color-header-bg);
 }
 
 .menuBtn {

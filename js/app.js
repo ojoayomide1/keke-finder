@@ -73,7 +73,7 @@ function applyTheme(theme) {
   const isLight = theme === "light";
   document.body.classList.toggle("light-theme", isLight);
   document.querySelectorAll("[data-theme-toggle]").forEach(toggle => {
-    toggle.checked = isLight;
+    toggle.checked = !isLight;
   });
   try {
     localStorage.setItem(THEME_STORAGE_KEY, isLight ? "light" : "dark");
@@ -84,17 +84,17 @@ function applyTheme(theme) {
 }
 
 function initTheme() {
-  let savedTheme = "dark";
+  let savedTheme = "light";
   try {
-    savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || "dark";
+    savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || "light";
   } catch (err) {
     console.warn("Unable to read theme preference:", err);
   }
-  applyTheme(savedTheme === "light" ? "light" : "dark");
+  applyTheme(savedTheme === "dark" ? "dark" : "light");
 }
 
 function toggleAppTheme(checked) {
-  applyTheme(checked ? "light" : "dark");
+  applyTheme(checked ? "dark" : "light");
 }
 
 initTheme();
