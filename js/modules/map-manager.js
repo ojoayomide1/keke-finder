@@ -79,6 +79,28 @@ export function getDistance(lat1, lon1, lat2, lng2) {
   return R * c; 
 }
 
+function getTileLayerConfig() {
+  const isLight = document.body?.classList.contains("light-theme");
+  return {
+    url: isLight
+      ? "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    options: {
+      attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+      maxZoom: 20
+    }
+  };
+}
+
+export function refreshMapTheme() {
+  if (!state.map) return;
+  const { url, options } = getTileLayerConfig();
+  if (state.tileLayer) {
+    try { state.map.removeLayer(state.tileLayer); } catch (e) { console.warn("Map theme refresh warning:", e); }
+  }
+  state.tileLayer = L.tileLayer(url, options).addTo(state.map);
+}
+
 export function initMap(mapId) {
   if (state.map) {
     try {
@@ -95,6 +117,7 @@ export function initMap(mapId) {
   state.riderMarker = null;
   state.userMarker = null;
   state.routeControl = null;
+  state.tileLayer = null;
   state.requestMarkers = [];
   state.activeMarkerAnimations.forEach(id => cancelAnimationFrame(id));
   state.activeMarkerAnimations.clear();
@@ -105,13 +128,8 @@ export function initMap(mapId) {
 
   state.map = L.map(mapId, { tap: false, zoomControl: false }).setView([9.2880, 7.4130], 16);
   
-  L.tileLayer(
-    'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      maxZoom: 20
-    }
-  ).addTo(state.map);
+  const { url, options } = getTileLayerConfig();
+  state.tileLayer = L.tileLayer(url, options).addTo(state.map);
   
   renderCampusMapData(state.map);
   setTimeout(() => state.map && state.map.invalidateSize(), 500);

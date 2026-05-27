@@ -33,7 +33,8 @@ import {
   initMap, 
   animateMarker, 
   getDistance,
-  stabilizeLocation
+  stabilizeLocation,
+  refreshMapTheme
 } from "./modules/map-manager.js";
 import { 
   populateLocations, 
@@ -53,6 +54,50 @@ import {
 import { startScheduledRidesProcessor } from "./modules/scheduled-rides.js";
 import { listenToStudentWallet, renderStudentWallet } from "./wallet.js";
 import { listenToRiderWallet, renderRiderWallet } from "./riderWallet.js";
+
+const THEME_STORAGE_KEY = "oprTheme";
+
+const pathfinderStudentIcon = L.divIcon({
+  html: `
+    <div class="pathfinder-student-marker">
+      <i class="fas fa-person-walking"></i>
+    </div>
+  `,
+  className: "",
+  iconSize: [38, 38],
+  iconAnchor: [19, 19],
+  popupAnchor: [0, -18]
+});
+
+function applyTheme(theme) {
+  const isLight = theme === "light";
+  document.body.classList.toggle("light-theme", isLight);
+  document.querySelectorAll("[data-theme-toggle]").forEach(toggle => {
+    toggle.checked = isLight;
+  });
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, isLight ? "light" : "dark");
+  } catch (err) {
+    console.warn("Unable to save theme preference:", err);
+  }
+  refreshMapTheme();
+}
+
+function initTheme() {
+  let savedTheme = "dark";
+  try {
+    savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || "dark";
+  } catch (err) {
+    console.warn("Unable to read theme preference:", err);
+  }
+  applyTheme(savedTheme === "light" ? "light" : "dark");
+}
+
+function toggleAppTheme(checked) {
+  applyTheme(checked ? "light" : "dark");
+}
+
+initTheme();
 
 // ================= GLOBAL BINDINGS =================
 function toggleSidebar() {
@@ -291,7 +336,7 @@ async function navigateToLandmark(landmarkId) {
     const etaMinutes = Math.max(1, Math.round(distance / 80));
 
     if (!state.userMarker) {
-      state.userMarker = L.marker([latitude, longitude]).addTo(state.map).bindPopup("Your Location");
+      state.userMarker = L.marker([latitude, longitude], { icon: pathfinderStudentIcon }).addTo(state.map).bindPopup("Your Location");
     } else {
       state.userMarker.setLatLng([latitude, longitude]);
     }
@@ -388,6 +433,7 @@ function bindAppGlobals() {
   window.showMap = showMap;
   window.hideMap = hideMap;
   window.hideRiderMap = hideRiderMap;
+  window.toggleAppTheme = toggleAppTheme;
   window.requestKeke = requestKeke;
   window.cancelRide = cancelRide;
   window.completeRide = completeRide;

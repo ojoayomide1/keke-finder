@@ -3,6 +3,7 @@
   --color-bg-primary:     #0D0D0D;  /* main background */
   --color-bg-secondary:   #1A1A1A;  /* card backgrounds */
   --color-bg-tertiary:    #242424;  /* input backgrounds, elevated surfaces */
+  --color-nav-bg:         rgba(26, 26, 26, 0.96);
 
   /* Brand */
   --color-accent:         #FF5E1A;  /* primary orange — buttons, active states, highlights */
@@ -51,4 +52,26 @@
   --admin-surface:   #111111;
   --admin-card:      #161616;
   --admin-border:    #222222;
+}
+
+body.light-theme {
+  --color-bg-primary:     #F6F7F9;
+  --color-bg-secondary:   #FFFFFF;
+  --color-bg-tertiary:    #EEF1F5;
+  --color-nav-bg:         rgba(255, 255, 255, 0.96);
+
+  --color-text-primary:   #111827;
+  --color-text-secondary: #5B6472;
+  --color-text-tertiary:  #8A94A6;
+
+  --color-border:         #E1E6EF;
+
+  --shadow-card:          0 4px 24px rgba(17, 24, 39, 0.08);
+  --shadow-bottom-nav:    0 -4px 24px rgba(17, 24, 39, 0.1);
+  --shadow-accent:        0 4px 20px rgba(255, 94, 26, 0.22);
+
+  --admin-bg:        #F6F7F9;
+  --admin-surface:   #FFFFFF;
+  --admin-card:      #FFFFFF;
+  --admin-border:    #E1E6EF;
 }

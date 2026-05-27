@@ -517,6 +517,44 @@
 .settings-list { background: var(--color-bg-secondary); border-radius: 20px; overflow: hidden; border: 1px solid var(--color-border); }
 .settings-item { padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; color: var(--color-text-primary); cursor: pointer; }
 .settings-item:last-child { border-bottom: none; }
+.settings-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.settings-copy small {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.theme-switch {
+  width: 52px;
+  height: 30px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-tertiary);
+  padding: 3px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.theme-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.theme-switch span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: var(--shadow-card);
+  transform: translateX(0);
+  transition: transform 0.2s ease;
+}
+.theme-switch input:checked + span {
+  transform: translateX(22px);
+}
 
 /* Wallet */
 .wallet-balance-panel {
@@ -592,7 +630,7 @@
   left: 0;
   right: 0;
   height: var(--bottom-nav-height);
-  background: rgba(26, 26, 26, 0.96);
+  background: var(--color-nav-bg);
   border-top: 1px solid var(--color-border);
   display: flex;
   align-items: center;

@@ -10,6 +10,7 @@ export const state = {
   lastRiderLoc: null,
   requestMarkers: [],
   riderMarker: null,
+  tileLayer: null,
   routeControl: null,
   userMarker: null,
   latestRide: null,
