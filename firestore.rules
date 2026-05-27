@@ -1,0 +1,545 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasUserDoc() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userRole() {
+      return currentUserDoc().data.role;
+    }
+
+    function isStudent() {
+      // Allow if user has a document OR if the user is authenticated and just created (to handle race condition during signup)
+      return (hasUserDoc() && userRole() == "student") || (isSignedIn() && request.auth.token.role == "student");
+    }
+
+    function isRider() {
+      return (hasUserDoc() && userRole() == "rider") || (isSignedIn() && request.auth.token.role == "rider");
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function validShortString(value, maxLength) {
+      return value is string && value.size() > 0 && value.size() <= maxLength;
+    }
+
+    function validPoint(point) {
+      return point is map
+        && point.keys().hasOnly(["lat", "lng", "label"])
+        && point.lat is number
+        && point.lng is number
+        && validShortString(point.label, 80);
+    }
+
+    function validCoords(point) {
+      return point is map
+        && point.keys().hasOnly(["lat", "lng"])
+        && point.lat is number
+        && point.lng is number;
+    }
+
+    function validSeats(seats) {
+      return seats is map
+        && seats.keys().hasOnly(["total", "occupied", "available"])
+        && seats.total is int
+        && seats.occupied is int
+        && seats.available is int
+        && seats.total >= 1
+        && seats.total <= 20
+        && seats.occupied >= 0
+        && seats.available >= 0
+        && seats.occupied + seats.available == seats.total;
+    }
+
+    function validRideStatus(status) {
+      return status in ["waiting", "active", "completed"];
+    }
+
+    function validWallet(wallet) {
+      return wallet is map
+        && wallet.keys().hasOnly(["balance", "currency", "lastTopUp", "lastDeduction"])
+        && wallet.balance is int
+        && wallet.balance >= 0
+        && wallet.currency == "NGN";
+    }
+
+    function validDebt(debt) {
+      return debt is map
+        && debt.keys().hasOnly(["amount", "rideId", "incurredAt"])
+        && debt.amount is int
+        && debt.amount >= 0;
+    }
+
+    function validEarnings(earnings) {
+      return earnings is map
+        && earnings.keys().hasOnly(["balance", "totalEarned", "lastPayout"])
+        && earnings.balance is int
+        && earnings.totalEarned is int
+        && earnings.balance >= 0
+        && earnings.totalEarned >= 0;
+    }
+
+    function validUserCreate(userId) {
+      return isOwner(userId)
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role in ["student", "rider"]
+        && (
+          (
+            request.resource.data.role == "student"
+            && exists(/databases/$(database)/documents/authorized_students/$(request.resource.data.matricNo.replace('/', '-').replace('/', '-').replace('/', '-')))
+          )
+          ||
+          (
+            request.resource.data.role == "rider"
+            && exists(/databases/$(database)/documents/authorized_riders/$(request.resource.data.plateNo))
+          )
+        );
+    }
+
+    function validUserUpdate(userId) {
+      return isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["name", "phone"])
+        && (!("name" in request.resource.data) || validShortString(request.resource.data.name, 80))
+        && (!("phone" in request.resource.data) || validShortString(request.resource.data.phone, 20))
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    function studentFareOrDebtUpdate(userId) {
+      return isOwner(userId)
+        && isStudent()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["wallet", "debt"])
+        && validWallet(request.resource.data.wallet)
+        && validDebt(request.resource.data.debt);
+    }
+
+    function studentDebtClearUpdate(userId) {
+      return isOwner(userId)
+        && isStudent()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["wallet", "debt"])
+        && validWallet(request.resource.data.wallet)
+        && validDebt(request.resource.data.debt)
+        && request.resource.data.debt.amount == 0;
+    }
+
+    function riderChargesStudent(userId) {
+      return isRider()
+        && request.auth.uid != userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["wallet", "debt"])
+        && validWallet(request.resource.data.wallet)
+        && (
+          !("debt" in request.resource.data) || validDebt(request.resource.data.debt)
+        );
+    }
+
+    function riderEarningsUpdate(userId) {
+      return isOwner(userId)
+        && isRider()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["earnings"])
+        && validEarnings(request.resource.data.earnings);
+    }
+
+    function adminRefundsRiderEarnings() {
+      return isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["earnings"])
+        && validEarnings(request.resource.data.earnings);
+    }
+
+    function validWithdrawalCreate() {
+      return isRider()
+        && request.resource.data.keys().hasOnly([
+          "riderId", "riderName", "amount", "bankName", "accountNumber",
+          "accountName", "status", "requestedAt", "paidAt", "rejectedReason"
+        ])
+        && request.resource.data.riderId == request.auth.uid
+        && validShortString(request.resource.data.riderName, 80)
+        && request.resource.data.amount is int
+        && request.resource.data.amount > 0
+        && request.resource.data.amount <= 100000000
+        && validShortString(request.resource.data.bankName, 80)
+        && validShortString(request.resource.data.accountNumber, 20)
+        && validShortString(request.resource.data.accountName, 80)
+        && request.resource.data.status == "pending"
+        && request.resource.data.requestedAt == request.time
+        && request.resource.data.paidAt == null
+        && request.resource.data.rejectedReason == null;
+    }
+
+    function adminWithdrawalUpdate() {
+      return isAdmin()
+        && request.resource.data.riderId == resource.data.riderId
+        && request.resource.data.amount == resource.data.amount
+        && request.resource.data.bankName == resource.data.bankName
+        && request.resource.data.accountNumber == resource.data.accountNumber
+        && request.resource.data.accountName == resource.data.accountName
+        && request.resource.data.requestedAt == resource.data.requestedAt
+        && request.resource.data.status in ["paid", "rejected"];
+    }
+
+    function validWalletTransactionCreate() {
+      return request.resource.data.keys().hasOnly([
+          "userId", "type", "amount", "balanceBefore", "balanceAfter",
+          "description", "reference", "rideId", "status", "createdAt"
+        ])
+        && request.resource.data.userId is string
+        && request.resource.data.type in ["deduction", "earning", "commission", "withdrawal", "refund"]
+        && request.resource.data.amount is int
+        && request.resource.data.amount >= 0
+        && request.resource.data.status == "success"
+        && request.resource.data.createdAt == request.time
+        && validShortString(request.resource.data.description, 160)
+        && (
+          (isRider() && request.resource.data.type in ["deduction", "earning", "commission"])
+          || (isAdmin() && request.resource.data.type in ["withdrawal", "refund"])
+        );
+    }
+
+    function validAdminWalletUpdate() {
+      return isRider()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["balance", "totalEarned", "lastUpdated"])
+        && request.resource.data.balance is int
+        && request.resource.data.totalEarned is int
+        && request.resource.data.balance >= (resource.data.get("balance", 0))
+        && request.resource.data.totalEarned >= (resource.data.get("totalEarned", 0))
+        && request.resource.data.lastUpdated == request.time;
+    }
+
+    function validAdminWalletCreate() {
+      return isRider()
+        && request.resource.data.keys().hasOnly(["balance", "totalEarned", "lastUpdated"])
+        && request.resource.data.balance is int
+        && request.resource.data.totalEarned is int
+        && request.resource.data.balance >= 0
+        && request.resource.data.balance <= 5000
+        && request.resource.data.totalEarned >= 0
+        && request.resource.data.totalEarned == request.resource.data.balance
+        && request.resource.data.lastUpdated == request.time;
+    }
+
+    function validRideCreate() {
+      return isRider()
+        && request.resource.data.keys().hasOnly([
+          "riderId", "riderName", "status", "seats", "currentLocation",
+          "stopQueue", "passengers", "createdAt", "updatedAt"
+        ])
+        && request.resource.data.riderId == request.auth.uid
+        && validShortString(request.resource.data.riderName, 80)
+        && request.resource.data.status == "waiting"
+        && validSeats(request.resource.data.seats)
+        && request.resource.data.seats.occupied == 0
+        && validCoords(request.resource.data.currentLocation)
+        && request.resource.data.stopQueue is list
+        && request.resource.data.stopQueue.size() == 0
+        && request.resource.data.passengers is map
+        && request.resource.data.passengers.keys().size() == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function rideOwnerUpdate() {
+      return isRider()
+        && resource.data.riderId == request.auth.uid
+        && request.resource.data.riderId == resource.data.riderId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && validRideStatus(request.resource.data.status)
+        && validSeats(request.resource.data.seats)
+        && validCoords(request.resource.data.currentLocation)
+        && request.resource.data.stopQueue is list
+        && request.resource.data.stopQueue.size() <= 40
+        && request.resource.data.passengers is map
+        && request.resource.data.passengers.keys().size() <= request.resource.data.seats.total;
+    }
+
+    function studentClaimSeat() {
+      return isStudent()
+        && resource.data.status in ["waiting", "active"]
+        && resource.data.seats.available > 0
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["stopQueue", "passengers", "seats", "updatedAt"])
+        && request.resource.data.riderId == resource.data.riderId
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.seats.total == resource.data.seats.total
+        && request.resource.data.seats.occupied == resource.data.seats.occupied + 1
+        && request.resource.data.seats.available == resource.data.seats.available - 1
+        && validSeats(request.resource.data.seats)
+        && !(request.auth.uid in resource.data.passengers)
+        && request.auth.uid in request.resource.data.passengers
+        && request.resource.data.stopQueue is list
+        && request.resource.data.stopQueue.size() == resource.data.stopQueue.size() + 2
+        && request.resource.data.passengers.keys().size() == resource.data.passengers.keys().size() + 1;
+    }
+
+    function passengerCancelRide() {
+      return isStudent()
+        && request.auth.uid in resource.data.passengers
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["stopQueue", "passengers", "seats", "updatedAt"])
+        && request.resource.data.riderId == resource.data.riderId
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.seats.total == resource.data.seats.total
+        && request.resource.data.seats.occupied == resource.data.seats.occupied - 1
+        && request.resource.data.seats.available == resource.data.seats.available + 1
+        && validSeats(request.resource.data.seats)
+        && request.resource.data.passengers[request.auth.uid].pickupStatus == "cancelled";
+    }
+
+    function validRideRequestCreate() {
+      return isStudent()
+        && request.resource.data.keys().hasOnly([
+          "studentId", "studentName", "pickup", "dropoff", "rideType",
+          "status", "matchedRideId", "requestedAt"
+        ])
+        && request.resource.data.studentId == request.auth.uid
+        && validShortString(request.resource.data.studentName, 80)
+        && validPoint(request.resource.data.pickup)
+        && validPoint(request.resource.data.dropoff)
+        && request.resource.data.rideType == "pool"
+        && request.resource.data.status == "searching"
+        && request.resource.data.matchedRideId == null
+        && request.resource.data.requestedAt == request.time;
+    }
+
+    function requestOwnerBase() {
+      return isOwner(resource.data.studentId)
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.requestedAt == resource.data.requestedAt
+        && request.resource.data.pickup == resource.data.pickup
+        && request.resource.data.dropoff == resource.data.dropoff
+        && request.resource.data.rideType == resource.data.rideType;
+    }
+
+    function ownerMarksRequestMatched() {
+      return requestOwnerBase()
+        && resource.data.status == "searching"
+        && request.resource.data.status == "matched"
+        && request.resource.data.matchedRideId is string
+        && getAfter(/databases/$(database)/documents/rides/$(request.resource.data.matchedRideId))
+          .data.passengers[request.auth.uid].pickupStatus == "pending";
+    }
+
+    function ownerMarksRequestQueued(requestId) {
+      return requestOwnerBase()
+        && resource.data.status == "searching"
+        && request.resource.data.status == "queued"
+        && request.resource.data.queueDocId is string
+        && getAfter(/databases/$(database)/documents/waitingQueue/$(request.resource.data.queueDocId))
+          .data.studentId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/waitingQueue/$(request.resource.data.queueDocId))
+          .data.requestId == requestId;
+    }
+
+    function riderMarksQueuedRequestMatched() {
+      return isRider()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["status", "matchedRideId"])
+        && resource.data.status == "queued"
+        && request.resource.data.status == "matched"
+        && request.resource.data.matchedRideId is string
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.requestedAt == resource.data.requestedAt
+        && request.resource.data.pickup == resource.data.pickup
+        && request.resource.data.dropoff == resource.data.dropoff
+        && request.resource.data.rideType == resource.data.rideType
+        && getAfter(/databases/$(database)/documents/rides/$(request.resource.data.matchedRideId))
+          .data.riderId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/rides/$(request.resource.data.matchedRideId))
+          .data.passengers[resource.data.studentId].pickupStatus == "pending";
+    }
+
+    function ownerCancelsOrHidesRequest() {
+      return requestOwnerBase()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["status", "cancelledAt", "deletedByStudent"])
+        && (
+          (
+            request.resource.data.status == "cancelled"
+            && request.resource.data.cancelledAt == request.time
+          )
+          ||
+          (
+            request.resource.data.status == resource.data.status
+            && request.resource.data.deletedByStudent == true
+          )
+        );
+    }
+
+    function validQueueCreate() {
+      return isStudent()
+        && request.resource.data.keys().hasOnly([
+          "studentId", "studentName", "requestId", "pickup", "dropoff",
+          "joinedAt", "position", "estimatedWait", "notified"
+        ])
+        && request.resource.data.studentId == request.auth.uid
+        && (!("studentName" in request.resource.data) || validShortString(request.resource.data.studentName, 80))
+        && request.resource.data.requestId is string
+        && validPoint(request.resource.data.pickup)
+        && validPoint(request.resource.data.dropoff)
+        && request.resource.data.joinedAt == request.time
+        && request.resource.data.position is int
+        && request.resource.data.position > 0
+        && validShortString(request.resource.data.estimatedWait, 30)
+        && request.resource.data.notified == false;
+    }
+
+    function queueOwnerUpdate() {
+      return isOwner(resource.data.studentId)
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.requestId == resource.data.requestId
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["notified", "position", "estimatedWait"]);
+    }
+
+    function riderMarksQueuedStudentNotified() {
+      return isRider()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["notified"])
+        && resource.data.notified == false
+        && request.resource.data.notified == true;
+    }
+
+    function validScheduleCreate() {
+      return isStudent()
+        && request.resource.data.keys().hasOnly([
+          "studentId", "studentName", "pickup", "dropoff",
+          "scheduledFor", "status", "assignedRideId"
+        ])
+        && request.resource.data.studentId == request.auth.uid
+        && validShortString(request.resource.data.studentName, 80)
+        && validPoint(request.resource.data.pickup)
+        && validPoint(request.resource.data.dropoff)
+        && request.resource.data.scheduledFor is timestamp
+        && request.resource.data.scheduledFor > request.time
+        && request.resource.data.status == "pending"
+        && request.resource.data.assignedRideId == null;
+    }
+
+    function scheduleOwnerUpdate() {
+      return isOwner(resource.data.studentId)
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.pickup == resource.data.pickup
+        && request.resource.data.dropoff == resource.data.dropoff
+        && request.resource.data.scheduledFor == resource.data.scheduledFor
+        && request.resource.data.status in ["pending", "confirmed", "cancelled"]
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["status", "assignedRideId"]);
+    }
+
+    match /authorized_students/{matricNo} {
+      allow get: if true;
+      allow write: if isAdmin();
+    }
+
+    match /authorized_riders/{plateNo} {
+      allow get: if true;
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin() || isRider();
+      allow list: if false;
+      allow create: if validUserCreate(userId);
+      allow update: if validUserUpdate(userId)
+        || studentFareOrDebtUpdate(userId)
+        || studentDebtClearUpdate(userId)
+        || riderChargesStudent(userId)
+        || riderEarningsUpdate(userId)
+        || adminRefundsRiderEarnings();
+      allow delete: if false;
+    }
+
+    match /rides/{rideId} {
+      // Students need to list available rides because this project is client-only.
+      allow read: if isSignedIn();
+      allow create: if validRideCreate();
+      allow update: if rideOwnerUpdate() || studentClaimSeat() || passengerCancelRide();
+      allow delete: if false;
+    }
+
+    match /rideRequests/{requestId} {
+      allow get: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid
+        || (
+          resource.data.matchedRideId is string
+          && get(/databases/$(database)/documents/rides/$(resource.data.matchedRideId)).data.riderId == request.auth.uid
+        )
+      );
+      allow list: if isStudent() || isRider();
+      allow create: if validRideRequestCreate();
+      allow update: if ownerMarksRequestMatched()
+        || ownerMarksRequestQueued(requestId)
+        || riderMarksQueuedRequestMatched()
+        || ownerCancelsOrHidesRequest();
+      allow delete: if false;
+    }
+
+    match /waitingQueue/{queueId} {
+      allow get: if isOwner(resource.data.studentId) || isRider();
+      // Riders currently scan the queue client-side to notify nearby students.
+      allow list: if isRider();
+      allow create: if validQueueCreate();
+      allow update: if queueOwnerUpdate() || riderMarksQueuedStudentNotified();
+      allow delete: if isOwner(resource.data.studentId);
+    }
+
+    match /scheduledRides/{scheduleId} {
+      allow get: if isOwner(resource.data.studentId);
+      allow list: if isStudent();
+      allow create: if validScheduleCreate();
+      allow update: if scheduleOwnerUpdate();
+      allow delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow get, list: if isSignedIn() && resource.data.studentId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    match /adminWallet/{walletId} {
+      allow read: if isAdmin() || isRider();
+      allow create: if walletId == "main" && validAdminWalletCreate();
+      allow update: if walletId == "main" && validAdminWalletUpdate();
+      allow delete: if false;
+    }
+
+    match /withdrawalRequests/{requestId} {
+      allow get, list: if isAdmin() || (isSignedIn() && resource.data.riderId == request.auth.uid);
+      allow create: if validWithdrawalCreate();
+      allow update: if adminWithdrawalUpdate();
+      allow delete: if false;
+    }
+
+    match /walletTransactions/{transactionId} {
+      allow get, list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if validWalletTransactionCreate();
+      allow update, delete: if false;
+    }
+
+    match /{path=**}/walletTransactions/{transactionId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    match /topUpRequests/{requestId} {
+      allow get, list: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow write: if false;
+    }
+  }
+}

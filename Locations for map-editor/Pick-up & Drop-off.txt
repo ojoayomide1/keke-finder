@@ -1,0 +1,45 @@
+Behind Block B
+{
+  "locations": [
+    {
+      "id": "behind_block_b",
+      "name": "Behind Block B",
+      "category": "landmark",
+      "lat": 9.289042,
+      "lng": 7.415558
+    }
+  ],
+  "paths": [],
+  "zones": []
+}
+
+Hostel I
+{
+  "locations": [
+    {
+      "id": "hostel_i",
+      "name": "Hostel I",
+      "category": "landmark",
+      "lat": 9.286919,
+      "lng": 7.411334
+    }
+  ],
+  "paths": [],
+  "zones": []
+}
+
+Hostel L
+{
+  "locations": [
+    {
+      "id": "unnamed",
+      "name": "Unnamed",
+      "category": "landmark",
+      "lat": 9.286366,
+      "lng": 7.411976
+    }
+  ],
+  "paths": [],
+  "zones": []
+}
+

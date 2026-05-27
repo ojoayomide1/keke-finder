@@ -1,118 +1,601 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Keke Finder</title>
+  <title>OpRides</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/brand/favicon-16.png">
+  <link rel="apple-touch-icon" href="assets/brand/opr-app-icon.png">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <!-- LOGIN SCREEN -->
+  <!-- SPLASH SCREEN -->
+  <div class="splash-screen" id="splash">
+    <div class="splash-logo">OP<span>rides</span></div>
+    <div class="splash-tagline">Move smarter on campus</div>
+    <div class="splash-dot"></div>
+  </div>
+
+  <div id="sidebarOverlay" class="sidebar-overlay hidden" onclick="closeSidebar()"></div>
+  <aside id="studentSidebar" class="sidebar hidden" aria-label="App menu">
+    <div class="sidebar-header">
+      <div class="app-logo">OP<span>rides</span></div>
+      <button type="button" class="iconBtn sidebar-close" onclick="closeSidebar()" aria-label="Close menu">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <div class="sidebar-profile">
+      <strong id="sidebarName">Guest</strong>
+      <span id="sidebarEmail">OpRides</span>
+    </div>
+    <nav id="sidebarNav" class="sidebar-nav"></nav>
+  </aside>
+
+  <!-- AUTH SCREEN -->
   <div id="loginScreen" class="screen center">
-    <h1> Keke Finder</h1>
-    <p>Veritas University  Abuja</p>
+    <div class="auth-brand">
+      <div class="brand-lockup brand-lockup-light" role="img" aria-label="OpRides">
+        <svg class="brand-icon" viewBox="0 0 96 96" aria-hidden="true">
+          <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
+            <path d="M14 32h22" />
+            <path d="M8 48h28" />
+            <path d="M14 64h22" />
+            <path d="M58 14c15 0 27 12 27 27 0 20-27 43-27 43S31 61 31 41c0-15 12-27 27-27Z" />
+            <circle cx="58" cy="41" r="8" />
+          </g>
+        </svg>
+        <span class="brand-text" aria-hidden="true"><span class="brand-op">OP</span><span class="brand-rides">rides</span></span>
+      </div>
+      <p>Let's move.</p>
+    </div>
 
     <div class="auth-card">
-      <input type="text" id="displayName" placeholder="Full name" class="input-field hidden" autocomplete="name">
-      <input type="email" id="email" placeholder="Email address" class="input-field" autocomplete="email">
-      <input type="password" id="password" placeholder="Password" class="input-field" autocomplete="current-password">
-      <p id="authMessage" class="auth-message"></p>
+      <!-- Auth Tabs -->
+      <div class="auth-tabs" id="authTabs">
+        <button type="button" onclick="setAuthMode('login')" class="tab-btn active" id="loginTab">Login</button>
+        <button type="button" onclick="setAuthMode('signup')" class="tab-btn" id="signupTab">Sign Up</button>
+      </div>
 
-      <button type="button" id="authSubmitBtn" onclick="login()" class="green auth-primary">
-        Login
-      </button>
+      <!-- Role Selection (Visible only in Signup Mode) -->
+      <div id="roleToggle" class="role-toggle hidden">
+        <button type="button" onclick="setSignupRole('student')" class="role-btn active" id="roleStudent">Student</button>
+        <button type="button" onclick="setSignupRole('rider')" class="role-btn" id="roleRider">Rider</button>
+      </div>
 
-      <button type="button" id="authToggleBtn" onclick="showSignup()" class="auth-secondary">
-        Create New Account
-      </button>
+      <div class="auth-form">
+        <!-- Common Fields -->
+        <input type="text" id="displayName" placeholder="Full name" class="input-field hidden" autocomplete="name">
+        
+        <!-- Student Specific -->
+        <input type="text" id="matricNo" placeholder="Matric Number" class="input-field hidden">
+        
+        <!-- Rider Specific -->
+        <div id="riderFields" class="hidden">
+          <input type="text" id="plateNo" placeholder="Plate Number" class="input-field">
+          <select id="vehicleType" class="input-field" style="margin-top: 10px;">
+            <option value="keke">Keke</option>
+            <option value="shuttle">Campus Shuttle</option>
+          </select>
+        </div>
+        
+        <!-- Shared Info -->
+        <input type="tel" id="phoneNumber" placeholder="Phone Number" class="input-field hidden">
+        <input type="email" id="email" placeholder="Email address" class="input-field" autocomplete="email">
+        <input type="password" id="password" placeholder="Password" class="input-field" autocomplete="current-password">
+        
+        <p id="authMessage" class="auth-message"></p>
 
-      <p class="auth-divider">OR</p>
+        <button type="button" id="authSubmitBtn" onclick="handleAuthSubmit()" class="green auth-primary">
+          Login
+        </button>
 
-      <button type="button" onclick="continueAs('student')" class="green auth-primary">
-         Continue as Student
-      </button>
-      
-      <button type="button" onclick="continueAs('rider')" class="yellow auth-primary">
-         Continue as Rider
-      </button>
+        <p class="auth-divider">OR</p>
+
+        <button type="button" onclick="continueAsGuest()" class="auth-secondary">
+           Continue as Guest
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- ROLE SELECT -->
   <div id="roleSelect" class="screen center hidden">
     <button type="button" id="logoutBtn" class="logoutBtn hidden" onclick="logout()">Logout</button>
-    <h1> Keke Finder</h1>
+    <div class="brand-lockup brand-lockup-light" role="img" aria-label="OpRides">
+      <svg class="brand-icon" viewBox="0 0 96 96" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
+          <path d="M14 32h22" />
+          <path d="M8 48h28" />
+          <path d="M14 64h22" />
+          <path d="M58 14c15 0 27 12 27 27 0 20-27 43-27 43S31 61 31 41c0-15 12-27 27-27Z" />
+          <circle cx="58" cy="41" r="8" />
+        </g>
+      </svg>
+      <span class="brand-text" aria-hidden="true"><span class="brand-op">OP</span><span class="brand-rides">rides</span></span>
+    </div>
     <p id="userBadge" class="user-badge hidden"></p>
-    <p>Choose your role</p>
-    
+    <p>How are you moving today?</p>
+
     <button type="button" onclick="selectRole('student')" class="green" style="width:80%; max-width:280px;">
-       I'm a Student - Find Keke
+       I'm a Student
     </button>
-    
+
     <button type="button" onclick="selectRole('rider')" class="yellow" style="width:80%; max-width:280px;">
        I'm a Rider - Go Online
     </button>
   </div>
 
+
   <!-- STUDENT UI -->
   <div id="studentUI" class="screen hidden">
-    <div id="studentMap" class="map"></div>
-    <div id="campusEditor" class="campus-editor hidden">
-      <div class="campus-editor__header">
-        <strong>Campus Editor</strong>
-        <button type="button" id="clearCampusDraftBtn">Clear</button>
+    <header class="app-header">
+      <button type="button" class="iconBtn menuBtn" onclick="toggleSidebar()" aria-label="Open menu">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="app-logo">OP<span>rides</span></div>
+      <div class="header-right">
+        <a class="balance-chip" onclick="switchTab('wallet')">
+          <span class="balance-icon">₦</span>
+          <span class="balance-amount" id="header-balance-student">0</span>
+          <span class="add-btn">+</span>
+        </a>
       </div>
+    </header>
 
-      <label for="campusPointName">Name</label>
-      <input type="text" id="campusPointName" placeholder="Main Gate" autocomplete="off">
+    <!-- Home / VeriRide Section -->
+    <div id="studentDashboard" class="dashboard-container tab-view">
+      <main class="dashboard-body fade-in">
+        <div class="welcome-section">
+          <p class="welcome-greeting">Good morning ☀️</p>
+          <h1 class="welcome-name" id="welcome-name-student">Student<span>.</span></h1>
+        </div>
 
-      <label for="campusPointType">Mode</label>
-      <select id="campusPointType">
-        <option value="location">Location marker</option>
-        <option value="path">Path / road</option>
-        <option value="zone">Zone / boundary</option>
-      </select>
+        <!-- Active Ride Banner (Hidden by default) -->
+        <div id="activeRideBanner" class="active-ride-banner ride-pulse hidden" onclick="switchTab('live')">
+          <div class="active-ride-banner-left">
+            <span class="active-ride-banner-icon">🛺</span>
+            <span class="active-ride-banner-text" id="activeRideStatusText">Your ride is on the way</span>
+          </div>
+          <span class="active-ride-banner-arrow">→</span>
+        </div>
 
-      <p id="campusEditorHint">Click the map to capture coordinates.</p>
-      <textarea id="campusEditorOutput" readonly spellcheck="false"></textarea>
-      <button type="button" id="saveCampusShapeBtn">Save Shape</button>
-      <button type="button" id="copyCampusJsonBtn">Copy JSON</button>
+        <div class="ride-form-card">
+          <h3>Request a ride</h3>
+          <p style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 20px;">Quick campus rides around Veritas.</p>
+          
+          <div class="form-group">
+            <label class="input-label">Pickup Location</label>
+            <select id="pickupSelect" class="input-field">
+              <option value="">Select Pickup Location</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="input-label">Drop-off Location</label>
+            <select id="dropoffSelect" class="input-field">
+              <option value="">Select Drop-off Location</option>
+            </select>
+          </div>
+          <button type="button" id="requestBtn" onclick="requestKeke()" class="btn btn-primary">
+            Request a ride
+          </button>
+        </div>
+      </main>
     </div>
-    <button class="backBtn" onclick="goBackToRole()"></button>
-    <button class="fab green" id="requestBtn" onclick="requestKeke()"> Request Ride</button>
 
-    <div class="bottomSheet" id="studentSheet">
-      <div class="dragZone"></div>
-      <div class="handle"></div>
-      <h3 id="studentTitle">Waiting...</h3>
-      <p id="studentSub">No active ride</p>
-      <!-- Students don't get controls - only riders do -->
+    <div id="walletView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>My Wallet</h2>
+      </div>
+      <div class="profile-content">
+        <div class="wallet-balance-panel">
+          <span>Balance</span>
+          <strong id="walletBalance">₦0</strong>
+          <p id="walletDebt" class="wallet-debt hidden"></p>
+          <button type="button" class="green" onclick="openTopUpScreen()">+ Top Up</button>
+        </div>
+        <h3 class="section-title">Recent Transactions</h3>
+        <div id="walletTransactionsList" class="wallet-list">
+          <p class="empty-state">No wallet transactions yet</p>
+        </div>
+      </div>
     </div>
+
+    <div id="topUpView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchTab('wallet')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Top Up Wallet</h2>
+      </div>
+      <div class="profile-content">
+        <div class="ride-form-card">
+          <div style="background: #fef3c7; color: #92400e; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 20px; text-align: center;">
+            <i class="fas fa-info-circle" style="margin-right: 5px;"></i>
+            For the fastest top-up, please select <strong>Bank Transfer</strong> in the next step.
+          </div>
+          <h3>Enter Amount</h3>
+          <div class="form-group">
+            <input type="number" id="topUpAmountInput" class="input-field" placeholder="₦0.00" style="font-size: 24px; text-align: center; padding: 20px;">
+          </div>
+          <button type="button" class="green auth-primary" onclick="continueTopUp()">Generate Account</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="transferDetailsView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchTab('topup')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Transfer Details</h2>
+      </div>
+      <div class="profile-content">
+        <div class="ride-form-card transfer-card">
+          <p>Send exactly <strong id="transferAmount">₦0</strong> to:</p>
+          <div class="settings-list">
+            <div class="settings-item"><span>Bank</span><strong id="transferBank">Wema Bank</strong></div>
+            <div class="settings-item"><span>Account</span><strong id="transferAccountNumber">Not available</strong></div>
+            <div class="settings-item"><span>Name</span><strong id="transferAccountName">OpRides</strong></div>
+            <div class="settings-item"><span>Expires</span><strong id="transferAccountExpiry" style="color: #ef4444;">--</strong></div>
+          </div>
+          <p class="wallet-note">Send the exact amount. Your wallet updates automatically after your bank confirms the transfer.</p>
+          <button type="button" class="green auth-primary" onclick="showTopUpWaitingScreen()">I've Sent The Money</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="topUpWaitingView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>Waiting for Transfer</h2>
+      </div>
+      <div class="center waiting-panel">
+        <i class="fas fa-hourglass-half"></i>
+        <h3>Waiting for your transfer...</h3>
+        <p>Your wallet will update automatically once your bank confirms the transfer.</p>
+        <button type="button" class="green" onclick="switchTab('home')">Back to Home</button>
+      </div>
+    </div>
+
+    <!-- Live Section (Map + Bottom Sheet) -->
+    <div id="liveRideView" class="view-overlay map-view hidden tab-view">
+      <div id="studentMap" class="map map-screen"></div>
+      
+      <div class="bottomSheet hidden" id="studentSheet" style="position: absolute;">
+        <div class="dragZone" onmousedown="startDrag(event, 'studentSheet')" ontouchstart="startDrag(event, 'studentSheet')">
+          <div class="handle"></div>
+        </div>
+        <h3 id="studentTitle">Live Trip</h3>
+        <p id="studentSub">Waiting for rider...</p>
+        
+        <div class="sheet-content">
+          <div class="ride-details" id="studentRideDetails"></div>
+          <div class="controls" id="studentControls" style="display:none">
+            <button type="button" onclick="cancelRide()" class="danger">Cancel Request</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Campus Map Section -->
+    <div id="pathfinderView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>Campus Map</h2>
+      </div>
+      <div id="pathfinderSelectPanel" class="profile-content">
+        <div class="ride-form-card">
+          <h3 style="margin-bottom: 8px;">Find your way</h3>
+          <p style="font-size: 13px; color: #6b7280; margin-bottom: 20px;">Find lecture halls, hostels, and campus spots fast.</p>
+          
+          <div class="form-group">
+            <label>Where are you going?</label>
+            <select id="pathfinderSelect" class="input-field" onchange="navigateToLandmark(this.value)">
+              <option value="">Select Landmark</option>
+            </select>
+          </div>
+          <button type="button" id="campusEditorOpenBtn" class="yellow hidden" onclick="openCampusEditor()">
+            <i class="fas fa-map-pin"></i>
+            Open map editor
+          </button>
+        </div>
+      </div>
+      <div id="pathfinderMapPanel" class="pathfinder-map-panel hidden">
+        <div id="pathfinderMap" class="map map-screen"></div>
+        <div id="campusEditor" class="campus-editor hidden">
+          <div class="campus-editor__header">
+            <div>
+              <strong>Campus Editor</strong>
+              <span id="campusEditorHint">Click the map to capture coordinates.</span>
+            </div>
+            <button type="button" id="clearCampusDraftBtn" class="iconBtn" aria-label="Clear draft">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+
+          <div class="campus-editor__grid">
+            <label for="campusPointName">
+              Name
+              <input type="text" id="campusPointName" class="input-field" placeholder="New pickup spot" autocomplete="off">
+            </label>
+            <label for="campusPointType">
+              Mode
+              <select id="campusPointType" class="input-field">
+                <option value="location">Marker</option>
+                <option value="path">Road / path</option>
+                <option value="zone">Zone</option>
+              </select>
+            </label>
+          </div>
+
+          <textarea id="campusEditorOutput" readonly spellcheck="false"></textarea>
+          <div class="campus-editor__actions">
+            <button type="button" id="saveCampusShapeBtn" class="yellow">
+              <i class="fas fa-draw-polygon"></i>
+              Save shape
+            </button>
+            <button type="button" id="copyCampusJsonBtn" class="green">
+              <i class="fas fa-copy"></i>
+              Copy JSON
+            </button>
+          </div>
+        </div>
+        <button type="button" id="pathfinderBackBtn" class="backBtn" onclick="resetPathfinder()" aria-label="Back to pathfinder"></button>
+        <div class="bottomSheet hidden" id="pathfinderSheet" style="position: absolute;">
+          <div class="dragZone" onmousedown="startDrag(event, 'pathfinderSheet')" ontouchstart="startDrag(event, 'pathfinderSheet')">
+            <div class="handle"></div>
+          </div>
+          <h3 id="pathfinderTitle">Route</h3>
+          <p id="pathfinderSub">Calculating route...</p>
+          <div class="sheet-content">
+            <div class="ride-details" id="pathfinderDetails"></div>
+            <div class="controls" style="display:flex">
+              <button type="button" class="green" onclick="completePathfinderSession()">Complete walk</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile Section -->
+    <div id="profileView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>Profile</h2>
+      </div>
+      <div class="profile-content">
+        <div class="profile-card">
+          <div class="profile-avatar">S</div>
+          <h3 id="profileName">Student Name</h3>
+          <p id="profileEmail">email@example.com</p>
+        </div>
+        
+        <div class="settings-list" style="margin-bottom: 20px;">
+          <div class="settings-item" onclick="switchTab('activity')">
+            <span>Ride Activity</span>
+            <i class="fas fa-chevron-right"></i>
+          </div>
+          <div class="settings-item" onclick="switchTab('wallet')">
+            <span>Wallet</span>
+            <i class="fas fa-chevron-right"></i>
+          </div>
+          <div class="settings-item">
+            <span class="settings-copy">
+              <span>Dark Mode</span>
+            </span>
+            <label class="theme-switch" aria-label="Toggle dark mode">
+              <input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)">
+              <span></span>
+            </label>
+          </div>
+          <div class="settings-item hidden" id="adminLinkStudent" onclick="window.location.href='/admin.html'">
+            <span style="color: #22c55e; font-weight: bold;">Admin Dashboard</span>
+            <i class="fas fa-shield-alt" style="color: #22c55e;"></i>
+          </div>
+          <div class="settings-item">
+            <span>App Version</span>
+            <strong>1.2.0</strong>
+          </div>
+        </div>
+        
+        <button onclick="logout()" class="danger-text">Logout from account</button>
+      </div>
+    </div>
+
+    <!-- Activity (Nested in Profile usually, but kept as overlay for now) -->
+    <div id="activityView" class="view-overlay hidden">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchTab('profile')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Your Activity</h2>
+      </div>
+      <div id="activityList" class="activity-list">
+        <p class="empty-state">No recent activity</p>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <button class="nav-tab active" id="tab-home" onclick="switchTab('home')">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+      </button>
+      <button class="nav-tab" id="tab-wallet" onclick="switchTab('wallet')">
+        <i class="fas fa-wallet"></i>
+        <span>Wallet</span>
+      </button>
+      <button class="nav-tab" id="tab-live" onclick="switchTab('live')">
+        <i class="fas fa-satellite-dish"></i>
+        <span>Live</span>
+      </button>
+      <button class="nav-tab" id="tab-map" onclick="switchTab('map')">
+        <i class="fas fa-map-marked-alt"></i>
+        <span>Map</span>
+      </button>
+      <button class="nav-tab" id="tab-profile" onclick="switchTab('profile')">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+      </button>
+    </nav>
   </div>
 
   <!-- RIDER UI -->
   <div id="riderUI" class="screen hidden">
-    <div id="riderMap" class="map"></div>
-    <button class="backBtn" onclick="goBackToRole()"></button>
-    <button class="fab yellow" id="goLiveBtn" onclick="becomeAvailable()"> Go Live</button>
+    <header class="app-header">
+      <button type="button" class="iconBtn menuBtn" onclick="toggleSidebar()" aria-label="Open menu">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="app-logo">OP<span>rides</span></div>
+      <div class="header-right">
+        <a class="balance-chip" onclick="switchTab('earnings')">
+          <span class="balance-icon">₦</span>
+          <span class="balance-amount" id="header-balance-rider">0</span>
+          <span class="add-btn">+</span>
+        </a>
+      </div>
+    </header>
 
-    <div class="bottomSheet" id="riderSheet">
-      <div class="dragZone"></div>
-      <div class="handle"></div>
-      <h3 id="riderTitle">Offline</h3>
-      <p id="riderSub">Go live to start</p>
-      <div class="controls" id="riderControls" style="display:none">
-        <button onclick="setArriving()" class="yellow"> Arriving</button>
-        <button onclick="completeRide()" class="green"> Complete</button>
+    <!-- Home Section -->
+    <div id="riderDashboard" class="dashboard-container tab-view">
+      <main class="dashboard-body fade-in">
+        <div class="welcome-section">
+          <p class="welcome-greeting">Good evening 🌙</p>
+          <h1 class="welcome-name" id="welcome-name-rider">Rider<span>.</span></h1>
+        </div>
+
+        <div class="earnings-progress-card">
+          <div class="earnings-progress-label">Today's Earnings</div>
+          <div class="earnings-progress-value" id="riderDashEarnings">₦0</div>
+          <p style="font-size: 11px; color: var(--color-text-secondary);">Keep moving to reach your goal.</p>
+        </div>
+        
+        <div class="status-card">
+          <h3 id="riderTitle">Offline</h3>
+          <p id="riderSub">Go live to start receiving requests</p>
+          <button class="btn btn-primary yellow" id="statusToggleBtn" onclick="toggleOnlineStatus()" style="width: 100%;">Go Online</button>
+        </div>
+
+        <div id="riderRideDetails" class="ride-details-container"></div>
+      </main>
+    </div>
+
+    <!-- Live Section (Map + Sheet) -->
+    <div id="riderLiveView" class="view-overlay map-view hidden tab-view">
+      <div id="riderMap" class="map map-screen"></div>
+      
+      <div class="bottomSheet hidden" id="riderSheet" style="position: absolute;">
+        <div class="dragZone" onmousedown="startDrag(event, 'riderSheet')" ontouchstart="startDrag(event, 'riderSheet')">
+          <div class="handle"></div>
+        </div>
+        <h3 id="riderSheetTitle">Offline</h3>
+        <p id="riderSheetSub">Go live to start</p>
+        
+        <div class="sheet-content">
+          <div class="ride-details" id="riderSheetDetails"></div>
+          <div class="controls" id="riderControls" style="display:flex">
+            <button onclick="setArriving()" class="yellow">Arriving</button>
+            <button onclick="completeRide()" class="green">Complete</button>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Profile Section -->
+    <div id="riderEarningsView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>My Earnings</h2>
+      </div>
+      <div class="profile-content">
+        <div class="wallet-balance-panel yellow-panel">
+          <span>Available Balance</span>
+          <strong id="riderEarningsBalance">₦0</strong>
+          <span>Total Earned</span>
+          <b id="riderTotalEarned">₦0</b>
+          <button type="button" class="yellow" onclick="openWithdrawalScreen()">Request Withdrawal</button>
+        </div>
+        <h3 class="section-title">Recent Earnings</h3>
+        <div id="riderEarningsList" class="wallet-list">
+          <p class="empty-state">No earnings yet</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="riderWithdrawalView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchTab('earnings')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Request Withdrawal</h2>
+      </div>
+      <div class="profile-content">
+        <div class="ride-form-card">
+          <p id="withdrawAvailable" class="wallet-note">Available: ₦0</p>
+          <div class="form-group"><label>Amount to withdraw</label><input id="withdrawAmount" class="input-field" inputmode="numeric" placeholder="₦"></div>
+          <div class="form-group"><label>Bank Name</label><input id="withdrawBankName" class="input-field"></div>
+          <div class="form-group"><label>Account Number</label><input id="withdrawAccountNumber" class="input-field" inputmode="numeric"></div>
+          <div class="form-group"><label>Account Name</label><input id="withdrawAccountName" class="input-field"></div>
+          <button type="button" class="yellow auth-primary" onclick="submitWithdrawalRequest()">Submit Request</button>
+          <p class="wallet-note">Processed within 24 hours.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="riderProfileView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>Profile</h2>
+      </div>
+      <div class="profile-content">
+        <div class="profile-card">
+          <div class="profile-avatar" style="background: #facc15;">R</div>
+          <h3 id="riderProfileName">Rider Name</h3>
+          <p id="riderProfileEmail">email@example.com</p>
+          <div style="margin-top: 10px;">
+             <span id="riderProfilePlate" class="role-tag yellow-tag">ABC-123</span>
+          </div>
+        </div>
+        
+        <div class="settings-list" style="margin-bottom: 20px;">
+          <div class="settings-item">
+            <span class="settings-copy">
+              <span>Dark Mode</span>
+            </span>
+            <label class="theme-switch" aria-label="Toggle dark mode">
+              <input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)">
+              <span></span>
+            </label>
+          </div>
+          <div class="settings-item">
+            <span>App Version</span>
+            <strong>1.2.0</strong>
+          </div>
+          <div class="settings-item hidden" id="adminLinkRider" onclick="window.location.href='/admin.html'">
+            <span style="color: #22c55e; font-weight: bold;">Admin Dashboard</span>
+            <i class="fas fa-shield-alt" style="color: #22c55e;"></i>
+          </div>
+          </div>        
+        <button onclick="logout()" class="danger-text">Logout from account</button>
+      </div>
+      </div>
+
+      <!-- Bottom Navigation Bar -->
+      <nav class="bottom-nav">
+      <button class="nav-tab active" id="tab-home" onclick="switchTab('home')">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+      </button>
+      <button class="nav-tab" id="tab-earnings" onclick="switchTab('earnings')">
+        <i class="fas fa-money-bill-wave"></i>
+        <span>Earnings</span>
+      </button>
+      <button class="nav-tab" id="tab-live" onclick="switchTab('live')">
+        <i class="fas fa-satellite-dish"></i>
+        <span>Live</span>
+      </button>
+      <button class="nav-tab" id="tab-profile" onclick="switchTab('profile')">
+        <i class="fas fa-user"></i>
+        <span>Profile</span>
+      </button>
+      </nav>
   </div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+  <script src="https://js.paystack.co/v2/inline.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

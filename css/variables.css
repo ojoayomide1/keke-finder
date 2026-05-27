@@ -1,0 +1,79 @@
+:root {
+  /* Core */
+  --color-bg-primary:     #0D0D0D;  /* main background */
+  --color-bg-secondary:   #1A1A1A;  /* card backgrounds */
+  --color-bg-tertiary:    #242424;  /* input backgrounds, elevated surfaces */
+  --color-header-bg:      rgba(13, 13, 13, 0.92);
+  --color-nav-bg:         rgba(26, 26, 26, 0.96);
+
+  /* Brand */
+  --color-accent:         #FF5E1A;  /* primary orange — buttons, active states, highlights */
+  --color-accent-dim:     #FF5E1A26; /* orange at 15% opacity — subtle backgrounds */
+  --color-accent-hover:   #FF7A3D;  /* lighter orange for hover states */
+
+  /* Text */
+  --color-text-primary:   #FFFFFF;  /* headings, important content */
+  --color-text-secondary: #999999;  /* labels, captions, secondary info */
+  --color-text-tertiary:  #555555;  /* placeholders, disabled states */
+
+  /* Status */
+  --color-success:        #00C48C;  /* green — online, completed, credited */
+  --color-warning:        #FFB800;  /* yellow — pending, waiting */
+  --color-error:          #FF4D4D;  /* red — offline, failed, error */
+  --color-info:           #3B82F6;  /* blue — informational */
+
+  /* Borders */
+  --color-border:         #2A2A2A;  /* subtle card borders */
+  --color-border-active:  #FF5E1A;  /* orange border for focused inputs */
+
+  /* Shadows */
+  --shadow-card:          0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-bottom-nav:    0 -4px 24px rgba(0, 0, 0, 0.6);
+  --shadow-accent:        0 4px 20px rgba(255, 94, 26, 0.3);
+
+  /* Spacing & Layout */
+  --space-xs:   4px;
+  --space-sm:   8px;
+  --space-md:   16px;
+  --space-lg:   24px;
+  --space-xl:   32px;
+  --space-2xl:  48px;
+
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  20px;
+  --radius-full: 9999px;
+
+  --bottom-nav-height: 64px;
+  --header-height:     60px;
+  --safe-area-bottom:  env(safe-area-inset-bottom, 16px);
+
+  /* Admin Additions */
+  --admin-bg:        #080808;
+  --admin-surface:   #111111;
+  --admin-card:      #161616;
+  --admin-border:    #222222;
+}
+
+body.light-theme {
+  --color-bg-primary:     #F6F7F9;
+  --color-bg-secondary:   #FFFFFF;
+  --color-bg-tertiary:    #EEF1F5;
+  --color-header-bg:      rgba(246, 247, 249, 0.92);
+  --color-nav-bg:         rgba(255, 255, 255, 0.96);
+
+  --color-text-primary:   #111827;
+  --color-text-secondary: #5B6472;
+  --color-text-tertiary:  #8A94A6;
+
+  --color-border:         #E1E6EF;
+
+  --shadow-card:          0 4px 24px rgba(17, 24, 39, 0.08);
+  --shadow-bottom-nav:    0 -4px 24px rgba(17, 24, 39, 0.1);
+  --shadow-accent:        0 4px 20px rgba(255, 94, 26, 0.22);
+
+  --admin-bg:        #F6F7F9;
+  --admin-surface:   #FFFFFF;
+  --admin-card:      #FFFFFF;
+  --admin-border:    #E1E6EF;
+}

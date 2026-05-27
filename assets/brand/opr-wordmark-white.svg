@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 310 96" role="img" aria-labelledby="title desc">
+  <title id="title">OpRides wordmark</title>
+  <desc id="desc">The OpRides icon beside a wordmark with OP upright and rides italic.</desc>
+  <style>
+    .icon{fill:none;stroke:#fff;stroke-width:6;stroke-linecap:round;stroke-linejoin:round}
+    .op{font-family:Poppins,Montserrat,"Space Grotesk",Arial,sans-serif;font-size:48px;font-weight:700;font-style:normal;fill:#fff}
+    .rides{font-family:Poppins,Montserrat,"Space Grotesk",Arial,sans-serif;font-size:48px;font-weight:400;font-style:italic;fill:#fff}
+  </style>
+  <g class="icon">
+    <path d="M14 32h22" />
+    <path d="M8 48h28" />
+    <path d="M14 64h22" />
+    <path d="M58 14c15 0 27 12 27 27 0 20-27 43-27 43S31 61 31 41c0-15 12-27 27-27Z" />
+    <circle cx="58" cy="41" r="8" />
+  </g>
+  <text x="106" y="64" class="op">OP</text>
+  <text x="174" y="64" class="rides">rides</text>
+</svg>

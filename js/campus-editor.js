@@ -1,4 +1,4 @@
-import { CAMPUS_EDITOR_MODE, CAMPUS_MAP_DATA } from "./campus-data.js";
+import { CAMPUS_EDITOR_MODE } from "./campus-data.js";
 
 const campusDraft = {
   locations: [],
@@ -11,6 +11,7 @@ let activeZoneDraft = [];
 let campusDraftLayers = [];
 let activeShapeLayer = null;
 let map = null;
+let clickHandler = null;
 
 function getCampusEditorElements() {
   return {
@@ -49,10 +50,10 @@ function updateCampusEditorOutput() {
 
   if (hint) {
     hint.innerText = [
-      `${campusDraft.locations.length} location(s)`,
-      `${campusDraft.paths.length} path(s)`,
-      `${campusDraft.zones.length} zone(s)`
-    ].join(" - ");
+      `${campusDraft.locations.length} markers`,
+      `${campusDraft.paths.length} roads`,
+      `${campusDraft.zones.length} zones`
+    ].join(" / ");
   }
 }
 
@@ -76,16 +77,16 @@ function drawActiveShape(type, points) {
   if (points.length === 1) {
     activeShapeLayer = L.circleMarker(points[0], {
       radius: 6,
-      color: type === "path" ? "#2563eb" : "#f59e0b"
+      color: type === "path" ? "#ff5e1a" : "#ffb800"
     }).addTo(map);
     return;
   }
 
   activeShapeLayer = type === "path"
-    ? L.polyline(points, { color: "#2563eb", weight: 5, dashArray: "8 8" }).addTo(map)
+    ? L.polyline(points, { color: "#ff5e1a", weight: 5, dashArray: "8 8" }).addTo(map)
     : L.polygon(points, {
-        color: "#f59e0b",
-        fillColor: "#f59e0b",
+        color: "#ffb800",
+        fillColor: "#ffb800",
         fillOpacity: 0.12,
         weight: 3,
         dashArray: "8 8"
@@ -117,13 +118,13 @@ function saveCampusLine(type, name, points) {
 
   if (type === "path") {
     campusDraft.paths.push(entry);
-    addCampusDraftLayer(L.polyline(points, { color: "#2563eb", weight: 5 }));
+    addCampusDraftLayer(L.polyline(points, { color: "#ff5e1a", weight: 5, lineCap: "round" }));
   } else {
     campusDraft.zones.push(entry);
     addCampusDraftLayer(L.polygon(points, {
-      color: "#f59e0b",
-      fillColor: "#f59e0b",
-      fillOpacity: 0.18,
+      color: "#ffb800",
+      fillColor: "#ffb800",
+      fillOpacity: 0.16,
       weight: 3
     }));
   }
@@ -164,7 +165,7 @@ function captureCampusPoint(event) {
     const location = {
       id: slugify(name),
       name,
-      category: "landmark",
+      category: "pickup",
       lat: point[0],
       lng: point[1]
     };
@@ -188,39 +189,19 @@ function captureCampusPoint(event) {
   updateCampusEditorOutput();
 }
 
-function renderCampusMapData() {
-  CAMPUS_MAP_DATA.zones.forEach(zone => {
-    L.polygon(zone.points, {
-      color: "#f59e0b",
-      fillColor: "#f59e0b",
-      fillOpacity: 0.16,
-      weight: 3
-    }).addTo(map).bindPopup(zone.name);
-  });
-
-  CAMPUS_MAP_DATA.paths.forEach(path => {
-    L.polyline(path.points, {
-      color: "#2563eb",
-      weight: 5
-    }).addTo(map).bindPopup(path.name);
-  });
-
-  CAMPUS_MAP_DATA.locations.forEach(location => {
-    L.marker([location.lat, location.lng])
-      .addTo(map)
-      .bindPopup(location.name);
-  });
-}
-
-function initCampusEditor(currentRole) {
+export function initCampusEditor(nextMap, options = {}) {
+  map = nextMap;
   const elements = getCampusEditorElements();
   if (!elements.panel || !map) return;
 
-  elements.panel.classList.toggle("hidden", !CAMPUS_EDITOR_MODE || currentRole !== "student");
-  if (!CAMPUS_EDITOR_MODE || currentRole !== "student") return;
+  const enabled = CAMPUS_EDITOR_MODE && options.enabled;
+  elements.panel.classList.toggle("hidden", !enabled);
+  if (!enabled) return;
 
   updateCampusEditorOutput();
-  map.on("click", captureCampusPoint);
+  if (clickHandler) map.off("click", clickHandler);
+  clickHandler = captureCampusPoint;
+  map.on("click", clickHandler);
 
   elements.clearBtn.onclick = clearCampusDraft;
   elements.saveShapeBtn.onclick = saveActiveCampusShape;
@@ -237,10 +218,4 @@ function initCampusEditor(currentRole) {
       elements.output.select();
     }
   };
-}
-
-export function initCampusMap(nextMap, currentRole) {
-  map = nextMap;
-  renderCampusMapData();
-  initCampusEditor(currentRole);
 }
