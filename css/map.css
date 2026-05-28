@@ -144,7 +144,7 @@
 
 .campus-editor__grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 130px;
+  grid-template-columns: minmax(0, 1fr) 135px 155px;
   gap: 10px;
 }
 

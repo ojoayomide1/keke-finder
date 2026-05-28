@@ -10,6 +10,11 @@
   min-height: 100vh;
 }
 
+.admin-sidebar-overlay,
+.admin-mobile-header {
+  display: none;
+}
+
 /* Sidebar */
 .admin-sidebar {
   background: var(--admin-surface);
@@ -265,19 +270,111 @@
   font-size: 14px;
 }
 
+.admin-help {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0 0 var(--space-md);
+}
+
+.admin-json-editor {
+  width: 100%;
+  min-height: 440px;
+  box-sizing: border-box;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md);
+  background: var(--admin-surface);
+  color: var(--color-text-primary);
+  padding: var(--space-md);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.campus-admin-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.campus-admin-count {
+  display: grid;
+  gap: 4px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.campus-admin-count span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.campus-admin-count strong {
+  color: var(--color-text-primary);
+  font-family: 'Syne', sans-serif;
+  font-size: 24px;
+}
+
 /* Mobile Adjustments */
 @media (max-width: 768px) {
   .admin-layout {
     grid-template-columns: 1fr;
   }
   .admin-sidebar {
-    display: none; /* In a real app, you'd add a hamburger menu */
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 18px 0 40px rgba(0, 0, 0, 0.3);
+  }
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+  .admin-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 190;
+  }
+  .admin-sidebar-overlay.hidden {
+    display: none;
+  }
+  .admin-mobile-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--admin-bg);
+    border-bottom: 1px solid var(--admin-border);
+    padding: var(--space-md) 0;
+    margin-bottom: var(--space-lg);
+  }
+  .admin-menu-btn {
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--admin-border);
+    border-radius: var(--radius-md);
+    background: var(--admin-card);
+    color: var(--color-text-primary);
+    font-size: 22px;
+    line-height: 1;
   }
   .admin-main {
     padding: var(--space-lg);
+    max-width: none;
   }
   .admin-stats-grid {
     grid-template-columns: 1fr 1fr;
+  }
+  .panel-head,
+  .transaction-head {
+    display: grid;
+    gap: var(--space-md);
   }
   .admin-row {
     grid-template-columns: 1fr;
@@ -286,5 +383,8 @@
   }
   .admin-form div {
     grid-template-columns: 1fr !important;
+  }
+  .admin-json-editor {
+    min-height: 360px;
   }
 }

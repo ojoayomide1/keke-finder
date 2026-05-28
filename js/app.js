@@ -15,7 +15,12 @@ import {
 import { initAuth } from "./auth.js";
 import "./seeding.js";
 import { state } from "./modules/state.js";
-import { CAMPUS_EDITOR_MODE, CAMPUS_MAP_DATA } from "./campus-data.js";
+import {
+  CAMPUS_CATEGORY_META,
+  CAMPUS_EDITOR_MODE,
+  getCampusDestinationLocations,
+  loadCampusDataFromFirestore
+} from "./campus-data.js";
 import { 
   showToast, 
   updateBottomSheet, 
@@ -319,7 +324,7 @@ async function cleanupRiderSession(previousUser = state.currentUser) {
 
 async function navigateToLandmark(landmarkId) {
   if (!landmarkId) return;
-  const landmark = CAMPUS_MAP_DATA.locations.find(l => l.id === landmarkId);
+  const landmark = getCampusDestinationLocations().find(l => l.id === landmarkId);
   if (!landmark) return;
 
   document.getElementById("pathfinderSelectPanel")?.classList.add("hidden");
@@ -425,19 +430,11 @@ function populateCampusMapLandmarks() {
   const select = document.getElementById("pathfinderSelect");
   if (!select) return;
 
-  const categoryLabels = {
-    academic: "Academic",
-    food: "Food",
-    gate: "Gates",
-    hostel: "Hostels",
-    landmark: "Landmarks",
-    pickup: "Pickup points",
-    service: "Services",
-    sport: "Sports",
-    study: "Study spaces"
-  };
+  const categoryLabels = Object.fromEntries(
+    Object.entries(CAMPUS_CATEGORY_META).map(([key, meta]) => [key, meta.label])
+  );
 
-  const grouped = CAMPUS_MAP_DATA.locations
+  const grouped = getCampusDestinationLocations()
     .slice()
     .sort((a, b) => {
       const categorySort = (categoryLabels[a.category] || "Other").localeCompare(categoryLabels[b.category] || "Other");
@@ -826,6 +823,7 @@ window.addEventListener("load", () => {
     onUserChanged: async (user) => {
       if (user) {
         state.currentUser = user;
+        await loadCampusDataFromFirestore();
         transitionToDashboard(user);
       } else {
         const previousUser = state.currentUser;

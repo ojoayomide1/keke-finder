@@ -1,13 +1,15 @@
-import { CAMPUS_EDITOR_MODE } from "./campus-data.js";
+import { CAMPUS_CATEGORY_META, CAMPUS_EDITOR_MODE, getCampusCategoryMeta } from "./campus-data.js";
 
 const campusDraft = {
   locations: [],
+  rideStops: [],
   paths: [],
-  zones: []
+  buildings: [],
+  indoorLocations: []
 };
 
 let activePathDraft = [];
-let activeZoneDraft = [];
+let activeBuildingDraft = [];
 let campusDraftLayers = [];
 let activeShapeLayer = null;
 let map = null;
@@ -18,6 +20,7 @@ function getCampusEditorElements() {
     panel: document.getElementById("campusEditor"),
     nameInput: document.getElementById("campusPointName"),
     typeInput: document.getElementById("campusPointType"),
+    categoryInput: document.getElementById("campusPointCategory"),
     hint: document.getElementById("campusEditorHint"),
     output: document.getElementById("campusEditorOutput"),
     copyBtn: document.getElementById("copyCampusJsonBtn"),
@@ -51,8 +54,9 @@ function updateCampusEditorOutput() {
   if (hint) {
     hint.innerText = [
       `${campusDraft.locations.length} markers`,
+      `${campusDraft.rideStops.length} ride stops`,
       `${campusDraft.paths.length} roads`,
-      `${campusDraft.zones.length} zones`
+      `${campusDraft.buildings.length} buildings`
     ].join(" / ");
   }
 }
@@ -77,28 +81,30 @@ function drawActiveShape(type, points) {
   if (points.length === 1) {
     activeShapeLayer = L.circleMarker(points[0], {
       radius: 6,
-      color: type === "path" ? "#ff5e1a" : "#ffb800"
+      color: type === "path" ? "#64748b" : "#9ca3af"
     }).addTo(map);
     return;
   }
 
   activeShapeLayer = type === "path"
-    ? L.polyline(points, { color: "#ff5e1a", weight: 5, dashArray: "8 8" }).addTo(map)
+    ? L.polyline(points, { color: "#64748b", weight: 5, dashArray: "8 8" }).addTo(map)
     : L.polygon(points, {
-        color: "#ffb800",
-        fillColor: "#ffb800",
-        fillOpacity: 0.12,
-        weight: 3,
+        color: "#9ca3af",
+        fillColor: "#c7ccd4",
+        fillOpacity: 0.45,
+        weight: 2,
         dashArray: "8 8"
       }).addTo(map);
 }
 
 function clearCampusDraft() {
   campusDraft.locations = [];
+  campusDraft.rideStops = [];
   campusDraft.paths = [];
-  campusDraft.zones = [];
+  campusDraft.buildings = [];
+  campusDraft.indoorLocations = [];
   activePathDraft = [];
-  activeZoneDraft = [];
+  activeBuildingDraft = [];
 
   clearActiveShapeLayer();
   campusDraftLayers.forEach(layer => map.removeLayer(layer));
@@ -107,7 +113,7 @@ function clearCampusDraft() {
 }
 
 function saveCampusLine(type, name, points) {
-  const minimumPoints = type === "zone" ? 3 : 2;
+  const minimumPoints = type === "building" ? 3 : 2;
   if (points.length < minimumPoints) return;
 
   const entry = {
@@ -118,14 +124,14 @@ function saveCampusLine(type, name, points) {
 
   if (type === "path") {
     campusDraft.paths.push(entry);
-    addCampusDraftLayer(L.polyline(points, { color: "#ff5e1a", weight: 5, lineCap: "round" }));
+    addCampusDraftLayer(L.polyline(points, { color: "#64748b", weight: 5, lineCap: "round" }));
   } else {
-    campusDraft.zones.push(entry);
+    campusDraft.buildings.push(entry);
     addCampusDraftLayer(L.polygon(points, {
-      color: "#ffb800",
-      fillColor: "#ffb800",
-      fillOpacity: 0.16,
-      weight: 3
+      color: "#9ca3af",
+      fillColor: "#c7ccd4",
+      fillOpacity: 0.55,
+      weight: 2
     }));
   }
 }
@@ -142,9 +148,9 @@ function saveActiveCampusShape() {
     activePathDraft = [];
   }
 
-  if (type === "zone") {
-    saveCampusLine("zone", name, activeZoneDraft);
-    activeZoneDraft = [];
+  if (type === "building") {
+    saveCampusLine("building", name, activeBuildingDraft);
+    activeBuildingDraft = [];
   }
 
   clearActiveShapeLayer();
@@ -162,17 +168,34 @@ function captureCampusPoint(event) {
   ];
 
   if (typeInput.value === "location") {
+    const category = getCampusEditorElements().categoryInput?.value || "service";
     const location = {
       id: slugify(name),
       name,
-      category: "pickup",
+      category,
       lat: point[0],
       lng: point[1]
     };
 
     campusDraft.locations.push(location);
+    const meta = getCampusCategoryMeta(category);
     addCampusDraftLayer(
-      L.marker(point).bindPopup(`${name}<br>${point[0]}, ${point[1]}`)
+      L.marker(point).bindPopup(`${name}<br>${meta.label}<br>${point[0]}, ${point[1]}`)
+    );
+  }
+  if (typeInput.value === "rideStop") {
+    const stop = {
+      id: slugify(name),
+      name,
+      type: "pickup_dropoff",
+      lat: point[0],
+      lng: point[1],
+      serves: []
+    };
+
+    campusDraft.rideStops.push(stop);
+    addCampusDraftLayer(
+      L.marker(point).bindPopup(`${name}<br>Pickup / drop-off<br>${point[0]}, ${point[1]}`)
     );
   }
 
@@ -181,9 +204,9 @@ function captureCampusPoint(event) {
     drawActiveShape("path", activePathDraft);
   }
 
-  if (typeInput.value === "zone") {
-    activeZoneDraft.push(point);
-    drawActiveShape("zone", activeZoneDraft);
+  if (typeInput.value === "building") {
+    activeBuildingDraft.push(point);
+    drawActiveShape("building", activeBuildingDraft);
   }
 
   updateCampusEditorOutput();
@@ -199,6 +222,20 @@ export function initCampusEditor(nextMap, options = {}) {
   if (!enabled) return;
 
   updateCampusEditorOutput();
+
+  if (elements.categoryInput) {
+    elements.categoryInput.innerHTML = Object.entries(CAMPUS_CATEGORY_META)
+      .filter(([key]) => key !== "pickup")
+      .map(([key, meta]) => `<option value="${key}">${meta.label}</option>`)
+      .join("");
+  }
+
+  const syncCategoryVisibility = () => {
+    if (!elements.categoryInput) return;
+    elements.categoryInput.disabled = elements.typeInput?.value !== "location";
+  };
+  elements.typeInput?.addEventListener("change", syncCategoryVisibility);
+  syncCategoryVisibility();
   if (clickHandler) map.off("click", clickHandler);
   clickHandler = captureCampusPoint;
   map.on("click", clickHandler);

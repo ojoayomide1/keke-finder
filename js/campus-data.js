@@ -1,189 +1,208 @@
-// Paste copied campus editor JSON into CAMPUS_MAP_DATA.
+import {
+  db,
+  doc,
+  getDoc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc
+} from "./firebase.js";
+
+// Toggle this off before production if the in-app coordinate editor should be hidden.
 export const CAMPUS_EDITOR_MODE = true;
+
+export const CAMPUS_CATEGORY_META = {
+  boys_hostel: { label: "Boys Hostels", icon: "fa-bed", color: "#2563eb" },
+  girls_hostel: { label: "Girls Hostels", icon: "fa-person-dress", color: "#db2777" },
+  faculty: { label: "Faculties", icon: "fa-graduation-cap", color: "#7c3aed" },
+  block: { label: "Blocks", icon: "fa-building", color: "#475569" },
+  hall: { label: "Halls", icon: "fa-chalkboard-user", color: "#ea580c" },
+  restaurant: { label: "Restaurants", icon: "fa-utensils", color: "#16a34a" },
+  gate: { label: "Gates", icon: "fa-archway", color: "#0f766e" },
+  sport: { label: "Sports", icon: "fa-basketball", color: "#dc2626" },
+  service: { label: "Services", icon: "fa-circle-info", color: "#0891b2" },
+  pickup: { label: "Pickup / Drop-off", icon: "fa-car-side", color: "#00c48c" }
+};
+
+export const INDOOR_CATEGORY_META = {
+  lecturer: "Lecturer / Course",
+  staff: "Staff",
+  lab: "Lab",
+  lecture_room: "Lecture room",
+  office: "Office"
+};
 
 export const CAMPUS_MAP_DATA = {
   locations: [
-    {
-      id: "main_gate",
-      name: "Main Gate",
-      category: "gate",
-      lat: 9.290742,
-      lng: 7.41639
-    },
-    {
-      id: "admin_block",
-      name: "Admin Block",
-      category: "academic",
-      lat: 9.29018,
-      lng: 7.41569
-    },
-    {
-      id: "chapel",
-      name: "University Chapel",
-      category: "landmark",
-      lat: 9.28976,
-      lng: 7.41502
-    },
-    {
-      id: "library",
-      name: "E-Library",
-      category: "study",
-      lat: 9.28939,
-      lng: 7.41462
-    },
-    {
-      id: "ict_centre",
-      name: "ICT Centre",
-      category: "study",
-      lat: 9.28916,
-      lng: 7.41418
-    },
-    {
-      id: "block_a",
-      name: "Block A",
-      category: "academic",
-      lat: 9.28958,
-      lng: 7.41572
-    },
-    {
-      id: "block_b",
-      name: "Block B",
-      category: "academic",
-      lat: 9.28897,
-      lng: 7.4153
-    },
-    {
-      id: "behind_block_b",
-      name: "Behind Block B",
-      category: "pickup",
-      lat: 9.289042,
-      lng: 7.415558
-    },
-    {
-      id: "block_c",
-      name: "Block C",
-      category: "academic",
-      lat: 9.28846,
-      lng: 7.41482
-    },
-    {
-      id: "cafeteria",
-      name: "Cafeteria",
-      category: "food",
-      lat: 9.28816,
-      lng: 7.41428
-    },
-    {
-      id: "clinic",
-      name: "Health Centre",
-      category: "service",
-      lat: 9.28863,
-      lng: 7.41373
-    },
-    {
-      id: "sports_complex",
-      name: "Sports Complex",
-      category: "sport",
-      lat: 9.28761,
-      lng: 7.41388
-    },
-    {
-      id: "female_hostel",
-      name: "Female Hostel",
-      category: "hostel",
-      lat: 9.28734,
-      lng: 7.41272
-    },
-    {
-      id: "hostel_i",
-      name: "Hostel I",
-      category: "hostel",
-      lat: 9.286919,
-      lng: 7.411334
-    },
-    {
-      id: "hostel_l",
-      name: "Hostel L",
-      category: "hostel",
-      lat: 9.286366,
-      lng: 7.411976
-    },
-    {
-      id: "hostel_m",
-      name: "Hostel M",
-      category: "hostel",
-      lat: 9.28672,
-      lng: 7.41231
-    },
-    {
-      id: "male_hostels",
-      name: "Male Hostels",
-      category: "hostel",
-      lat: 9.28786,
-      lng: 7.41208
-    },
-    {
-      id: "student_affairs",
-      name: "Student Affairs",
-      category: "service",
-      lat: 9.28892,
-      lng: 7.41447
-    }
+    { id: "hostel_l", name: "Hostel L", category: "boys_hostel", lat: null, lng: null },
+    { id: "hostel_i", name: "Hostel I", category: "boys_hostel", lat: null, lng: null },
+    { id: "hostel_m", name: "Hostel M", category: "boys_hostel", lat: null, lng: null },
+    { id: "hostel_n", name: "Hostel N", category: "boys_hostel", lat: null, lng: null },
+    { id: "hostel_s", name: "Hostel S", category: "boys_hostel", lat: null, lng: null },
+    { id: "new_kelson", name: "New Kelson", category: "girls_hostel", lat: null, lng: null },
+    { id: "faculty_law", name: "Faculty of Law", category: "faculty", lat: null, lng: null },
+    { id: "faculty_pharmacy", name: "Faculty of Pharmacy", category: "faculty", lat: null, lng: null },
+    { id: "faculty_medicine", name: "Faculty of Medicine", category: "faculty", lat: null, lng: null },
+    { id: "faculty_computing", name: "Faculty of Computing (Software Building)", category: "faculty", lat: null, lng: null },
+    { id: "block_a", name: "Block A", category: "block", lat: null, lng: null },
+    { id: "block_b", name: "Block B", category: "block", lat: null, lng: null },
+    { id: "block_c", name: "Block C", category: "block", lat: null, lng: null },
+    { id: "block_d", name: "Block D", category: "block", lat: null, lng: null },
+    { id: "nlt", name: "New Lecture Theatre (NLT)", category: "hall", lat: null, lng: null },
+    { id: "mph", name: "Multipurpose Hall (MPH)", category: "hall", lat: null, lng: null },
+    { id: "auditorium", name: "Auditorium", category: "hall", lat: null, lng: null },
+    { id: "ggs", name: "GGs", category: "restaurant", lat: null, lng: null },
+    { id: "munchbox", name: "MunchBox", category: "restaurant", lat: null, lng: null },
+    { id: "ase_cafe", name: "Ase Cafe", category: "restaurant", lat: null, lng: null },
+    { id: "school_gate", name: "School Gate", category: "gate", lat: null, lng: null },
+    { id: "boys_hostel_gate", name: "Boys Hostel Gate", category: "gate", lat: null, lng: null },
+    { id: "girls_hostel_gate", name: "Girls Hostel Gate", category: "gate", lat: null, lng: null },
+    { id: "basketball_court", name: "Basketball Court", category: "sport", lat: null, lng: null },
+    { id: "volleyball_court", name: "Volleyball Court", category: "sport", lat: null, lng: null },
+    { id: "table_tennis_court", name: "Table Tennis Court", category: "sport", lat: null, lng: null },
+    { id: "badminton_court", name: "Badminton Court", category: "sport", lat: null, lng: null },
+    { id: "football_field", name: "Football Field", category: "sport", lat: null, lng: null },
+    { id: "ict", name: "ICT", category: "service", lat: null, lng: null },
+    { id: "clinic", name: "Clinic", category: "service", lat: null, lng: null },
+    { id: "chapel", name: "Chapel", category: "service", lat: null, lng: null },
+    { id: "senate", name: "Senate", category: "service", lat: null, lng: null }
   ],
-  paths: [
-    {
-      id: "main_campus_loop",
-      name: "Main Campus Loop",
-      points: [
-        [9.290742, 7.41639],
-        [9.29018, 7.41569],
-        [9.28958, 7.41572],
-        [9.28897, 7.4153],
-        [9.28846, 7.41482],
-        [9.28816, 7.41428],
-        [9.28761, 7.41388],
-        [9.28734, 7.41272],
-        [9.28672, 7.41231],
-        [9.286366, 7.411976],
-        [9.286919, 7.411334]
-      ]
-    },
-    {
-      id: "academic_walk",
-      name: "Academic Walk",
-      points: [
-        [9.29018, 7.41569],
-        [9.28976, 7.41502],
-        [9.28939, 7.41462],
-        [9.28916, 7.41418],
-        [9.28892, 7.41447],
-        [9.28863, 7.41373]
-      ]
-    }
+  rideStops: [
+    { id: "school_gate_stop", name: "School Gate Stop", type: "pickup_dropoff", lat: null, lng: null, serves: ["school_gate"] },
+    { id: "boys_hostel_gate_stop", name: "Boys Hostel Gate Stop", type: "pickup_dropoff", lat: null, lng: null, serves: ["boys_hostel_gate", "hostel_l", "hostel_i", "hostel_m", "hostel_n", "hostel_s"] },
+    { id: "girls_hostel_gate_stop", name: "Girls Hostel Gate Stop", type: "pickup_dropoff", lat: null, lng: null, serves: ["girls_hostel_gate", "new_kelson"] },
+    { id: "block_d_stop", name: "Block D Stop", type: "pickup_dropoff", lat: null, lng: null, serves: ["block_d"] }
   ],
-  zones: [
+  paths: [],
+  buildings: [],
+  indoorLocations: [
     {
-      id: "academic_core",
-      name: "Academic Core",
-      points: [
-        [9.29026, 7.41602],
-        [9.29003, 7.41471],
-        [9.28855, 7.41398],
-        [9.28808, 7.41462],
-        [9.2888, 7.41569],
-        [9.28975, 7.41608]
-      ]
+      id: "block_a_ai_lab",
+      name: "AI Lab",
+      category: "lab",
+      buildingId: "block_a",
+      floor: "",
+      directions: "Inside Block A.",
+      aliases: ["Artificial Intelligence Lab"],
+      occupants: []
     },
     {
-      id: "residential_core",
-      name: "Residential Core",
-      points: [
-        [9.28818, 7.41295],
-        [9.28731, 7.41105],
-        [9.28605, 7.41161],
-        [9.28625, 7.41262],
-        [9.28745, 7.41327]
-      ]
+      id: "block_a_cbt_lab",
+      name: "CBT Lab",
+      category: "lab",
+      buildingId: "block_a",
+      floor: "",
+      directions: "Inside Block A.",
+      aliases: ["Computer Based Test Lab"],
+      occupants: []
+    },
+    {
+      id: "block_a_debt_recovery",
+      name: "Debt Recovery Office",
+      category: "office",
+      buildingId: "block_a",
+      floor: "",
+      directions: "Inside Block A.",
+      aliases: [],
+      occupants: []
     }
   ]
 };
+
+const CAMPUS_DOC = doc(db, "campusData", "main");
+const dataListeners = new Set();
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+export function hasCoordinates(item) {
+  return Number.isFinite(item?.lat) && Number.isFinite(item?.lng);
+}
+
+export function getCampusMapData() {
+  return CAMPUS_MAP_DATA;
+}
+
+export function getCampusLocationsForMap() {
+  return CAMPUS_MAP_DATA.locations.filter(hasCoordinates);
+}
+
+export function getRideStops() {
+  return CAMPUS_MAP_DATA.rideStops.filter(hasCoordinates);
+}
+
+export function getCampusDestinationLocations() {
+  return CAMPUS_MAP_DATA.locations.filter(hasCoordinates);
+}
+
+export function getCampusCategoryMeta(category) {
+  return CAMPUS_CATEGORY_META[category] || CAMPUS_CATEGORY_META.service;
+}
+
+export function campusDataToJson() {
+  return JSON.stringify(CAMPUS_MAP_DATA, null, 2);
+}
+
+export function setCampusMapData(nextData) {
+  const merged = {
+    locations: Array.isArray(nextData?.locations) ? nextData.locations : [],
+    rideStops: Array.isArray(nextData?.rideStops) ? nextData.rideStops : [],
+    paths: Array.isArray(nextData?.paths) ? nextData.paths : [],
+    buildings: Array.isArray(nextData?.buildings) ? nextData.buildings : [],
+    indoorLocations: Array.isArray(nextData?.indoorLocations) ? nextData.indoorLocations : []
+  };
+
+  CAMPUS_MAP_DATA.locations = merged.locations;
+  CAMPUS_MAP_DATA.rideStops = merged.rideStops;
+  CAMPUS_MAP_DATA.paths = merged.paths;
+  CAMPUS_MAP_DATA.buildings = merged.buildings;
+  CAMPUS_MAP_DATA.indoorLocations = merged.indoorLocations;
+  dataListeners.forEach(listener => listener(CAMPUS_MAP_DATA));
+}
+
+export async function loadCampusDataFromFirestore() {
+  try {
+    const snap = await getDoc(CAMPUS_DOC);
+    if (snap.exists() && snap.data()?.mapData) {
+      setCampusMapData(snap.data().mapData);
+      return true;
+    }
+  } catch (err) {
+    console.warn("Using bundled campus data:", err.code || err.message);
+  }
+  return false;
+}
+
+export function listenToCampusData(callback) {
+  dataListeners.add(callback);
+  const unsubscribeLocal = () => dataListeners.delete(callback);
+
+  let unsubscribeRemote = null;
+  try {
+    unsubscribeRemote = onSnapshot(CAMPUS_DOC, (snap) => {
+      if (snap.exists() && snap.data()?.mapData) {
+        setCampusMapData(snap.data().mapData);
+      }
+      callback(CAMPUS_MAP_DATA);
+    }, (err) => {
+      console.warn("Campus data listener unavailable:", err.code || err.message);
+      callback(CAMPUS_MAP_DATA);
+    });
+  } catch (err) {
+    console.warn("Campus data listener failed:", err);
+    callback(CAMPUS_MAP_DATA);
+  }
+
+  return () => {
+    unsubscribeLocal();
+    if (unsubscribeRemote) unsubscribeRemote();
+  };
+}
+
+export async function saveCampusDataToFirestore(nextData) {
+  setCampusMapData(nextData);
+  await setDoc(CAMPUS_DOC, {
+    mapData: clone(CAMPUS_MAP_DATA),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+}

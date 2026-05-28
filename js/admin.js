@@ -18,6 +18,12 @@ import {
   where,
   writeBatch
 } from "./firebase.js";
+import {
+  campusDataToJson,
+  getCampusMapData,
+  loadCampusDataFromFirestore,
+  saveCampusDataToFirestore
+} from "./campus-data.js";
 import { formatNaira } from "./wallet.js";
 
 let transactionUnsubscribe = null;
@@ -99,8 +105,19 @@ function initSidebarNav() {
           section.classList.add("hidden");
         }
       });
+      closeAdminMenu();
     });
   });
+}
+
+function openAdminMenu() {
+  document.querySelector(".admin-sidebar")?.classList.add("open");
+  document.getElementById("adminSidebarOverlay")?.classList.remove("hidden");
+}
+
+function closeAdminMenu() {
+  document.querySelector(".admin-sidebar")?.classList.remove("open");
+  document.getElementById("adminSidebarOverlay")?.classList.add("hidden");
 }
 
 function listenToAuthorizedRiders() {
@@ -292,6 +309,74 @@ function renderTransactions(transactions) {
   `).join("");
 }
 
+function renderCampusAdminSummary() {
+  const summary = document.getElementById("campusAdminSummary");
+  if (!summary) return;
+  const data = getCampusMapData();
+  const counts = [
+    ["Campus markers", data.locations.length],
+    ["Ride stops", data.rideStops.length],
+    ["Roads / paths", data.paths.length],
+    ["Building shapes", data.buildings.length],
+    ["Indoor records", data.indoorLocations.length]
+  ];
+  summary.innerHTML = counts.map(([label, count]) => `
+    <div class="campus-admin-count">
+      <span>${label}</span>
+      <strong>${count}</strong>
+    </div>
+  `).join("");
+}
+
+async function loadCampusEditorData() {
+  await loadCampusDataFromFirestore();
+  const editor = document.getElementById("campusDataEditor");
+  if (editor) editor.value = campusDataToJson();
+  renderCampusAdminSummary();
+}
+
+async function saveCampusEditorData() {
+  const editor = document.getElementById("campusDataEditor");
+  const saveBtn = document.getElementById("saveCampusDataBtn");
+  if (!editor) return;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(editor.value);
+  } catch (err) {
+    alert(`Invalid JSON: ${err.message}`);
+    return;
+  }
+
+  try {
+    if (saveBtn) saveBtn.innerText = "Saving...";
+    await saveCampusDataToFirestore(parsed);
+    editor.value = campusDataToJson();
+    renderCampusAdminSummary();
+    alert("Campus data saved.");
+  } catch (err) {
+    console.error("Failed to save campus data:", err);
+    alert("Failed to save campus data. Check console.");
+  } finally {
+    if (saveBtn) saveBtn.innerText = "Save campus data";
+  }
+}
+
+function bindCampusAdminTools() {
+  document.getElementById("reloadCampusDataBtn")?.addEventListener("click", loadCampusEditorData);
+  document.getElementById("saveCampusDataBtn")?.addEventListener("click", saveCampusEditorData);
+  document.getElementById("formatCampusDataBtn")?.addEventListener("click", () => {
+    const editor = document.getElementById("campusDataEditor");
+    if (!editor) return;
+    try {
+      editor.value = JSON.stringify(JSON.parse(editor.value), null, 2);
+    } catch (err) {
+      alert(`Invalid JSON: ${err.message}`);
+    }
+  });
+  loadCampusEditorData();
+}
+
 async function adminLogout() {
   await signOut(auth);
   window.location.href = "/index.html";
@@ -302,6 +387,8 @@ window.rejectWithdrawalPrompt = rejectWithdrawalPrompt;
 window.listenToTransactions = listenToTransactions;
 window.adminLogout = adminLogout;
 window.removeRider = removeRider;
+window.openAdminMenu = openAdminMenu;
+window.closeAdminMenu = closeAdminMenu;
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -312,6 +399,7 @@ onAuthStateChanged(auth, async (user) => {
   listenToOverview();
   listenToWithdrawals();
   listenToTransactions();
+  bindCampusAdminTools();
 
   const addRiderForm = document.getElementById("addRiderForm");
   if (addRiderForm) {

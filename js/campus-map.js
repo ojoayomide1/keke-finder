@@ -1,20 +1,13 @@
-import { CAMPUS_MAP_DATA } from "./campus-data.js";
+import {
+  getCampusCategoryMeta,
+  getCampusLocationsForMap,
+  getCampusMapData,
+  getRideStops
+} from "./campus-data.js";
 import { initCampusEditor } from "./campus-editor.js";
 
-const CATEGORY_META = {
-  academic: { label: "Academic", icon: "fa-graduation-cap", color: "#3b82f6" },
-  food: { label: "Food", icon: "fa-utensils", color: "#f97316" },
-  gate: { label: "Gate", icon: "fa-archway", color: "#22c55e" },
-  hostel: { label: "Hostel", icon: "fa-bed", color: "#a855f7" },
-  landmark: { label: "Landmark", icon: "fa-location-dot", color: "#ff5e1a" },
-  pickup: { label: "Pickup", icon: "fa-car-side", color: "#00c48c" },
-  service: { label: "Service", icon: "fa-circle-info", color: "#06b6d4" },
-  sport: { label: "Sport", icon: "fa-dumbbell", color: "#ef4444" },
-  study: { label: "Study", icon: "fa-book-open", color: "#6366f1" }
-};
-
 function getCategoryMeta(category) {
-  return CATEGORY_META[category] || CATEGORY_META.landmark;
+  return getCampusCategoryMeta(category);
 }
 
 function createCampusIcon(category) {
@@ -43,32 +36,43 @@ function campusPopup(location) {
 }
 
 export function renderCampusMapData(map) {
-  CAMPUS_MAP_DATA.zones.forEach(zone => {
-    L.polygon(zone.points, {
-      color: "#ffb800",
-      fillColor: "#ffb800",
-      fillOpacity: 0.12,
-      weight: 2,
-      dashArray: "8 8"
-    }).addTo(map).bindPopup(zone.name);
+  const data = getCampusMapData();
+
+  data.buildings.forEach(building => {
+    if (!Array.isArray(building.points) || building.points.length < 3) return;
+    L.polygon(building.points, {
+      color: "#9ca3af",
+      fillColor: "#c7ccd4",
+      fillOpacity: 0.55,
+      weight: 1.5
+    }).addTo(map).bindPopup(building.name);
   });
 
-  CAMPUS_MAP_DATA.paths.forEach(path => {
+  data.paths.forEach(path => {
+    if (!Array.isArray(path.points) || path.points.length < 2) return;
     L.polyline(path.points, {
-      color: "#ff5e1a",
-      weight: 5,
-      opacity: 0.75,
+      color: "#64748b",
+      weight: 4,
+      opacity: 0.6,
       lineCap: "round",
       lineJoin: "round"
     }).addTo(map).bindPopup(path.name);
   });
 
-  CAMPUS_MAP_DATA.locations.forEach(location => {
+  getCampusLocationsForMap().forEach(location => {
     L.marker([location.lat, location.lng], {
       icon: createCampusIcon(location.category)
     })
       .addTo(map)
       .bindPopup(campusPopup(location));
+  });
+
+  getRideStops().forEach(stop => {
+    L.marker([stop.lat, stop.lng], {
+      icon: createCampusIcon("pickup")
+    })
+      .addTo(map)
+      .bindPopup(campusPopup({ ...stop, category: "pickup" }));
   });
 }
 
