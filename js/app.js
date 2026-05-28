@@ -15,7 +15,12 @@ import {
 import { initAuth } from "./auth.js";
 import "./seeding.js";
 import { state } from "./modules/state.js";
-import { CAMPUS_MAP_DATA } from "./campus-data.js";
+import {
+  CAMPUS_CATEGORY_META,
+  CAMPUS_EDITOR_MODE,
+  getCampusDestinationLocations,
+  loadCampusDataFromFirestore
+} from "./campus-data.js";
 import { 
   showToast, 
   updateBottomSheet, 
@@ -197,6 +202,7 @@ function switchTab(tab) {
       renderStudentWallet();
     } else if (tab === "map") {
       populateCampusMapLandmarks();
+      document.getElementById("campusEditorOpenBtn")?.classList.toggle("hidden", !CAMPUS_EDITOR_MODE);
       resetPathfinder();
     } else if (tab === "live") {
       setTimeout(() => {
@@ -318,7 +324,7 @@ async function cleanupRiderSession(previousUser = state.currentUser) {
 
 async function navigateToLandmark(landmarkId) {
   if (!landmarkId) return;
-  const landmark = CAMPUS_MAP_DATA.locations.find(l => l.id === landmarkId);
+  const landmark = getCampusDestinationLocations().find(l => l.id === landmarkId);
   if (!landmark) return;
 
   document.getElementById("pathfinderSelectPanel")?.classList.add("hidden");
@@ -413,14 +419,40 @@ function completePathfinderSession() {
   showToast("Walking session completed", "success");
 }
 
+function openCampusEditor() {
+  document.getElementById("pathfinderSelectPanel")?.classList.add("hidden");
+  document.getElementById("pathfinderMapPanel")?.classList.remove("hidden");
+  document.getElementById("pathfinderSheet")?.classList.add("hidden");
+  setTimeout(() => initMap("pathfinderMap"), 100);
+}
+
 function populateCampusMapLandmarks() {
   const select = document.getElementById("pathfinderSelect");
   if (!select) return;
-  if (select.children.length > 1) return; // Already populated
-  
-  const options = CAMPUS_MAP_DATA.locations
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map(loc => `<option value="${loc.id}">${loc.name}</option>`)
+
+  const categoryLabels = Object.fromEntries(
+    Object.entries(CAMPUS_CATEGORY_META).map(([key, meta]) => [key, meta.label])
+  );
+
+  const grouped = getCampusDestinationLocations()
+    .slice()
+    .sort((a, b) => {
+      const categorySort = (categoryLabels[a.category] || "Other").localeCompare(categoryLabels[b.category] || "Other");
+      return categorySort || a.name.localeCompare(b.name);
+    })
+    .reduce((groups, location) => {
+      const label = categoryLabels[location.category] || "Other";
+      groups[label] = groups[label] || [];
+      groups[label].push(location);
+      return groups;
+    }, {});
+
+  const options = Object.entries(grouped)
+    .map(([label, locations]) => `
+      <optgroup label="${label}">
+        ${locations.map(loc => `<option value="${loc.id}">${loc.name}</option>`).join("")}
+      </optgroup>
+    `)
     .join("");
   select.innerHTML = `<option value="">Select Landmark</option>` + options;
 }
@@ -441,6 +473,7 @@ function bindAppGlobals() {
   window.navigateToLandmark = navigateToLandmark;
   window.resetPathfinder = resetPathfinder;
   window.completePathfinderSession = completePathfinderSession;
+  window.openCampusEditor = openCampusEditor;
 }
 
 bindAppGlobals();
@@ -790,6 +823,7 @@ window.addEventListener("load", () => {
     onUserChanged: async (user) => {
       if (user) {
         state.currentUser = user;
+        await loadCampusDataFromFirestore();
         transitionToDashboard(user);
       } else {
         const previousUser = state.currentUser;

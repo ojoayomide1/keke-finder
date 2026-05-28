@@ -443,6 +443,26 @@ service cloud.firestore {
           .hasOnly(["status", "assignedRideId"]);
     }
 
+    function validCampusDataWrite() {
+      return isAdmin()
+        && request.resource.data.keys().hasOnly(["mapData", "updatedAt"])
+        && request.resource.data.mapData is map
+        && request.resource.data.mapData.keys().hasOnly([
+          "locations", "rideStops", "paths", "buildings", "indoorLocations"
+        ])
+        && request.resource.data.mapData.locations is list
+        && request.resource.data.mapData.locations.size() <= 500
+        && request.resource.data.mapData.rideStops is list
+        && request.resource.data.mapData.rideStops.size() <= 250
+        && request.resource.data.mapData.paths is list
+        && request.resource.data.mapData.paths.size() <= 250
+        && request.resource.data.mapData.buildings is list
+        && request.resource.data.mapData.buildings.size() <= 500
+        && request.resource.data.mapData.indoorLocations is list
+        && request.resource.data.mapData.indoorLocations.size() <= 2000
+        && request.resource.data.updatedAt == request.time;
+    }
+
     match /authorized_students/{matricNo} {
       allow get: if true;
       allow write: if isAdmin();
@@ -505,6 +525,12 @@ service cloud.firestore {
       allow list: if isStudent();
       allow create: if validScheduleCreate();
       allow update: if scheduleOwnerUpdate();
+      allow delete: if false;
+    }
+
+    match /campusData/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if docId == "main" && validCampusDataWrite();
       allow delete: if false;
     }
 

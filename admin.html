@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 </head>
 <body class="admin-page">
+  <div id="adminSidebarOverlay" class="admin-sidebar-overlay hidden" onclick="closeAdminMenu()"></div>
   <div class="admin-layout">
     <aside class="admin-sidebar">
       <div class="admin-sidebar-logo">
@@ -35,6 +36,10 @@
           <span class="admin-nav-icon">📋</span>
           Transactions
         </div>
+        <div class="admin-nav-item" data-section="campus">
+          <span class="admin-nav-icon">M</span>
+          Campus Data
+        </div>
       </nav>
 
       <div style="margin-top: auto; padding: var(--space-lg);">
@@ -43,6 +48,10 @@
     </aside>
 
     <main class="admin-main">
+      <header class="admin-mobile-header">
+        <button type="button" class="admin-menu-btn" onclick="openAdminMenu()" aria-label="Open admin menu">☰</button>
+        <strong>OPrides Admin</strong>
+      </header>
       <!-- Overview Section -->
       <section id="section-overview" class="admin-section fade-in">
         <h2 class="admin-section-title">📊 Platform Overview</h2>
@@ -136,6 +145,27 @@
           </select>
         </div>
         <div id="transactionList" class="admin-table"></div>
+      </section>
+
+      <!-- Campus Data Section -->
+      <section id="section-campus" class="admin-section hidden fade-in">
+        <div class="panel-head transaction-head">
+          <div>
+            <h2 class="admin-section-title" style="margin-bottom: 0;">Campus Data</h2>
+            <p>Manage map markers, keke stops, building shapes, and hidden indoor records.</p>
+          </div>
+          <button type="button" class="btn btn-primary" id="saveCampusDataBtn">Save campus data</button>
+        </div>
+
+        <div class="admin-panel">
+          <div class="campus-admin-summary" id="campusAdminSummary"></div>
+          <p class="admin-help">Use valid JSON. Campus markers and ride stops have separate coordinates because keke stops can be away from the actual building. Indoor records are stored here but are not shown on the map.</p>
+          <textarea id="campusDataEditor" class="admin-json-editor" spellcheck="false"></textarea>
+          <div class="admin-actions">
+            <button type="button" class="green" id="reloadCampusDataBtn">Reload</button>
+            <button type="button" class="yellow" id="formatCampusDataBtn">Format JSON</button>
+          </div>
+        </div>
       </section>
     </main>
   </div>

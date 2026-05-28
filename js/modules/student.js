@@ -1,6 +1,6 @@
 import { state } from "./state.js";
 import { db, collection, query, orderBy, onSnapshot, addDoc, deleteDoc, updateDoc, doc, getDoc, getDocs, where, serverTimestamp, runTransaction } from "../firebase.js";
-import { CAMPUS_MAP_DATA } from "../campus-data.js";
+import { getRideStops } from "../campus-data.js";
 import { showToast, updateBottomSheet, updateRideDetails } from "./ui.js";
 import { initMap } from "./map-manager.js";
 import { calculateDetourScore, getDistance, getQueuePosition, estimateWaitTime, insertStopsIntoQueue, calculateFare } from "./ride-helpers.js";
@@ -134,7 +134,14 @@ export function populateLocations() {
   const pickup = document.getElementById("pickupSelect");
   const dropoff = document.getElementById("dropoffSelect");
   if (!pickup || !dropoff) return;
-  const options = CAMPUS_MAP_DATA.locations.map(loc => `<option value="${loc.id}">${loc.name}</option>`).join("");
+  const stops = getRideStops();
+  if (!stops.length) {
+    const emptyOption = `<option value="">Admin needs to set ride stop coordinates</option>`;
+    pickup.innerHTML = emptyOption;
+    dropoff.innerHTML = emptyOption;
+    return;
+  }
+  const options = stops.map(loc => `<option value="${loc.id}">${loc.name}</option>`).join("");
   pickup.innerHTML = `<option value="">Select Pickup Location</option>` + options;
   dropoff.innerHTML = `<option value="">Select Drop-off Location</option>` + options;
 }
@@ -232,8 +239,13 @@ export async function requestKeke() {
       showToast("Pickup and drop-off cannot be same", "error");
       return;
     }
-    const pickupLoc = CAMPUS_MAP_DATA.locations.find(l => l.id === pickupId);
-    const dropoffLoc = CAMPUS_MAP_DATA.locations.find(l => l.id === dropoffId);
+    const rideStops = getRideStops();
+    const pickupLoc = rideStops.find(l => l.id === pickupId);
+    const dropoffLoc = rideStops.find(l => l.id === dropoffId);
+    if (!pickupLoc || !dropoffLoc) {
+      showToast("That stop still needs coordinates from admin", "error");
+      return;
+    }
     btn.innerText = "Looking for your keke...";
 
     const requestData = {

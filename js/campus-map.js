@@ -1,25 +1,82 @@
-import { CAMPUS_MAP_DATA } from "./campus-data.js";
+import {
+  getCampusCategoryMeta,
+  getCampusLocationsForMap,
+  getCampusMapData,
+  getRideStops
+} from "./campus-data.js";
+import { initCampusEditor } from "./campus-editor.js";
+
+function getCategoryMeta(category) {
+  return getCampusCategoryMeta(category);
+}
+
+function createCampusIcon(category) {
+  const meta = getCategoryMeta(category);
+  return L.divIcon({
+    html: `
+      <div class="campus-marker" style="--marker-color: ${meta.color}">
+        <i class="fas ${meta.icon}"></i>
+      </div>
+    `,
+    className: "",
+    iconSize: [34, 34],
+    iconAnchor: [17, 34],
+    popupAnchor: [0, -30]
+  });
+}
+
+function campusPopup(location) {
+  const meta = getCategoryMeta(location.category);
+  return `
+    <div class="campus-popup">
+      <strong>${location.name}</strong>
+      <span>${meta.label}</span>
+    </div>
+  `;
+}
 
 export function renderCampusMapData(map) {
-  CAMPUS_MAP_DATA.zones.forEach(zone => {
-    L.polygon(zone.points, {
-      color: "#f59e0b",
-      fillColor: "#f59e0b",
-      fillOpacity: 0.16,
-      weight: 3
-    }).addTo(map).bindPopup(zone.name);
+  const data = getCampusMapData();
+
+  data.buildings.forEach(building => {
+    if (!Array.isArray(building.points) || building.points.length < 3) return;
+    L.polygon(building.points, {
+      color: "#9ca3af",
+      fillColor: "#c7ccd4",
+      fillOpacity: 0.55,
+      weight: 1.5
+    }).addTo(map).bindPopup(building.name);
   });
 
-  CAMPUS_MAP_DATA.paths.forEach(path => {
+  data.paths.forEach(path => {
+    if (!Array.isArray(path.points) || path.points.length < 2) return;
     L.polyline(path.points, {
-      color: "#2563eb",
-      weight: 5
+      color: "#64748b",
+      weight: 4,
+      opacity: 0.6,
+      lineCap: "round",
+      lineJoin: "round"
     }).addTo(map).bindPopup(path.name);
   });
 
-  CAMPUS_MAP_DATA.locations.forEach(location => {
-    L.marker([location.lat, location.lng])
+  getCampusLocationsForMap().forEach(location => {
+    L.marker([location.lat, location.lng], {
+      icon: createCampusIcon(location.category)
+    })
       .addTo(map)
-      .bindPopup(location.name);
+      .bindPopup(campusPopup(location));
   });
+
+  getRideStops().forEach(stop => {
+    L.marker([stop.lat, stop.lng], {
+      icon: createCampusIcon("pickup")
+    })
+      .addTo(map)
+      .bindPopup(campusPopup({ ...stop, category: "pickup" }));
+  });
+}
+
+export function initCampusMapTools(map, mapId) {
+  renderCampusMapData(map);
+  initCampusEditor(map, { enabled: mapId === "pathfinderMap" });
 }
