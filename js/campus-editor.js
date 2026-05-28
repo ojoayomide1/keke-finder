@@ -12,8 +12,10 @@ let activePathDraft = [];
 let activeBuildingDraft = [];
 let campusDraftLayers = [];
 let activeShapeLayer = null;
+let currentLocationLayer = null;
 let map = null;
 let clickHandler = null;
+let editorDragState = null;
 
 function getCampusEditorElements() {
   return {
@@ -25,7 +27,10 @@ function getCampusEditorElements() {
     output: document.getElementById("campusEditorOutput"),
     copyBtn: document.getElementById("copyCampusJsonBtn"),
     saveShapeBtn: document.getElementById("saveCampusShapeBtn"),
-    clearBtn: document.getElementById("clearCampusDraftBtn")
+    clearBtn: document.getElementById("clearCampusDraftBtn"),
+    locateBtn: document.getElementById("locateCampusEditorBtn"),
+    minimizeBtn: document.getElementById("minimizeCampusEditorBtn"),
+    header: document.querySelector("#campusEditor .campus-editor__header")
   };
 }
 
@@ -80,14 +85,14 @@ function drawActiveShape(type, points) {
 
   if (points.length === 1) {
     activeShapeLayer = L.circleMarker(points[0], {
-      radius: 6,
-      color: type === "path" ? "#64748b" : "#9ca3af"
+      radius: 4,
+      color: "#9ca3af"
     }).addTo(map);
     return;
   }
 
   activeShapeLayer = type === "path"
-    ? L.polyline(points, { color: "#64748b", weight: 5, dashArray: "8 8" }).addTo(map)
+    ? L.polyline(points, { color: "#9ca3af", weight: 2, opacity: 0.72, dashArray: "5 6" }).addTo(map)
     : L.polygon(points, {
         color: "#9ca3af",
         fillColor: "#c7ccd4",
@@ -124,7 +129,12 @@ function saveCampusLine(type, name, points) {
 
   if (type === "path") {
     campusDraft.paths.push(entry);
-    addCampusDraftLayer(L.polyline(points, { color: "#64748b", weight: 5, lineCap: "round" }));
+    addCampusDraftLayer(L.polyline(points, {
+      color: "#9ca3af",
+      weight: 2,
+      opacity: 0.72,
+      lineCap: "round"
+    }));
   } else {
     campusDraft.buildings.push(entry);
     addCampusDraftLayer(L.polygon(points, {
@@ -155,6 +165,107 @@ function saveActiveCampusShape() {
 
   clearActiveShapeLayer();
   updateCampusEditorOutput();
+}
+
+function setEditorPosition(panel, left, top) {
+  const parentRect = panel.offsetParent?.getBoundingClientRect() || { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+  const rect = panel.getBoundingClientRect();
+  const maxLeft = Math.max(8, parentRect.width - rect.width - 8);
+  const maxTop = Math.max(8, parentRect.height - rect.height - 8);
+  panel.style.left = `${Math.min(Math.max(8, left - parentRect.left), maxLeft)}px`;
+  panel.style.top = `${Math.min(Math.max(8, top - parentRect.top), maxTop)}px`;
+  panel.style.right = "auto";
+  panel.style.bottom = "auto";
+}
+
+function beginEditorDrag(event) {
+  const elements = getCampusEditorElements();
+  if (!elements.panel) return;
+  if (event.target.closest("button, input, select, textarea")) return;
+
+  const pointer = event.touches?.[0] || event;
+  const rect = elements.panel.getBoundingClientRect();
+  editorDragState = {
+    offsetX: pointer.clientX - rect.left,
+    offsetY: pointer.clientY - rect.top
+  };
+  elements.panel.classList.add("campus-editor--dragging");
+  document.addEventListener("mousemove", moveEditorDrag);
+  document.addEventListener("mouseup", endEditorDrag);
+  document.addEventListener("touchmove", moveEditorDrag, { passive: false });
+  document.addEventListener("touchend", endEditorDrag);
+}
+
+function moveEditorDrag(event) {
+  if (!editorDragState) return;
+  event.preventDefault();
+  const elements = getCampusEditorElements();
+  if (!elements.panel) return;
+  const pointer = event.touches?.[0] || event;
+  setEditorPosition(
+    elements.panel,
+    pointer.clientX - editorDragState.offsetX,
+    pointer.clientY - editorDragState.offsetY
+  );
+}
+
+function endEditorDrag() {
+  const elements = getCampusEditorElements();
+  elements.panel?.classList.remove("campus-editor--dragging");
+  editorDragState = null;
+  document.removeEventListener("mousemove", moveEditorDrag);
+  document.removeEventListener("mouseup", endEditorDrag);
+  document.removeEventListener("touchmove", moveEditorDrag);
+  document.removeEventListener("touchend", endEditorDrag);
+}
+
+function toggleEditorMinimized() {
+  const elements = getCampusEditorElements();
+  if (!elements.panel || !elements.minimizeBtn) return;
+  const minimized = elements.panel.classList.toggle("campus-editor--minimized");
+  elements.minimizeBtn.innerHTML = `<i class="fas ${minimized ? "fa-up-right-and-down-left-from-center" : "fa-minus"}"></i>`;
+  elements.minimizeBtn.setAttribute("aria-label", minimized ? "Expand editor" : "Minimize editor");
+  setTimeout(() => map?.invalidateSize(), 100);
+}
+
+function showCurrentLocation() {
+  const elements = getCampusEditorElements();
+  if (!navigator.geolocation) {
+    if (elements.hint) elements.hint.innerText = "Location is not available on this device.";
+    return;
+  }
+
+  if (elements.hint) elements.hint.innerText = "Getting your location...";
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const point = [
+      roundCoord(pos.coords.latitude),
+      roundCoord(pos.coords.longitude)
+    ];
+
+    if (currentLocationLayer) {
+      currentLocationLayer.setLatLng(point);
+    } else {
+      currentLocationLayer = L.circleMarker(point, {
+        radius: 8,
+        color: "#2563eb",
+        fillColor: "#2563eb",
+        fillOpacity: 0.85,
+        weight: 3
+      }).addTo(map).bindPopup("Your current location");
+    }
+
+    map.setView(point, Math.max(map.getZoom(), 18));
+    currentLocationLayer.openPopup();
+    if (elements.hint) {
+      elements.hint.innerText = `Current location: ${point[0]}, ${point[1]}`;
+    }
+  }, (err) => {
+    if (elements.hint) elements.hint.innerText = `Location unavailable: ${err.message}`;
+  }, {
+    enableHighAccuracy: true,
+    timeout: 12000,
+    maximumAge: 15000
+  });
 }
 
 function captureCampusPoint(event) {
@@ -240,8 +351,13 @@ export function initCampusEditor(nextMap, options = {}) {
   clickHandler = captureCampusPoint;
   map.on("click", clickHandler);
 
-  elements.clearBtn.onclick = clearCampusDraft;
-  elements.saveShapeBtn.onclick = saveActiveCampusShape;
+  if (elements.clearBtn) elements.clearBtn.onclick = clearCampusDraft;
+  if (elements.saveShapeBtn) elements.saveShapeBtn.onclick = saveActiveCampusShape;
+  if (elements.locateBtn) elements.locateBtn.onclick = showCurrentLocation;
+  if (elements.minimizeBtn) elements.minimizeBtn.onclick = toggleEditorMinimized;
+  elements.header?.addEventListener("mousedown", beginEditorDrag);
+  elements.header?.addEventListener("touchstart", beginEditorDrag, { passive: true });
+  if (!elements.copyBtn) return;
   elements.copyBtn.onclick = async () => {
     const json = formatCampusDraft();
 

@@ -51,9 +51,9 @@ export function renderCampusMapData(map) {
   data.paths.forEach(path => {
     if (!Array.isArray(path.points) || path.points.length < 2) return;
     L.polyline(path.points, {
-      color: "#64748b",
-      weight: 4,
-      opacity: 0.6,
+      color: "#9ca3af",
+      weight: 2,
+      opacity: 0.72,
       lineCap: "round",
       lineJoin: "round"
     }).addTo(map).bindPopup(path.name);

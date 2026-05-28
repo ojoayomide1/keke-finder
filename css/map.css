@@ -118,6 +118,7 @@
   padding: 14px;
   display: grid;
   gap: 12px;
+  touch-action: auto;
 }
 
 .campus-editor__header {
@@ -125,6 +126,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  cursor: move;
+  user-select: none;
 }
 
 .campus-editor__header div {
@@ -140,6 +143,29 @@
   color: var(--color-text-secondary);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.campus-editor__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.campus-editor--dragging {
+  opacity: 0.94;
+}
+
+.campus-editor--minimized {
+  width: min(300px, calc(100% - 28px));
+  max-height: none;
+  overflow: hidden;
+}
+
+.campus-editor--minimized .campus-editor__grid,
+.campus-editor--minimized textarea,
+.campus-editor--minimized .campus-editor__actions {
+  display: none;
 }
 
 .campus-editor__grid {
@@ -186,16 +212,23 @@
 
 @media (max-width: 640px) {
   .campus-editor {
-    top: auto;
+    top: 76px;
     right: 10px;
     left: 10px;
-    bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 112px);
+    bottom: auto;
     width: auto;
-    max-height: 48%;
+    max-height: min(58vh, 520px);
+    padding: 12px;
   }
 
   .campus-editor__grid,
   .campus-editor__actions {
     grid-template-columns: 1fr;
+  }
+
+  .campus-editor--minimized {
+    left: 10px;
+    right: auto;
+    width: min(290px, calc(100% - 20px));
   }
 }
