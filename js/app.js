@@ -17,7 +17,6 @@ import "./seeding.js";
 import { state } from "./modules/state.js";
 import {
   CAMPUS_CATEGORY_META,
-  CAMPUS_EDITOR_MODE,
   getCampusDestinationLocations,
   loadCampusDataFromFirestore
 } from "./campus-data.js";
@@ -202,7 +201,6 @@ function switchTab(tab) {
       renderStudentWallet();
     } else if (tab === "map") {
       populateCampusMapLandmarks();
-      document.getElementById("campusEditorOpenBtn")?.classList.toggle("hidden", !CAMPUS_EDITOR_MODE);
       resetPathfinder();
     } else if (tab === "live") {
       setTimeout(() => {
@@ -419,13 +417,6 @@ function completePathfinderSession() {
   showToast("Walking session completed", "success");
 }
 
-function openCampusEditor() {
-  document.getElementById("pathfinderSelectPanel")?.classList.add("hidden");
-  document.getElementById("pathfinderMapPanel")?.classList.remove("hidden");
-  document.getElementById("pathfinderSheet")?.classList.add("hidden");
-  setTimeout(() => initMap("pathfinderMap"), 100);
-}
-
 function populateCampusMapLandmarks() {
   const select = document.getElementById("pathfinderSelect");
   if (!select) return;
@@ -473,7 +464,6 @@ function bindAppGlobals() {
   window.navigateToLandmark = navigateToLandmark;
   window.resetPathfinder = resetPathfinder;
   window.completePathfinderSession = completePathfinderSession;
-  window.openCampusEditor = openCampusEditor;
 }
 
 bindAppGlobals();

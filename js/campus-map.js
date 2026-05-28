@@ -4,7 +4,6 @@ import {
   getCampusMapData,
   getRideStops
 } from "./campus-data.js";
-import { initCampusEditor } from "./campus-editor.js";
 
 function getCategoryMeta(category) {
   return getCampusCategoryMeta(category);
@@ -76,7 +75,6 @@ export function renderCampusMapData(map) {
   });
 }
 
-export function initCampusMapTools(map, mapId) {
+export function initCampusMapTools(map) {
   renderCampusMapData(map);
-  initCampusEditor(map, { enabled: mapId === "pathfinderMap" });
 }

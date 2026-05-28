@@ -7,9 +7,6 @@ import {
   setDoc
 } from "./firebase.js";
 
-// Toggle this off before production if the in-app coordinate editor should be hidden.
-export const CAMPUS_EDITOR_MODE = true;
-
 export const CAMPUS_CATEGORY_META = {
   boys_hostel: { label: "Boys Hostels", icon: "fa-bed", color: "#2563eb" },
   girls_hostel: { label: "Girls Hostels", icon: "fa-person-dress", color: "#db2777" },
