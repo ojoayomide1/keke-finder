@@ -92,13 +92,12 @@ function drawActiveShape(type, points) {
   }
 
   activeShapeLayer = type === "path"
-    ? L.polyline(points, { color: "#9ca3af", weight: 2, opacity: 0.72, dashArray: "5 6" }).addTo(map)
+    ? L.polyline(points, { color: "#9ca3af", weight: 2, opacity: 0.72 }).addTo(map)
     : L.polygon(points, {
         color: "#9ca3af",
         fillColor: "#c7ccd4",
         fillOpacity: 0.45,
-        weight: 2,
-        dashArray: "8 8"
+        weight: 2
       }).addTo(map);
 }
 
