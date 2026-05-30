@@ -112,6 +112,55 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function normalizePoint(point) {
+  if (Array.isArray(point)) {
+    return [Number(point[0]), Number(point[1])];
+  }
+
+  if (point && typeof point === "object") {
+    return [Number(point.lat), Number(point.lng)];
+  }
+
+  return [NaN, NaN];
+}
+
+function normalizeShape(shape) {
+  return {
+    ...shape,
+    points: Array.isArray(shape?.points)
+      ? shape.points
+          .map(normalizePoint)
+          .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng))
+      : []
+  };
+}
+
+function serializePoint(point) {
+  const [lat, lng] = normalizePoint(point);
+  return { lat, lng };
+}
+
+function serializeShape(shape) {
+  return {
+    ...shape,
+    points: Array.isArray(shape?.points)
+      ? shape.points
+          .map(serializePoint)
+          .filter(point => Number.isFinite(point.lat) && Number.isFinite(point.lng))
+      : []
+  };
+}
+
+function serializeCampusDataForFirestore(data) {
+  return {
+    locations: clone(data.locations),
+    rideStops: clone(data.rideStops),
+    paths: data.paths.map(serializeShape),
+    buildings: data.buildings.map(serializeShape),
+    indoorLocations: clone(data.indoorLocations)
+  };
+}
+
 export function hasCoordinates(item) {
   return Number.isFinite(item?.lat) && Number.isFinite(item?.lng);
 }
@@ -144,8 +193,8 @@ export function setCampusMapData(nextData) {
   const merged = {
     locations: Array.isArray(nextData?.locations) ? nextData.locations : [],
     rideStops: Array.isArray(nextData?.rideStops) ? nextData.rideStops : [],
-    paths: Array.isArray(nextData?.paths) ? nextData.paths : [],
-    buildings: Array.isArray(nextData?.buildings) ? nextData.buildings : [],
+    paths: Array.isArray(nextData?.paths) ? nextData.paths.map(normalizeShape) : [],
+    buildings: Array.isArray(nextData?.buildings) ? nextData.buildings.map(normalizeShape) : [],
     indoorLocations: Array.isArray(nextData?.indoorLocations) ? nextData.indoorLocations : []
   };
 
@@ -199,7 +248,7 @@ export function listenToCampusData(callback) {
 export async function saveCampusDataToFirestore(nextData) {
   setCampusMapData(nextData);
   await setDoc(CAMPUS_DOC, {
-    mapData: clone(CAMPUS_MAP_DATA),
+    mapData: serializeCampusDataForFirestore(CAMPUS_MAP_DATA),
     updatedAt: serverTimestamp()
   }, { merge: true });
 }

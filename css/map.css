@@ -66,3 +66,38 @@
   content: "←";
   font-size: 20px;
 }
+
+.campus-marker {
+  width: 34px;
+  height: 34px;
+  border-radius: 50% 50% 50% 8px;
+  background: var(--marker-color);
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-45deg);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+
+.campus-marker i {
+  font-size: 13px;
+  transform: rotate(45deg);
+}
+
+.campus-popup {
+  display: grid;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.campus-popup strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.campus-popup span {
+  color: #5b6472;
+  font-size: 12px;
+}
