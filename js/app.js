@@ -186,6 +186,10 @@ function switchTab(tab) {
 
   const views = role === "student" ? studentViews : riderViews;
 
+  if (role === "student" && tab !== "map") {
+    stopPathfinderWatch();
+  }
+
   // Hide all views for both roles to be safe
   [...Object.values(studentViews), ...Object.values(riderViews)].forEach(vId => {
     const el = document.getElementById(vId);
@@ -320,10 +324,75 @@ async function cleanupRiderSession(previousUser = state.currentUser) {
   }
 }
 
+function stopPathfinderWatch() {
+  if (state.pathfinderWatchId !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(state.pathfinderWatchId);
+  }
+  state.pathfinderWatchId = null;
+  state.lastStudentLoc = null;
+  state.pathfinderDestinationId = null;
+  state.pathfinderHasFitRoute = false;
+}
+
+function updatePathfinderRouteFromPosition(pos, landmark, watchId) {
+  if (state.pathfinderWatchId !== watchId || state.pathfinderDestinationId !== landmark.id || !state.map) return;
+
+  const { latitude, longitude, accuracy } = pos.coords;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+  if (accuracy && accuracy > 120) {
+    updatePathfinderSheet(landmark, null, null, "Weak GPS signal...");
+    return;
+  }
+
+  const studentLoc = stabilizeLocation(latitude, longitude);
+  const distanceMoved = state.lastStudentLoc
+    ? getDistance(state.lastStudentLoc.lat, state.lastStudentLoc.lng, studentLoc.lat, studentLoc.lng)
+    : Infinity;
+
+  if (distanceMoved < 2 && state.userMarker) return;
+  state.lastStudentLoc = studentLoc;
+
+  const distance = getDistance(studentLoc.lat, studentLoc.lng, landmark.lat, landmark.lng);
+  const etaMinutes = Math.max(1, Math.round(distance / 80));
+
+  if (!state.userMarker) {
+    state.userMarker = L.marker([studentLoc.lat, studentLoc.lng], { icon: pathfinderStudentIcon }).addTo(state.map).bindPopup("Your Location");
+  } else {
+    animateMarker(state.userMarker, studentLoc.lat, studentLoc.lng, 700);
+  }
+
+  const waypoints = [
+    L.latLng(studentLoc.lat, studentLoc.lng),
+    L.latLng(landmark.lat, landmark.lng)
+  ];
+
+  if (state.routeControl) {
+    state.routeControl.setWaypoints(waypoints);
+  } else {
+    state.routeControl = L.Routing.control({
+      waypoints,
+      createMarker: () => null,
+      addWaypoints: false,
+      draggableWaypoints: false,
+      show: false,
+      lineOptions: { styles: [{ color: '#3b82f6', weight: 6 }] }
+    }).addTo(state.map);
+  }
+
+  if (!state.pathfinderHasFitRoute) {
+    state.map.fitBounds(L.latLngBounds([studentLoc.lat, studentLoc.lng], [landmark.lat, landmark.lng]), { padding: [50, 50] });
+    state.pathfinderHasFitRoute = true;
+    showToast(`Pathfinding to ${landmark.name}`);
+  }
+
+  updatePathfinderSheet(landmark, distance, etaMinutes, "Live route tracking");
+}
+
 async function navigateToLandmark(landmarkId) {
   if (!landmarkId) return;
   const landmark = getCampusDestinationLocations().find(l => l.id === landmarkId);
   if (!landmark) return;
+  stopPathfinderWatch();
 
   document.getElementById("pathfinderSelectPanel")?.classList.add("hidden");
   document.getElementById("pathfinderMapPanel")?.classList.remove("hidden");
@@ -333,45 +402,31 @@ async function navigateToLandmark(landmarkId) {
   updatePathfinderSheet(landmark, null, null, "Calculating route...");
 
   initMap("pathfinderMap");
-  
-  navigator.geolocation.getCurrentPosition((pos) => {
-    const { latitude, longitude } = pos.coords;
-    const distance = getDistance(latitude, longitude, landmark.lat, landmark.lng);
-    const etaMinutes = Math.max(1, Math.round(distance / 80));
 
-    if (!state.userMarker) {
-      state.userMarker = L.marker([latitude, longitude], { icon: pathfinderStudentIcon }).addTo(state.map).bindPopup("Your Location");
-    } else {
-      state.userMarker.setLatLng([latitude, longitude]);
-    }
-    
-    if (state.routeControl) {
-      state.routeControl.setWaypoints([
-        L.latLng(latitude, longitude),
-        L.latLng(landmark.lat, landmark.lng)
-      ]);
-    } else {
-      state.routeControl = L.Routing.control({
-        waypoints: [
-          L.latLng(latitude, longitude),
-          L.latLng(landmark.lat, landmark.lng)
-        ],
-        createMarker: () => null,
-        addWaypoints: false,
-        draggableWaypoints: false,
-        show: false,
-        lineOptions: { styles: [{ color: '#3b82f6', weight: 6 }] }
-      }).addTo(state.map);
-    }
-    state.map.fitBounds(L.latLngBounds([latitude, longitude], [landmark.lat, landmark.lng]), { padding: [50, 50] });
-    updatePathfinderSheet(landmark, distance, etaMinutes, "Best route ready");
-    showToast(`Pathfinding to ${landmark.name}`);
-  }, (err) => {
+  if (!navigator.geolocation) {
     L.marker([landmark.lat, landmark.lng]).addTo(state.map).bindPopup(landmark.name).openPopup();
     state.map.setView([landmark.lat, landmark.lng], 17);
     updatePathfinderSheet(landmark, null, null, "GPS unavailable");
     showToast("GPS unavailable. Showing destination only.", "warning");
+    return;
+  }
+
+  state.pathfinderDestinationId = landmark.id;
+  let pathfinderWatchId = null;
+  pathfinderWatchId = navigator.geolocation.watchPosition((pos) => {
+    updatePathfinderRouteFromPosition(pos, landmark, pathfinderWatchId);
+  }, (err) => {
+    if (state.pathfinderDestinationId !== landmark.id || !state.map) return;
+    L.marker([landmark.lat, landmark.lng]).addTo(state.map).bindPopup(landmark.name).openPopup();
+    state.map.setView([landmark.lat, landmark.lng], 17);
+    updatePathfinderSheet(landmark, null, null, "GPS unavailable");
+    showToast("GPS unavailable. Showing destination only.", "warning");
+  }, {
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 10000
   });
+  state.pathfinderWatchId = pathfinderWatchId;
 }
 
 function updatePathfinderSheet(landmark, distance, etaMinutes, status) {
@@ -398,6 +453,7 @@ function updatePathfinderSheet(landmark, distance, etaMinutes, status) {
 }
 
 function resetPathfinder() {
+  stopPathfinderWatch();
   document.getElementById("pathfinderMapPanel")?.classList.add("hidden");
   document.getElementById("pathfinderSheet")?.classList.add("hidden");
   document.getElementById("pathfinderSelectPanel")?.classList.remove("hidden");
@@ -825,6 +881,7 @@ window.addEventListener("load", () => {
         if (state.unsubscribeQueueListener) state.unsubscribeQueueListener();
         if (state.map) state.map.remove();
         if (state.riderWatchId) navigator.geolocation.clearWatch(state.riderWatchId);
+        stopPathfinderWatch();
         
         state.unsubscribeRequests = null;
         state.unsubscribeQueueListener = null;
