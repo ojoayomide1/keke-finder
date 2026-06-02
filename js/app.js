@@ -21,6 +21,7 @@ import {
   getCampusDestinationLocations,
   loadCampusDataFromFirestore
 } from "./campus-data.js";
+import { stopCampusEditorLocationWatch } from "./campus-editor.js";
 import { 
   showToast, 
   updateBottomSheet, 
@@ -189,6 +190,7 @@ function switchTab(tab) {
 
   if (role === "student" && tab !== "map") {
     stopPathfinderWatch();
+    stopCampusEditorLocationWatch();
   }
 
   // Hide all views for both roles to be safe
@@ -456,6 +458,7 @@ function updatePathfinderSheet(landmark, distance, etaMinutes, status) {
 
 function resetPathfinder() {
   stopPathfinderWatch();
+  stopCampusEditorLocationWatch();
   document.getElementById("pathfinderMapPanel")?.classList.add("hidden");
   document.getElementById("pathfinderSheet")?.classList.add("hidden");
   document.getElementById("pathfinderSelectPanel")?.classList.remove("hidden");

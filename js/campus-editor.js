@@ -13,6 +13,9 @@ let activeBuildingDraft = [];
 let campusDraftLayers = [];
 let activeShapeLayer = null;
 let currentLocationLayer = null;
+let campusEditorLocationWatchId = null;
+let lastEditorLocation = null;
+let hasCenteredEditorLocation = false;
 let map = null;
 let clickHandler = null;
 let editorDragState = null;
@@ -44,6 +47,20 @@ function slugify(value) {
 
 function roundCoord(value) {
   return Number(value.toFixed(6));
+}
+
+function getDistanceMeters(from, to) {
+  if (!from || !to) return Infinity;
+  const earthRadius = 6371e3;
+  const fromLat = from[0] * Math.PI / 180;
+  const toLat = to[0] * Math.PI / 180;
+  const deltaLat = (to[0] - from[0]) * Math.PI / 180;
+  const deltaLng = (to[1] - from[1]) * Math.PI / 180;
+  const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+    Math.cos(fromLat) * Math.cos(toLat) *
+    Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadius * c;
 }
 
 function formatCampusDraft() {
@@ -227,44 +244,95 @@ function toggleEditorMinimized() {
   setTimeout(() => map?.invalidateSize(), 100);
 }
 
-function showCurrentLocation() {
+function updateLocateButton(isTracking) {
+  const { locateBtn } = getCampusEditorElements();
+  if (!locateBtn) return;
+  locateBtn.classList.toggle("active", isTracking);
+  locateBtn.setAttribute("aria-label", isTracking ? "Stop live location tracking" : "Track my location");
+  locateBtn.innerHTML = `<i class="fas ${isTracking ? "fa-location-dot" : "fa-location-crosshairs"}"></i>`;
+}
+
+export function stopCampusEditorLocationWatch() {
+  if (campusEditorLocationWatchId !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(campusEditorLocationWatchId);
+  }
+  campusEditorLocationWatchId = null;
+  lastEditorLocation = null;
+  hasCenteredEditorLocation = false;
+  updateLocateButton(false);
+}
+
+function updateCurrentLocation(pos, watchId) {
+  if (campusEditorLocationWatchId !== watchId || !map) return;
+
   const elements = getCampusEditorElements();
+  const { latitude, longitude, accuracy } = pos.coords;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+
+  const precisePoint = [latitude, longitude];
+  const point = [
+    roundCoord(latitude),
+    roundCoord(longitude)
+  ];
+  const distanceMoved = getDistanceMeters(lastEditorLocation, precisePoint);
+  if (distanceMoved < 2 && currentLocationLayer) return;
+  lastEditorLocation = precisePoint;
+
+  if (currentLocationLayer) {
+    currentLocationLayer.setLatLng(point);
+  } else {
+    currentLocationLayer = L.circleMarker(point, {
+      radius: 8,
+      color: "#2563eb",
+      fillColor: "#2563eb",
+      fillOpacity: 0.85,
+      weight: 3
+    }).addTo(map).bindPopup("Your live location");
+  }
+
+  if (!hasCenteredEditorLocation) {
+    map.setView(point, Math.max(map.getZoom(), 18));
+    currentLocationLayer.openPopup();
+    hasCenteredEditorLocation = true;
+  } else {
+    map.panTo(point, { animate: true, duration: 0.7 });
+  }
+
+  if (elements.hint) {
+    const accuracyText = Number.isFinite(accuracy) ? ` / ${Math.round(accuracy)}m accuracy` : "";
+    elements.hint.innerText = `Live location: ${point[0]}, ${point[1]}${accuracyText}`;
+  }
+}
+
+function toggleCurrentLocationTracking() {
+  const elements = getCampusEditorElements();
+  if (campusEditorLocationWatchId !== null) {
+    stopCampusEditorLocationWatch();
+    if (elements.hint) elements.hint.innerText = "Live location tracking stopped.";
+    return;
+  }
+
   if (!navigator.geolocation) {
     if (elements.hint) elements.hint.innerText = "Location is not available on this device.";
     return;
   }
 
-  if (elements.hint) elements.hint.innerText = "Getting your location...";
-  navigator.geolocation.getCurrentPosition((pos) => {
-    const point = [
-      roundCoord(pos.coords.latitude),
-      roundCoord(pos.coords.longitude)
-    ];
-
-    if (currentLocationLayer) {
-      currentLocationLayer.setLatLng(point);
-    } else {
-      currentLocationLayer = L.circleMarker(point, {
-        radius: 8,
-        color: "#2563eb",
-        fillColor: "#2563eb",
-        fillOpacity: 0.85,
-        weight: 3
-      }).addTo(map).bindPopup("Your current location");
-    }
-
-    map.setView(point, Math.max(map.getZoom(), 18));
-    currentLocationLayer.openPopup();
-    if (elements.hint) {
-      elements.hint.innerText = `Current location: ${point[0]}, ${point[1]}`;
-    }
+  if (elements.hint) elements.hint.innerText = "Starting live location tracking...";
+  hasCenteredEditorLocation = false;
+  let watchId = null;
+  watchId = navigator.geolocation.watchPosition((pos) => {
+    updateCurrentLocation(pos, watchId);
   }, (err) => {
+    if (campusEditorLocationWatchId !== watchId) return;
+    stopCampusEditorLocationWatch();
     if (elements.hint) elements.hint.innerText = `Location unavailable: ${err.message}`;
   }, {
     enableHighAccuracy: true,
-    timeout: 12000,
-    maximumAge: 15000
+    maximumAge: 0,
+    timeout: 10000
   });
+  campusEditorLocationWatchId = watchId;
+  updateLocateButton(true);
 }
 
 function captureCampusPoint(event) {
@@ -323,13 +391,20 @@ function captureCampusPoint(event) {
 }
 
 export function initCampusEditor(nextMap, options = {}) {
+  if (map && map !== nextMap) {
+    stopCampusEditorLocationWatch();
+    currentLocationLayer = null;
+  }
   map = nextMap;
   const elements = getCampusEditorElements();
   if (!elements.panel || !map) return;
 
   const enabled = CAMPUS_EDITOR_MODE && options.enabled;
   elements.panel.classList.toggle("hidden", !enabled);
-  if (!enabled) return;
+  if (!enabled) {
+    stopCampusEditorLocationWatch();
+    return;
+  }
 
   updateCampusEditorOutput();
 
@@ -352,7 +427,7 @@ export function initCampusEditor(nextMap, options = {}) {
 
   if (elements.clearBtn) elements.clearBtn.onclick = clearCampusDraft;
   if (elements.saveShapeBtn) elements.saveShapeBtn.onclick = saveActiveCampusShape;
-  if (elements.locateBtn) elements.locateBtn.onclick = showCurrentLocation;
+  if (elements.locateBtn) elements.locateBtn.onclick = toggleCurrentLocationTracking;
   if (elements.minimizeBtn) elements.minimizeBtn.onclick = toggleEditorMinimized;
   elements.header?.addEventListener("mousedown", beginEditorDrag);
   elements.header?.addEventListener("touchstart", beginEditorDrag, { passive: true });
