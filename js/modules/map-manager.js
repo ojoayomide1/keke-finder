@@ -104,10 +104,6 @@ export function refreshMapTheme() {
 export function initMap(mapId) {
   if (state.map) {
     try {
-      // Explicitly remove routing control before destroying map
-      if (state.routeControl && state.map.hasLayer(state.routeControl)) {
-        state.map.removeControl(state.routeControl);
-      }
       state.map.remove();
     } catch (e) {
       console.warn("Map cleanup warning:", e);
@@ -116,7 +112,7 @@ export function initMap(mapId) {
   }
   state.riderMarker = null;
   state.userMarker = null;
-  state.routeControl = null;
+  state.routeLayer = null;
   state.tileLayer = null;
   state.requestMarkers = [];
   state.activeMarkerAnimations.forEach(id => cancelAnimationFrame(id));
