@@ -15,7 +15,7 @@ export const state = {
   requestMarkers: [],
   riderMarker: null,
   tileLayer: null,
-  routeControl: null,
+  routeLayer: null,
   userMarker: null,
   latestRide: null,
   unsubscribeRequests: null,

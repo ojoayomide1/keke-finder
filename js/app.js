@@ -40,6 +40,7 @@ import {
   stabilizeLocation,
   refreshMapTheme
 } from "./modules/map-manager.js";
+import { calculateCampusRoute } from "./modules/campus-router.js";
 import { 
   populateLocations, 
   updateStudentProfileUI, 
@@ -334,6 +335,27 @@ function stopPathfinderWatch() {
   state.pathfinderHasFitRoute = false;
 }
 
+function clearRouteLayer() {
+  if (state.routeLayer && state.map) {
+    try { state.map.removeLayer(state.routeLayer); } catch (e) { console.warn("Route cleanup warning:", e); }
+  }
+  state.routeLayer = null;
+}
+
+function drawCampusRoute(points, style = {}) {
+  if (!state.map || !Array.isArray(points) || points.length < 2) return;
+
+  clearRouteLayer();
+  state.routeLayer = L.polyline(points, {
+    color: style.color || "#3b82f6",
+    weight: style.weight || 6,
+    opacity: style.opacity || 0.9,
+    dashArray: style.dashArray || null,
+    lineCap: "round",
+    lineJoin: "round"
+  }).addTo(state.map);
+}
+
 function updatePathfinderRouteFromPosition(pos, landmark, watchId) {
   if (state.pathfinderWatchId !== watchId || state.pathfinderDestinationId !== landmark.id || !state.map) return;
 
@@ -353,7 +375,6 @@ function updatePathfinderRouteFromPosition(pos, landmark, watchId) {
   state.lastStudentLoc = studentLoc;
 
   const distance = getDistance(studentLoc.lat, studentLoc.lng, landmark.lat, landmark.lng);
-  const etaMinutes = Math.max(1, Math.round(distance / 80));
 
   if (!state.userMarker) {
     state.userMarker = L.marker([studentLoc.lat, studentLoc.lng], { icon: pathfinderStudentIcon }).addTo(state.map).bindPopup("Your Location");
@@ -361,31 +382,25 @@ function updatePathfinderRouteFromPosition(pos, landmark, watchId) {
     animateMarker(state.userMarker, studentLoc.lat, studentLoc.lng, 700);
   }
 
-  const waypoints = [
-    L.latLng(studentLoc.lat, studentLoc.lng),
-    L.latLng(landmark.lat, landmark.lng)
-  ];
-
-  if (state.routeControl) {
-    state.routeControl.setWaypoints(waypoints);
-  } else {
-    state.routeControl = L.Routing.control({
-      waypoints,
-      createMarker: () => null,
-      addWaypoints: false,
-      draggableWaypoints: false,
-      show: false,
-      lineOptions: { styles: [{ color: '#3b82f6', weight: 6 }] }
-    }).addTo(state.map);
-  }
+  const route = calculateCampusRoute(
+    [studentLoc.lat, studentLoc.lng],
+    [landmark.lat, landmark.lng]
+  );
+  const routeDistance = route.distance ?? distance;
+  const etaMinutes = Math.max(1, Math.round(routeDistance / 80));
+  drawCampusRoute(route.points, {
+    color: "#3b82f6",
+    weight: 6,
+    dashArray: route.routed ? null : "8, 10"
+  });
 
   if (!state.pathfinderHasFitRoute) {
-    state.map.fitBounds(L.latLngBounds([studentLoc.lat, studentLoc.lng], [landmark.lat, landmark.lng]), { padding: [50, 50] });
+    state.map.fitBounds(L.latLngBounds(route.points), { padding: [50, 50] });
     state.pathfinderHasFitRoute = true;
     showToast(`Pathfinding to ${landmark.name}`);
   }
 
-  updatePathfinderSheet(landmark, distance, etaMinutes, "Live route tracking");
+  updatePathfinderSheet(landmark, routeDistance, etaMinutes, route.routed ? "Campus route tracking" : route.reason);
 }
 
 async function navigateToLandmark(landmarkId) {
@@ -464,7 +479,7 @@ function resetPathfinder() {
   }
   state.map = null;
   state.userMarker = null;
-  state.routeControl = null;
+  state.routeLayer = null;
   state.requestMarkers = [];
 }
 
@@ -830,18 +845,15 @@ window.updateRideUI = (ride) => {
   const pendingStops = ride.stopQueue.filter(s => s.status === "pending");
   if (pendingStops.length > 0 && currentLocation) {
     const nextStop = pendingStops[0];
-    if (!state.routeControl) {
-      state.routeControl = L.Routing.control({
-        waypoints: [L.latLng(currentLocation.lat, currentLocation.lng), L.latLng(nextStop.location.lat, nextStop.location.lng)],
-        createMarker: () => null,
-        addWaypoints: false,
-        draggableWaypoints: false,
-        show: false,
-        lineOptions: { styles: [{ color: '#22c55e', weight: 6 }] }
-      }).addTo(state.map);
-    } else {
-      state.routeControl.setWaypoints([L.latLng(currentLocation.lat, currentLocation.lng), L.latLng(nextStop.location.lat, nextStop.location.lng)]);
-    }
+    const route = calculateCampusRoute(
+      [currentLocation.lat, currentLocation.lng],
+      [nextStop.location.lat, nextStop.location.lng]
+    );
+    drawCampusRoute(route.points, {
+      color: "#22c55e",
+      weight: 6,
+      dashArray: route.routed ? null : "8, 10"
+    });
 
     // Add markers for stops
     if (state.map) {
@@ -860,6 +872,8 @@ window.updateRideUI = (ride) => {
        marker.bindPopup(`${stop.type === 'pickup' ? 'Pick up' : 'Drop off'}: ${stop.passengerName}<br>${stop.locationLabel}`);
        state.requestMarkers.push(marker);
     });
+  } else {
+    clearRouteLayer();
   }
 };
 
@@ -893,7 +907,7 @@ window.addEventListener("load", () => {
         state.lastRiderLoc = null;
         state.riderMarker = null;
         state.userMarker = null;
-        state.routeControl = null;
+        state.routeLayer = null;
         
         showLoginScreen();
       }
