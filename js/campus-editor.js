@@ -1,4 +1,10 @@
-import { CAMPUS_CATEGORY_META, CAMPUS_EDITOR_MODE, getCampusCategoryMeta } from "./campus-data.js";
+import {
+  CAMPUS_CATEGORY_META,
+  CAMPUS_EDITOR_MODE,
+  getCampusCategoryMeta,
+  getCampusMapData,
+  saveCampusDataToFirestore
+} from "./campus-data.js";
 
 const campusDraft = {
   locations: [],
@@ -11,6 +17,7 @@ const campusDraft = {
 let activePathDraft = [];
 let activeBuildingDraft = [];
 let campusDraftLayers = [];
+let campusDraftHistory = [];
 let activeShapeLayer = null;
 let currentLocationLayer = null;
 let campusEditorLocationWatchId = null;
@@ -29,10 +36,13 @@ function getCampusEditorElements() {
     hint: document.getElementById("campusEditorHint"),
     output: document.getElementById("campusEditorOutput"),
     copyBtn: document.getElementById("copyCampusJsonBtn"),
+    saveCloudBtn: document.getElementById("saveCampusCloudBtn"),
+    undoBtn: document.getElementById("undoCampusDraftBtn"),
     saveShapeBtn: document.getElementById("saveCampusShapeBtn"),
     clearBtn: document.getElementById("clearCampusDraftBtn"),
     locateBtn: document.getElementById("locateCampusEditorBtn"),
     minimizeBtn: document.getElementById("minimizeCampusEditorBtn"),
+    graphStatus: document.getElementById("campusGraphStatus"),
     header: document.querySelector("#campusEditor .campus-editor__header")
   };
 }
@@ -67,6 +77,123 @@ function formatCampusDraft() {
   return JSON.stringify(campusDraft, null, 2);
 }
 
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function getDraftCount() {
+  return campusDraft.locations.length +
+    campusDraft.rideStops.length +
+    campusDraft.paths.length +
+    campusDraft.buildings.length +
+    campusDraft.indoorLocations.length;
+}
+
+function mergedCampusData() {
+  const current = getCampusMapData();
+  return {
+    locations: [...clone(current.locations), ...clone(campusDraft.locations)],
+    rideStops: [...clone(current.rideStops), ...clone(campusDraft.rideStops)],
+    paths: [...clone(current.paths), ...clone(campusDraft.paths)],
+    buildings: [...clone(current.buildings), ...clone(campusDraft.buildings)],
+    indoorLocations: [...clone(current.indoorLocations), ...clone(campusDraft.indoorLocations)]
+  };
+}
+
+function pointKey(point) {
+  return `${Number(point[0]).toFixed(6)},${Number(point[1]).toFixed(6)}`;
+}
+
+function getGraphDiagnostics() {
+  const data = mergedCampusData();
+  const nodes = new Map();
+  const nodePoints = new Map();
+  let segmentCount = 0;
+
+  const ensureNode = (point) => {
+    const key = pointKey(point);
+    if (!nodes.has(key)) {
+      nodes.set(key, new Set());
+      nodePoints.set(key, point);
+    }
+    return key;
+  };
+
+  data.paths.forEach(path => {
+    const points = Array.isArray(path.points)
+      ? path.points.filter(point => Number.isFinite(point?.[0]) && Number.isFinite(point?.[1]))
+      : [];
+
+    for (let i = 1; i < points.length; i += 1) {
+      const fromKey = ensureNode(points[i - 1]);
+      const toKey = ensureNode(points[i]);
+      nodes.get(fromKey).add(toKey);
+      nodes.get(toKey).add(fromKey);
+      segmentCount += 1;
+    }
+  });
+
+  const nodeKeys = Array.from(nodes.keys());
+  for (let i = 0; i < nodeKeys.length; i += 1) {
+    for (let j = i + 1; j < nodeKeys.length; j += 1) {
+      const fromKey = nodeKeys[i];
+      const toKey = nodeKeys[j];
+      if (getDistanceMeters(nodePoints.get(fromKey), nodePoints.get(toKey)) <= 10) {
+        nodes.get(fromKey).add(toKey);
+        nodes.get(toKey).add(fromKey);
+      }
+    }
+  }
+
+  const visited = new Set();
+  let components = 0;
+  nodes.forEach((_, startKey) => {
+    if (visited.has(startKey)) return;
+    components += 1;
+    const stack = [startKey];
+    visited.add(startKey);
+
+    while (stack.length > 0) {
+      const key = stack.pop();
+      nodes.get(key)?.forEach(nextKey => {
+        if (visited.has(nextKey)) return;
+        visited.add(nextKey);
+        stack.push(nextKey);
+      });
+    }
+  });
+
+  return {
+    nodes: nodes.size,
+    segments: segmentCount,
+    components,
+    draftCount: getDraftCount()
+  };
+}
+
+function updateGraphStatus() {
+  const { graphStatus } = getCampusEditorElements();
+  if (!graphStatus) return;
+
+  const diagnostics = getGraphDiagnostics();
+  graphStatus.classList.remove("warning", "good");
+
+  if (diagnostics.segments === 0) {
+    graphStatus.classList.add("warning");
+    graphStatus.innerText = "No routable paths mapped yet. Routes will fall back to direct lines.";
+    return;
+  }
+
+  if (diagnostics.components > 1) {
+    graphStatus.classList.add("warning");
+    graphStatus.innerText = `${diagnostics.segments} path segments / ${diagnostics.components} disconnected networks. Join path endpoints for reliable routing.`;
+    return;
+  }
+
+  graphStatus.classList.add("good");
+  graphStatus.innerText = `${diagnostics.segments} path segments / ${diagnostics.nodes} graph nodes / connected route network.`;
+}
+
 function updateCampusEditorOutput() {
   const { output, hint } = getCampusEditorElements();
   if (!output) return;
@@ -81,11 +208,14 @@ function updateCampusEditorOutput() {
       `${campusDraft.buildings.length} buildings`
     ].join(" / ");
   }
+
+  updateGraphStatus();
 }
 
-function addCampusDraftLayer(layer) {
+function addCampusDraftLayer(layer, action = null) {
   campusDraftLayers.push(layer);
   layer.addTo(map);
+  if (action) campusDraftHistory.push({ ...action, layer });
 }
 
 function clearActiveShapeLayer() {
@@ -126,6 +256,7 @@ function clearCampusDraft() {
   campusDraft.indoorLocations = [];
   activePathDraft = [];
   activeBuildingDraft = [];
+  campusDraftHistory = [];
 
   clearActiveShapeLayer();
   campusDraftLayers.forEach(layer => map.removeLayer(layer));
@@ -150,7 +281,7 @@ function saveCampusLine(type, name, points) {
       weight: 2,
       opacity: 0.72,
       lineCap: "round"
-    }));
+    }), { collection: "paths", index: campusDraft.paths.length - 1 });
   } else {
     campusDraft.buildings.push(entry);
     addCampusDraftLayer(L.polygon(points, {
@@ -158,7 +289,7 @@ function saveCampusLine(type, name, points) {
       fillColor: "#c7ccd4",
       fillOpacity: 0.55,
       weight: 2
-    }));
+    }), { collection: "buildings", index: campusDraft.buildings.length - 1 });
   }
 }
 
@@ -181,6 +312,71 @@ function saveActiveCampusShape() {
 
   clearActiveShapeLayer();
   updateCampusEditorOutput();
+}
+
+function undoLastCampusDraftAction() {
+  const { typeInput } = getCampusEditorElements();
+  if (typeInput?.value === "path" && activePathDraft.length > 0) {
+    activePathDraft.pop();
+    drawActiveShape("path", activePathDraft);
+    updateCampusEditorOutput();
+    return;
+  }
+
+  if (typeInput?.value === "building" && activeBuildingDraft.length > 0) {
+    activeBuildingDraft.pop();
+    drawActiveShape("building", activeBuildingDraft);
+    updateCampusEditorOutput();
+    return;
+  }
+
+  const action = campusDraftHistory.pop();
+  if (!action) return;
+
+  campusDraft[action.collection]?.splice(action.index, 1);
+  campusDraftLayers = campusDraftLayers.filter(layer => layer !== action.layer);
+  map.removeLayer(action.layer);
+
+  campusDraftHistory.forEach((item) => {
+    if (item.collection === action.collection && item.index > action.index) {
+      item.index -= 1;
+    }
+  });
+
+  updateCampusEditorOutput();
+}
+
+async function saveCampusDraftToCloud() {
+  const elements = getCampusEditorElements();
+  if (activePathDraft.length > 0 || activeBuildingDraft.length > 0) {
+    if (elements.hint) elements.hint.innerText = "Save or undo the active shape before saving the map.";
+    return;
+  }
+
+  if (getDraftCount() === 0) {
+    if (elements.hint) elements.hint.innerText = "No draft changes to save.";
+    return;
+  }
+
+  if (elements.saveCloudBtn) elements.saveCloudBtn.innerText = "Saving...";
+
+  try {
+    await saveCampusDataToFirestore(mergedCampusData());
+    campusDraft.locations = [];
+    campusDraft.rideStops = [];
+    campusDraft.paths = [];
+    campusDraft.buildings = [];
+    campusDraft.indoorLocations = [];
+    campusDraftHistory = [];
+    campusDraftLayers = [];
+    if (elements.hint) elements.hint.innerText = "Campus map saved to cloud.";
+    updateCampusEditorOutput();
+  } catch (err) {
+    console.error("Failed to save campus draft:", err);
+    if (elements.hint) elements.hint.innerText = `Save failed: ${err.code || err.message}`;
+  } finally {
+    if (elements.saveCloudBtn) elements.saveCloudBtn.innerHTML = `<i class="fas fa-cloud-arrow-up"></i> Save map`;
+  }
 }
 
 function setEditorPosition(panel, left, top) {
@@ -358,7 +554,8 @@ function captureCampusPoint(event) {
     campusDraft.locations.push(location);
     const meta = getCampusCategoryMeta(category);
     addCampusDraftLayer(
-      L.marker(point).bindPopup(`${name}<br>${meta.label}<br>${point[0]}, ${point[1]}`)
+      L.marker(point).bindPopup(`${name}<br>${meta.label}<br>${point[0]}, ${point[1]}`),
+      { collection: "locations", index: campusDraft.locations.length - 1 }
     );
   }
   if (typeInput.value === "rideStop") {
@@ -373,7 +570,8 @@ function captureCampusPoint(event) {
 
     campusDraft.rideStops.push(stop);
     addCampusDraftLayer(
-      L.marker(point).bindPopup(`${name}<br>Pickup / drop-off<br>${point[0]}, ${point[1]}`)
+      L.marker(point).bindPopup(`${name}<br>Pickup / drop-off<br>${point[0]}, ${point[1]}`),
+      { collection: "rideStops", index: campusDraft.rideStops.length - 1 }
     );
   }
 
@@ -426,7 +624,9 @@ export function initCampusEditor(nextMap, options = {}) {
   map.on("click", clickHandler);
 
   if (elements.clearBtn) elements.clearBtn.onclick = clearCampusDraft;
+  if (elements.undoBtn) elements.undoBtn.onclick = undoLastCampusDraftAction;
   if (elements.saveShapeBtn) elements.saveShapeBtn.onclick = saveActiveCampusShape;
+  if (elements.saveCloudBtn) elements.saveCloudBtn.onclick = saveCampusDraftToCloud;
   if (elements.locateBtn) elements.locateBtn.onclick = toggleCurrentLocationTracking;
   if (elements.minimizeBtn) elements.minimizeBtn.onclick = toggleEditorMinimized;
   elements.header?.addEventListener("mousedown", beginEditorDrag);

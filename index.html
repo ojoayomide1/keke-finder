@@ -313,6 +313,9 @@
               <button type="button" id="minimizeCampusEditorBtn" class="iconBtn" aria-label="Minimize editor">
                 <i class="fas fa-minus"></i>
               </button>
+              <button type="button" id="undoCampusDraftBtn" class="iconBtn" aria-label="Undo last draft item">
+                <i class="fas fa-rotate-left"></i>
+              </button>
               <button type="button" id="clearCampusDraftBtn" class="iconBtn" aria-label="Clear draft">
                 <i class="fas fa-trash"></i>
               </button>
@@ -339,11 +342,16 @@
             </label>
           </div>
 
+          <div id="campusGraphStatus" class="campus-editor__status"></div>
           <textarea id="campusEditorOutput" readonly spellcheck="false"></textarea>
           <div class="campus-editor__actions">
             <button type="button" id="saveCampusShapeBtn" class="yellow">
               <i class="fas fa-draw-polygon"></i>
               Save shape
+            </button>
+            <button type="button" id="saveCampusCloudBtn" class="blue">
+              <i class="fas fa-cloud-arrow-up"></i>
+              Save map
             </button>
             <button type="button" id="copyCampusJsonBtn" class="green">
               <i class="fas fa-copy"></i>

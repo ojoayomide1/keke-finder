@@ -169,6 +169,7 @@
 }
 
 .campus-editor--minimized .campus-editor__grid,
+.campus-editor--minimized .campus-editor__status,
 .campus-editor--minimized textarea,
 .campus-editor--minimized .campus-editor__actions {
   display: none;
@@ -204,9 +205,31 @@
   box-sizing: border-box;
 }
 
+.campus-editor__status {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  padding: 9px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.campus-editor__status.good {
+  border-color: rgba(22, 163, 74, 0.32);
+  background: rgba(22, 163, 74, 0.09);
+  color: #15803d;
+}
+
+.campus-editor__status.warning {
+  border-color: rgba(234, 88, 12, 0.34);
+  background: rgba(234, 88, 12, 0.09);
+  color: #c2410c;
+}
+
 .campus-editor__actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
