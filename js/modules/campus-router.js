@@ -24,6 +24,47 @@ function pointKey(point) {
   return `${point[0].toFixed(6)},${point[1].toFixed(6)}`;
 }
 
+function toXY(point, origin) {
+  const latScale = 111320;
+  const lngScale = 111320 * Math.cos(origin[0] * Math.PI / 180);
+  return {
+    x: (point[1] - origin[1]) * lngScale,
+    y: (point[0] - origin[0]) * latScale
+  };
+}
+
+function fromXY(xy, origin) {
+  const latScale = 111320;
+  const lngScale = 111320 * Math.cos(origin[0] * Math.PI / 180);
+  return [
+    origin[0] + (xy.y / latScale),
+    origin[1] + (xy.x / lngScale)
+  ];
+}
+
+function closestPointOnSegment(point, from, to) {
+  const origin = point;
+  const p = toXY(point, origin);
+  const a = toXY(from, origin);
+  const b = toXY(to, origin);
+  const ab = { x: b.x - a.x, y: b.y - a.y };
+  const ap = { x: p.x - a.x, y: p.y - a.y };
+  const lengthSq = (ab.x ** 2) + (ab.y ** 2);
+  const t = lengthSq === 0
+    ? 0
+    : Math.min(1, Math.max(0, ((ap.x * ab.x) + (ap.y * ab.y)) / lengthSq));
+  const projected = {
+    x: a.x + (ab.x * t),
+    y: a.y + (ab.y * t)
+  };
+
+  return {
+    point: fromXY(projected, origin),
+    distance: Math.hypot(p.x - projected.x, p.y - projected.y),
+    ratio: t
+  };
+}
+
 export function getDistanceMeters(a, b) {
   const from = normalizePoint(a);
   const to = normalizePoint(b);
@@ -59,7 +100,7 @@ function addEdge(fromNode, toNode) {
 }
 
 function buildCampusGraph() {
-  const graph = { nodes: new Map() };
+  const graph = { nodes: new Map(), segments: [], anchors: [] };
   const data = getCampusMapData();
 
   data.paths.forEach(path => {
@@ -71,6 +112,7 @@ function buildCampusGraph() {
       const fromNode = addNode(graph, points[i - 1]);
       const toNode = addNode(graph, points[i]);
       addEdge(fromNode, toNode);
+      graph.segments.push({ fromNode, toNode });
     }
   });
 
@@ -86,19 +128,55 @@ function buildCampusGraph() {
   return graph;
 }
 
-function findNearestNode(graph, point) {
+function findNearestSegment(graph, point) {
   let nearest = null;
   let nearestDistance = Infinity;
 
-  graph.nodes.forEach(node => {
-    const distance = getDistanceMeters(point, node.point);
-    if (distance < nearestDistance) {
-      nearest = node;
-      nearestDistance = distance;
+  graph.segments.forEach(segment => {
+    const projected = closestPointOnSegment(point, segment.fromNode.point, segment.toNode.point);
+    if (projected.distance < nearestDistance) {
+      nearest = { ...segment, point: projected.point, ratio: projected.ratio };
+      nearestDistance = projected.distance;
     }
   });
 
-  return { node: nearest, distance: nearestDistance };
+  return { segment: nearest, distance: nearestDistance };
+}
+
+function addRouteAnchor(graph, point, id) {
+  const nearest = findNearestSegment(graph, point);
+  if (!nearest.segment) return { node: null, distance: Infinity };
+
+  if (nearest.distance > SNAP_DISTANCE_LIMIT_M) {
+    return { node: null, distance: nearest.distance };
+  }
+
+  if (nearest.segment.ratio <= 0.02) {
+    return { node: nearest.segment.fromNode, distance: nearest.distance };
+  }
+  if (nearest.segment.ratio >= 0.98) {
+    return { node: nearest.segment.toNode, distance: nearest.distance };
+  }
+
+  const anchorKey = `${id}:${pointKey(nearest.segment.point)}`;
+  const anchorNode = {
+    key: anchorKey,
+    point: nearest.segment.point,
+    edges: new Map()
+  };
+  graph.nodes.set(anchorKey, anchorNode);
+  addEdge(anchorNode, nearest.segment.fromNode);
+  addEdge(anchorNode, nearest.segment.toNode);
+  graph.anchors
+    .filter(anchor => anchor.fromKey === nearest.segment.fromNode.key && anchor.toKey === nearest.segment.toNode.key)
+    .forEach(anchor => addEdge(anchorNode, anchor.node));
+  graph.anchors.push({
+    fromKey: nearest.segment.fromNode.key,
+    toKey: nearest.segment.toNode.key,
+    node: anchorNode
+  });
+
+  return { node: anchorNode, distance: nearest.distance };
 }
 
 function findShortestPath(graph, startKey, endKey) {
@@ -182,15 +260,11 @@ export function calculateCampusRoute(fromInput, toInput) {
     return directRoute(from, to, "No campus paths mapped yet");
   }
 
-  const start = findNearestNode(graph, from);
-  const end = findNearestNode(graph, to);
+  const start = addRouteAnchor(graph, from, "start");
+  const end = addRouteAnchor(graph, to, "end");
 
   if (!start.node || !end.node) {
     return directRoute(from, to, "No nearby campus path found");
-  }
-
-  if (start.distance > SNAP_DISTANCE_LIMIT_M || end.distance > SNAP_DISTANCE_LIMIT_M) {
-    return directRoute(from, to, "Nearest campus path is too far away");
   }
 
   const path = findShortestPath(graph, start.node.key, end.node.key);

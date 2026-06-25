@@ -8,6 +8,7 @@ import {
 
 const SNAP_DISTANCE_M = 12;
 const PREVIEW_SNAP_DISTANCE_M = 180;
+const BUILDING_SELECT_DISTANCE_M = 90;
 
 const campusDraft = {
   locations: [],
@@ -19,10 +20,15 @@ const campusDraft = {
 
 let activePathDraft = [];
 let activeBuildingDraft = [];
+let activeRoadAreaDraft = [];
 let routePreviewDraft = [];
 let campusDraftLayers = [];
 let campusDraftHistory = [];
 let activeShapeLayer = null;
+let selectedBuildingEdit = null;
+let buildingEditLayer = null;
+let buildingEditHandleLayer = null;
+let hasSavedMapEdits = false;
 let graphNodeLayer = null;
 let routePreviewLayer = null;
 let currentLocationLayer = null;
@@ -80,6 +86,100 @@ function getDistanceMeters(from, to) {
   return earthRadius * c;
 }
 
+function toLocalXY(point, origin) {
+  const latScale = 111320;
+  const lngScale = 111320 * Math.cos(origin[0] * Math.PI / 180);
+  return {
+    x: (point[1] - origin[1]) * lngScale,
+    y: (point[0] - origin[0]) * latScale
+  };
+}
+
+function fromLocalXY(point, origin) {
+  const latScale = 111320;
+  const lngScale = 111320 * Math.cos(origin[0] * Math.PI / 180);
+  return [
+    roundCoord(origin[0] + (point.y / latScale)),
+    roundCoord(origin[1] + (point.x / lngScale))
+  ];
+}
+
+function getCentroid(points) {
+  if (!points.length) return [0, 0];
+  const sum = points.reduce((total, point) => [
+    total[0] + Number(point[0]),
+    total[1] + Number(point[1])
+  ], [0, 0]);
+  return [sum[0] / points.length, sum[1] / points.length];
+}
+
+function getRoadAreaCenterline(points) {
+  const validPoints = points.filter(point => Number.isFinite(point?.[0]) && Number.isFinite(point?.[1]));
+  if (validPoints.length < 3) return [];
+
+  const origin = getCentroid(validPoints);
+  const xyPoints = validPoints.map(point => toLocalXY(point, origin));
+  let bestPair = [xyPoints[0], xyPoints[1]];
+  let bestDistance = 0;
+
+  for (let i = 0; i < xyPoints.length; i += 1) {
+    for (let j = i + 1; j < xyPoints.length; j += 1) {
+      const distance = Math.hypot(xyPoints[i].x - xyPoints[j].x, xyPoints[i].y - xyPoints[j].y);
+      if (distance > bestDistance) {
+        bestDistance = distance;
+        bestPair = [xyPoints[i], xyPoints[j]];
+      }
+    }
+  }
+
+  if (bestDistance === 0) return [];
+
+  const axis = {
+    x: (bestPair[1].x - bestPair[0].x) / bestDistance,
+    y: (bestPair[1].y - bestPair[0].y) / bestDistance
+  };
+  const normal = { x: -axis.y, y: axis.x };
+  const projections = xyPoints.map(point => ({
+    axis: (point.x * axis.x) + (point.y * axis.y),
+    normal: (point.x * normal.x) + (point.y * normal.y)
+  }));
+  const minAxis = Math.min(...projections.map(point => point.axis));
+  const maxAxis = Math.max(...projections.map(point => point.axis));
+  const centerNormal = projections.reduce((sum, point) => sum + point.normal, 0) / projections.length;
+
+  return [minAxis, maxAxis].map(axisValue => fromLocalXY({
+    x: (axis.x * axisValue) + (normal.x * centerNormal),
+    y: (axis.y * axisValue) + (normal.y * centerNormal)
+  }, origin));
+}
+
+function formatPoint(point) {
+  return `${roundCoord(point[0])}, ${roundCoord(point[1])}`;
+}
+
+function closestPointOnSegment(point, from, to) {
+  const origin = point;
+  const p = toLocalXY(point, origin);
+  const a = toLocalXY(from, origin);
+  const b = toLocalXY(to, origin);
+  const ab = { x: b.x - a.x, y: b.y - a.y };
+  const ap = { x: p.x - a.x, y: p.y - a.y };
+  const lengthSq = (ab.x ** 2) + (ab.y ** 2);
+  const ratio = lengthSq === 0
+    ? 0
+    : Math.min(1, Math.max(0, ((ap.x * ab.x) + (ap.y * ab.y)) / lengthSq));
+  const projected = {
+    x: a.x + (ab.x * ratio),
+    y: a.y + (ab.y * ratio)
+  };
+
+  return {
+    point: fromLocalXY(projected, origin),
+    distance: Math.hypot(p.x - projected.x, p.y - projected.y),
+    ratio
+  };
+}
+
 function formatCampusDraft() {
   return JSON.stringify(campusDraft, null, 2);
 }
@@ -114,6 +214,8 @@ function pointKey(point) {
 function buildEditorGraph(data = mergedCampusData()) {
   const nodes = new Map();
   const nodePoints = new Map();
+  const segments = [];
+  const anchors = [];
   let segmentCount = 0;
 
   const ensureNode = (point) => {
@@ -135,6 +237,7 @@ function buildEditorGraph(data = mergedCampusData()) {
       const toKey = ensureNode(points[i]);
       nodes.get(fromKey).add(toKey);
       nodes.get(toKey).add(fromKey);
+      segments.push({ fromKey, toKey });
       segmentCount += 1;
     }
   });
@@ -151,7 +254,7 @@ function buildEditorGraph(data = mergedCampusData()) {
     }
   }
 
-  return { nodes, nodePoints, segmentCount };
+  return { nodes, nodePoints, segments, anchors, segmentCount };
 }
 
 function getGraphDiagnostics() {
@@ -227,6 +330,56 @@ function findNearestNodeInGraph(graph, point) {
   return { key: nearestKey, point: nearestPoint, distance: nearestDistance };
 }
 
+function findNearestSegmentInGraph(graph, point) {
+  let nearest = null;
+  let nearestDistance = Infinity;
+
+  graph.segments.forEach(segment => {
+    const from = graph.nodePoints.get(segment.fromKey);
+    const to = graph.nodePoints.get(segment.toKey);
+    const projected = closestPointOnSegment(point, from, to);
+    if (projected.distance < nearestDistance) {
+      nearest = { ...segment, point: projected.point, ratio: projected.ratio };
+      nearestDistance = projected.distance;
+    }
+  });
+
+  return { segment: nearest, distance: nearestDistance };
+}
+
+function addEditorRouteAnchor(graph, point, id) {
+  const nearest = findNearestSegmentInGraph(graph, point);
+  if (!nearest.segment || nearest.distance > PREVIEW_SNAP_DISTANCE_M) {
+    return { key: null, distance: nearest.distance };
+  }
+
+  if (nearest.segment.ratio <= 0.02) {
+    return { key: nearest.segment.fromKey, distance: nearest.distance };
+  }
+  if (nearest.segment.ratio >= 0.98) {
+    return { key: nearest.segment.toKey, distance: nearest.distance };
+  }
+
+  const anchorKey = `${id}:${pointKey(nearest.segment.point)}`;
+  graph.nodes.set(anchorKey, new Set([nearest.segment.fromKey, nearest.segment.toKey]));
+  graph.nodePoints.set(anchorKey, nearest.segment.point);
+  graph.nodes.get(nearest.segment.fromKey)?.add(anchorKey);
+  graph.nodes.get(nearest.segment.toKey)?.add(anchorKey);
+  graph.anchors
+    .filter(anchor => anchor.fromKey === nearest.segment.fromKey && anchor.toKey === nearest.segment.toKey)
+    .forEach(anchor => {
+      graph.nodes.get(anchorKey)?.add(anchor.key);
+      graph.nodes.get(anchor.key)?.add(anchorKey);
+    });
+  graph.anchors.push({
+    fromKey: nearest.segment.fromKey,
+    toKey: nearest.segment.toKey,
+    key: anchorKey
+  });
+
+  return { key: anchorKey, distance: nearest.distance };
+}
+
 function findEditorShortestPath(graph, startKey, endKey) {
   const distances = new Map();
   const previous = new Map();
@@ -282,14 +435,10 @@ function calculateEditorRoute(from, to) {
     return { points: [from, to], routed: false, reason: "No route paths mapped yet" };
   }
 
-  const start = findNearestNodeInGraph(graph, from);
-  const end = findNearestNodeInGraph(graph, to);
+  const start = addEditorRouteAnchor(graph, from, "start");
+  const end = addEditorRouteAnchor(graph, to, "end");
   if (!start.key || !end.key) {
     return { points: [from, to], routed: false, reason: "No nearby route node found" };
-  }
-
-  if (start.distance > PREVIEW_SNAP_DISTANCE_M || end.distance > PREVIEW_SNAP_DISTANCE_M) {
-    return { points: [from, to], routed: false, reason: "Preview point is too far from the route network" };
   }
 
   const path = findEditorShortestPath(graph, start.key, end.key);
@@ -392,18 +541,22 @@ function updateGraphNodeLayer() {
 }
 
 function updateCampusEditorOutput() {
-  const { output, hint } = getCampusEditorElements();
+  const { output, hint, typeInput } = getCampusEditorElements();
   if (!output) return;
 
-  output.value = formatCampusDraft();
+  output.value = selectedBuildingEdit && typeInput?.value === "buildingEdit"
+    ? JSON.stringify(selectedBuildingEdit.building, null, 2)
+    : formatCampusDraft();
 
   if (hint) {
-    hint.innerText = [
+    const parts = [
       `${campusDraft.locations.length} markers`,
       `${campusDraft.rideStops.length} ride stops`,
       `${campusDraft.paths.length} roads`,
       `${campusDraft.buildings.length} buildings`
-    ].join(" / ");
+    ];
+    if (hasSavedMapEdits) parts.push("saved map edits pending");
+    hint.innerText = parts.join(" / ");
   }
 
   updateGraphStatus();
@@ -432,6 +585,130 @@ function clearRoutePreview() {
   updateCampusEditorOutput();
 }
 
+function clearBuildingEditLayer() {
+  if (buildingEditLayer) {
+    map.removeLayer(buildingEditLayer);
+    buildingEditLayer = null;
+  }
+  if (buildingEditHandleLayer) {
+    map.removeLayer(buildingEditHandleLayer);
+    buildingEditHandleLayer = null;
+  }
+}
+
+function getEditableBuildings() {
+  const current = getCampusMapData();
+  return [
+    ...current.buildings.map((building, index) => ({ source: "saved", index, building })),
+    ...campusDraft.buildings.map((building, index) => ({ source: "draft", index, building }))
+  ].filter(entry => Array.isArray(entry.building.points) && entry.building.points.length >= 3);
+}
+
+function isPointInsidePolygon(point, polygon) {
+  const x = point[1];
+  const y = point[0];
+  let inside = false;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const xi = polygon[i][1];
+    const yi = polygon[i][0];
+    const xj = polygon[j][1];
+    const yj = polygon[j][0];
+    const intersects = ((yi > y) !== (yj > y)) &&
+      (x < ((xj - xi) * (y - yi) / ((yj - yi) || Number.EPSILON)) + xi);
+    if (intersects) inside = !inside;
+  }
+
+  return inside;
+}
+
+function findEditableBuildingAt(point) {
+  let nearest = null;
+  let nearestDistance = Infinity;
+
+  getEditableBuildings().forEach(entry => {
+    const points = entry.building.points;
+    if (isPointInsidePolygon(point, points)) {
+      nearest = entry;
+      nearestDistance = 0;
+      return;
+    }
+
+    const centroid = getCentroid(points);
+    const distance = getDistanceMeters(point, centroid);
+    if (distance < nearestDistance) {
+      nearest = entry;
+      nearestDistance = distance;
+    }
+  });
+
+  return nearestDistance <= BUILDING_SELECT_DISTANCE_M ? nearest : null;
+}
+
+function updateSelectedBuildingPoint(vertexIndex, point) {
+  if (!selectedBuildingEdit) return;
+  selectedBuildingEdit.building.points[vertexIndex] = point;
+  if (selectedBuildingEdit.source === "saved") {
+    getCampusMapData().buildings[selectedBuildingEdit.index].points = selectedBuildingEdit.building.points;
+    hasSavedMapEdits = true;
+  } else {
+    campusDraft.buildings[selectedBuildingEdit.index].points = selectedBuildingEdit.building.points;
+  }
+}
+
+function renderBuildingEditLayer() {
+  clearBuildingEditLayer();
+  if (!selectedBuildingEdit || !map) return;
+
+  const building = selectedBuildingEdit.building;
+  buildingEditLayer = L.polygon(building.points, {
+    color: "#2563eb",
+    fillColor: "#60a5fa",
+    fillOpacity: 0.22,
+    weight: 2
+  }).addTo(map).bindPopup(building.name || building.id || "Selected building");
+
+  const handles = building.points.map((point, index) => {
+    const marker = L.marker(point, {
+      draggable: true,
+      title: `Corner ${index + 1}`
+    });
+    marker.on("drag", () => {
+      const latLng = marker.getLatLng();
+      const nextPoint = [roundCoord(latLng.lat), roundCoord(latLng.lng)];
+      updateSelectedBuildingPoint(index, nextPoint);
+      buildingEditLayer.setLatLngs(selectedBuildingEdit.building.points);
+      const { output, hint } = getCampusEditorElements();
+      if (output) output.value = JSON.stringify(selectedBuildingEdit.building, null, 2);
+      if (hint) hint.innerText = `Corner ${index + 1}: ${formatPoint(nextPoint)}`;
+    });
+    marker.on("dragend", () => {
+      updateCampusEditorOutput();
+      renderBuildingEditLayer();
+    });
+    return marker;
+  });
+
+  buildingEditHandleLayer = L.layerGroup(handles).addTo(map);
+}
+
+function selectBuildingForEdit(point) {
+  const entry = findEditableBuildingAt(point);
+  const { hint } = getCampusEditorElements();
+  if (!entry) {
+    selectedBuildingEdit = null;
+    clearBuildingEditLayer();
+    if (hint) hint.innerText = "No building near that point.";
+    return;
+  }
+
+  selectedBuildingEdit = entry;
+  renderBuildingEditLayer();
+  if (hint) {
+    hint.innerText = `Editing ${entry.building.name || entry.building.id}. Drag corner handles to resize.`;
+  }
+}
+
 function drawActiveShape(type, points) {
   clearActiveShapeLayer();
 
@@ -445,14 +722,40 @@ function drawActiveShape(type, points) {
     return;
   }
 
-  activeShapeLayer = type === "path"
-    ? L.polyline(points, { color: "#9ca3af", weight: 2, opacity: 0.72 }).addTo(map)
-    : L.polygon(points, {
-        color: "#9ca3af",
-        fillColor: "#c7ccd4",
-        fillOpacity: 0.45,
+  if (type === "path") {
+    activeShapeLayer = L.polyline(points, { color: "#9ca3af", weight: 2, opacity: 0.72 }).addTo(map);
+    return;
+  }
+
+  if (type === "roadArea") {
+    const layers = [
+      L.polygon(points, {
+        color: "#94a3b8",
+        fillColor: "#e2e8f0",
+        fillOpacity: 0.35,
         weight: 2
-      }).addTo(map);
+      })
+    ];
+    const centerline = getRoadAreaCenterline(points);
+    if (centerline.length >= 2) {
+      layers.push(L.polyline(centerline, {
+        color: "#2563eb",
+        weight: 4,
+        opacity: 0.86,
+        lineCap: "round",
+        dashArray: "6, 8"
+      }));
+    }
+    activeShapeLayer = L.layerGroup(layers).addTo(map);
+    return;
+  }
+
+  activeShapeLayer = L.polygon(points, {
+    color: "#9ca3af",
+    fillColor: "#c7ccd4",
+    fillOpacity: 0.45,
+    weight: 2
+  }).addTo(map);
 }
 
 function clearCampusDraft() {
@@ -463,10 +766,14 @@ function clearCampusDraft() {
   campusDraft.indoorLocations = [];
   activePathDraft = [];
   activeBuildingDraft = [];
+  activeRoadAreaDraft = [];
   routePreviewDraft = [];
+  selectedBuildingEdit = null;
+  hasSavedMapEdits = false;
   campusDraftHistory = [];
 
   clearActiveShapeLayer();
+  clearBuildingEditLayer();
   if (routePreviewLayer) {
     map.removeLayer(routePreviewLayer);
     routePreviewLayer = null;
@@ -505,6 +812,37 @@ function saveCampusLine(type, name, points) {
   }
 }
 
+function saveRoadArea(name, points) {
+  if (points.length < 3) return;
+  const centerline = getRoadAreaCenterline(points).map(point => getSnappedPoint(point, SNAP_DISTANCE_M));
+  if (centerline.length < 2) return;
+
+  const entry = {
+    id: slugify(name),
+    name,
+    type: "road_area",
+    points: centerline,
+    corridorPoints: [...points]
+  };
+
+  campusDraft.paths.push(entry);
+  const layers = L.layerGroup([
+    L.polygon(points, {
+      color: "#94a3b8",
+      fillColor: "#e2e8f0",
+      fillOpacity: 0.42,
+      weight: 1.5
+    }),
+    L.polyline(centerline, {
+      color: "#2563eb",
+      weight: 4,
+      opacity: 0.82,
+      lineCap: "round"
+    })
+  ]);
+  addCampusDraftLayer(layers, { collection: "paths", index: campusDraft.paths.length - 1 });
+}
+
 function saveActiveCampusShape() {
   const { nameInput, typeInput } = getCampusEditorElements();
   if (!nameInput || !typeInput) return;
@@ -520,6 +858,11 @@ function saveActiveCampusShape() {
   if (type === "building") {
     saveCampusLine("building", name, activeBuildingDraft);
     activeBuildingDraft = [];
+  }
+
+  if (type === "roadArea") {
+    saveRoadArea(name, activeRoadAreaDraft);
+    activeRoadAreaDraft = [];
   }
 
   clearActiveShapeLayer();
@@ -542,6 +885,13 @@ function undoLastCampusDraftAction() {
     return;
   }
 
+  if (typeInput?.value === "roadArea" && activeRoadAreaDraft.length > 0) {
+    activeRoadAreaDraft.pop();
+    drawActiveShape("roadArea", activeRoadAreaDraft);
+    updateCampusEditorOutput();
+    return;
+  }
+
   const action = campusDraftHistory.pop();
   if (!action) return;
 
@@ -560,12 +910,12 @@ function undoLastCampusDraftAction() {
 
 async function saveCampusDraftToCloud() {
   const elements = getCampusEditorElements();
-  if (activePathDraft.length > 0 || activeBuildingDraft.length > 0) {
+  if (activePathDraft.length > 0 || activeBuildingDraft.length > 0 || activeRoadAreaDraft.length > 0) {
     if (elements.hint) elements.hint.innerText = "Save or undo the active shape before saving the map.";
     return;
   }
 
-  if (getDraftCount() === 0) {
+  if (getDraftCount() === 0 && !hasSavedMapEdits) {
     if (elements.hint) elements.hint.innerText = "No draft changes to save.";
     return;
   }
@@ -581,6 +931,9 @@ async function saveCampusDraftToCloud() {
     campusDraft.indoorLocations = [];
     campusDraftHistory = [];
     campusDraftLayers = [];
+    hasSavedMapEdits = false;
+    selectedBuildingEdit = null;
+    clearBuildingEditLayer();
     if (elements.hint) elements.hint.innerText = "Campus map saved to cloud.";
     updateCampusEditorOutput();
   } catch (err) {
@@ -807,6 +1160,21 @@ function captureCampusPoint(event) {
     drawActiveShape("building", activeBuildingDraft);
   }
 
+  if (typeInput.value === "roadArea") {
+    activeRoadAreaDraft.push(point);
+    drawActiveShape("roadArea", activeRoadAreaDraft);
+    const centerline = getRoadAreaCenterline(activeRoadAreaDraft);
+    hintMessage = centerline.length >= 2
+      ? `Road border captured. Generated centerline: ${formatPoint(centerline[0])} to ${formatPoint(centerline[1])}.`
+      : "Add at least 3 road border points.";
+  }
+
+  if (typeInput.value === "buildingEdit") {
+    selectBuildingForEdit(point);
+    updateCampusEditorOutput();
+    return;
+  }
+
   if (typeInput.value === "routePreview") {
     routePreviewDraft.push(getSnappedPoint(rawPoint, PREVIEW_SNAP_DISTANCE_M));
     if (routePreviewDraft.length > 2) {
@@ -850,6 +1218,10 @@ export function initCampusEditor(nextMap, options = {}) {
   const syncCategoryVisibility = () => {
     if (!elements.categoryInput) return;
     elements.categoryInput.disabled = elements.typeInput?.value !== "location";
+    if (elements.typeInput?.value !== "buildingEdit") {
+      selectedBuildingEdit = null;
+      clearBuildingEditLayer();
+    }
   };
   elements.typeInput?.addEventListener("change", syncCategoryVisibility);
   syncCategoryVisibility();

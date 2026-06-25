@@ -50,6 +50,15 @@ export function renderCampusMapData(map) {
 
   data.paths.forEach(path => {
     if (!Array.isArray(path.points) || path.points.length < 2) return;
+    if (Array.isArray(path.corridorPoints) && path.corridorPoints.length >= 3) {
+      L.polygon(path.corridorPoints, {
+        color: "#94a3b8",
+        fillColor: "#e2e8f0",
+        fillOpacity: 0.42,
+        weight: 1,
+        interactive: false
+      }).addTo(map);
+    }
     L.polyline(path.points, {
       color: "#9ca3af",
       weight: 2,
