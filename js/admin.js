@@ -24,9 +24,14 @@ import {
   loadCampusDataFromFirestore,
   saveCampusDataToFirestore
 } from "./campus-data.js";
+import { getDistanceMeters } from "./modules/campus-router.js";
 import { formatNaira } from "./wallet.js";
 
 let transactionUnsubscribe = null;
+let campusRenderTimer = null;
+
+const CONNECT_TOLERANCE_M = 10;
+const STOP_ROUTE_DISTANCE_M = 180;
 
 function setText(id, value) {
   const el = document.getElementById(id);
@@ -309,16 +314,251 @@ function renderTransactions(transactions) {
   `).join("");
 }
 
-function renderCampusAdminSummary() {
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function normalizePoint(point) {
+  if (Array.isArray(point)) {
+    return [Number(point[0]), Number(point[1])];
+  }
+  if (point && typeof point === "object") {
+    return [Number(point.lat), Number(point.lng)];
+  }
+  return [NaN, NaN];
+}
+
+function hasValidCoords(item) {
+  return Number.isFinite(Number(item?.lat)) && Number.isFinite(Number(item?.lng));
+}
+
+function pointKey(point) {
+  return `${point[0].toFixed(6)},${point[1].toFixed(6)}`;
+}
+
+function getAdminCampusData() {
+  const editor = document.getElementById("campusDataEditor");
+  if (!editor?.value.trim()) {
+    return { data: getCampusMapData(), error: null };
+  }
+
+  try {
+    return { data: JSON.parse(editor.value), error: null };
+  } catch (err) {
+    return { data: null, error: err };
+  }
+}
+
+function sectionArray(data, key) {
+  return Array.isArray(data?.[key]) ? data[key] : [];
+}
+
+function buildCampusAdminGraph(data) {
+  const nodes = new Map();
+  let segmentCount = 0;
+
+  const ensureNode = (point) => {
+    const key = pointKey(point);
+    if (!nodes.has(key)) nodes.set(key, { point, edges: new Set() });
+    return key;
+  };
+
+  sectionArray(data, "paths").forEach(path => {
+    const points = Array.isArray(path?.points)
+      ? path.points.map(normalizePoint).filter(point => Number.isFinite(point[0]) && Number.isFinite(point[1]))
+      : [];
+
+    for (let i = 1; i < points.length; i += 1) {
+      const fromKey = ensureNode(points[i - 1]);
+      const toKey = ensureNode(points[i]);
+      nodes.get(fromKey).edges.add(toKey);
+      nodes.get(toKey).edges.add(fromKey);
+      segmentCount += 1;
+    }
+  });
+
+  const entries = Array.from(nodes.entries());
+  for (let i = 0; i < entries.length; i += 1) {
+    for (let j = i + 1; j < entries.length; j += 1) {
+      if (getDistanceMeters(entries[i][1].point, entries[j][1].point) <= CONNECT_TOLERANCE_M) {
+        entries[i][1].edges.add(entries[j][0]);
+        entries[j][1].edges.add(entries[i][0]);
+      }
+    }
+  }
+
+  return { nodes, segmentCount };
+}
+
+function countGraphComponents(graph) {
+  const visited = new Set();
+  let components = 0;
+
+  graph.nodes.forEach((_, key) => {
+    if (visited.has(key)) return;
+    components += 1;
+    const stack = [key];
+    visited.add(key);
+    while (stack.length) {
+      const current = stack.pop();
+      graph.nodes.get(current)?.edges.forEach(next => {
+        if (!visited.has(next)) {
+          visited.add(next);
+          stack.push(next);
+        }
+      });
+    }
+  });
+
+  return components;
+}
+
+function distanceToNearestRoute(graph, item) {
+  if (!hasValidCoords(item)) return Infinity;
+  const point = [Number(item.lat), Number(item.lng)];
+  let nearest = Infinity;
+  graph.nodes.forEach(node => {
+    const distance = getDistanceMeters(point, node.point);
+    if (distance < nearest) nearest = distance;
+  });
+  return nearest;
+}
+
+function findDuplicateIds(data) {
+  const ids = new Map();
+  ["locations", "rideStops", "paths", "buildings", "indoorLocations"].forEach(section => {
+    sectionArray(data, section).forEach(item => {
+      if (!item?.id) return;
+      const current = ids.get(item.id) || [];
+      current.push(section);
+      ids.set(item.id, current);
+    });
+  });
+
+  return Array.from(ids.entries())
+    .filter(([, sections]) => sections.length > 1)
+    .map(([id, sections]) => `${id} (${sections.join(", ")})`);
+}
+
+function validateCampusData(data) {
+  const issues = [];
+  const graph = buildCampusAdminGraph(data);
+  const components = countGraphComponents(graph);
+  const locations = sectionArray(data, "locations");
+  const rideStops = sectionArray(data, "rideStops");
+  const paths = sectionArray(data, "paths");
+  const buildings = sectionArray(data, "buildings");
+  const indoorLocations = sectionArray(data, "indoorLocations");
+  const locationIds = new Set(locations.map(item => item.id).filter(Boolean));
+  const servedIds = new Set(rideStops.flatMap(stop => Array.isArray(stop.serves) ? stop.serves : []));
+
+  const duplicateIds = findDuplicateIds(data);
+  if (duplicateIds.length) {
+    issues.push({ level: "error", title: "Duplicate IDs", detail: duplicateIds.slice(0, 6).join(", ") });
+  }
+
+  const missingLocationCoords = locations.filter(item => !hasValidCoords(item));
+  if (missingLocationCoords.length) {
+    issues.push({ level: "warning", title: "Campus markers missing coordinates", detail: `${missingLocationCoords.length} marker(s)` });
+  }
+
+  const missingStopCoords = rideStops.filter(item => !hasValidCoords(item));
+  if (missingStopCoords.length) {
+    issues.push({ level: "error", title: "Ride stops missing coordinates", detail: `${missingStopCoords.length} stop(s)` });
+  }
+
+  const shortPaths = paths.filter(path => !Array.isArray(path?.points) || path.points.length < 2);
+  if (shortPaths.length) {
+    issues.push({ level: "warning", title: "Roads with fewer than two points", detail: `${shortPaths.length} path(s)` });
+  }
+
+  if (graph.segmentCount === 0) {
+    issues.push({ level: "warning", title: "No routable road network", detail: "Routes will fall back to straight lines." });
+  } else if (components > 1) {
+    issues.push({ level: "warning", title: "Disconnected route network", detail: `${components} separate route groups found.` });
+  }
+
+  const stopsFarFromRoutes = rideStops.filter(stop => hasValidCoords(stop) && distanceToNearestRoute(graph, stop) > STOP_ROUTE_DISTANCE_M);
+  if (stopsFarFromRoutes.length && graph.nodes.size > 0) {
+    issues.push({ level: "warning", title: "Ride stops far from roads", detail: stopsFarFromRoutes.slice(0, 6).map(stop => stop.name || stop.id).join(", ") });
+  }
+
+  const unknownServes = rideStops.flatMap(stop => (Array.isArray(stop.serves) ? stop.serves : [])
+    .filter(id => !locationIds.has(id))
+    .map(id => `${stop.id || stop.name}: ${id}`));
+  if (unknownServes.length) {
+    issues.push({ level: "error", title: "Stops serving unknown locations", detail: unknownServes.slice(0, 6).join(", ") });
+  }
+
+  const unservedLocations = locations.filter(item => item.id && hasValidCoords(item) && !servedIds.has(item.id));
+  if (unservedLocations.length) {
+    issues.push({ level: "warning", title: "Mapped landmarks not served by a stop", detail: unservedLocations.slice(0, 6).map(item => item.name || item.id).join(", ") });
+  }
+
+  const orphanIndoor = indoorLocations.filter(item => item.buildingId && !locationIds.has(item.buildingId));
+  if (orphanIndoor.length) {
+    issues.push({ level: "warning", title: "Indoor records with unknown building IDs", detail: orphanIndoor.slice(0, 6).map(item => item.name || item.id).join(", ") });
+  }
+
+  return issues.length ? issues : [{ level: "ok", title: "Campus data looks valid", detail: "No blocking issues found." }];
+}
+
+function renderCampusValidation(data, parseError = null) {
+  const list = document.getElementById("campusValidationList");
+  if (!list) return;
+
+  if (parseError) {
+    list.innerHTML = `<div class="campus-validation-item error"><strong>Invalid JSON</strong><br><span>${escapeHtml(parseError.message)}</span></div>`;
+    return;
+  }
+
+  list.innerHTML = validateCampusData(data).map(issue => `
+    <div class="campus-validation-item ${issue.level}">
+      <strong>${escapeHtml(issue.title)}</strong><br>
+      <span>${escapeHtml(issue.detail)}</span>
+    </div>
+  `).join("");
+}
+
+function renderCampusSections(data) {
+  const list = document.getElementById("campusSectionList");
+  if (!list) return;
+
+  const sections = [
+    ["Locations", sectionArray(data, "locations"), item => `${item.name || item.id || "Unnamed"}${hasValidCoords(item) ? "" : " - no coordinates"}`],
+    ["Pickup/drop-off stops", sectionArray(data, "rideStops"), item => `${item.name || item.id || "Unnamed"} - serves ${(item.serves || []).length}`],
+    ["Route paths", sectionArray(data, "paths"), item => `${item.name || item.id || "Unnamed"} - ${(item.points || []).length} points`],
+    ["Building shapes", sectionArray(data, "buildings"), item => `${item.name || item.id || "Unnamed"} - ${(item.points || []).length} points`],
+    ["Indoor records", sectionArray(data, "indoorLocations"), item => `${item.name || item.id || "Unnamed"} - ${item.buildingId || "no building"}`]
+  ];
+
+  list.innerHTML = sections.map(([label, items, describe]) => {
+    const preview = items.slice(0, 3).map(describe).join(" / ") || "No records";
+    const extra = items.length > 3 ? ` +${items.length - 3} more` : "";
+    return `
+      <div class="campus-section-item">
+        <strong>${escapeHtml(label)}</strong>
+        <strong>${items.length}</strong>
+        <span class="campus-section-meta">${escapeHtml(preview + extra)}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderCampusAdminSummary(data = getCampusMapData(), parseError = null) {
   const summary = document.getElementById("campusAdminSummary");
   if (!summary) return;
-  const data = getCampusMapData();
   const counts = [
-    ["Campus markers", data.locations.length],
-    ["Ride stops", data.rideStops.length],
-    ["Roads / paths", data.paths.length],
-    ["Building shapes", data.buildings.length],
-    ["Indoor records", data.indoorLocations.length]
+    ["Campus markers", sectionArray(data, "locations").length],
+    ["Ride stops", sectionArray(data, "rideStops").length],
+    ["Roads / paths", sectionArray(data, "paths").length],
+    ["Building shapes", sectionArray(data, "buildings").length],
+    ["Indoor records", sectionArray(data, "indoorLocations").length]
   ];
   summary.innerHTML = counts.map(([label, count]) => `
     <div class="campus-admin-count">
@@ -326,13 +566,25 @@ function renderCampusAdminSummary() {
       <strong>${count}</strong>
     </div>
   `).join("");
+  renderCampusValidation(data, parseError);
+  renderCampusSections(data);
+}
+
+function renderCampusAdminFromEditor() {
+  const { data, error } = getAdminCampusData();
+  renderCampusAdminSummary(data || {}, error);
+}
+
+function scheduleCampusAdminRender() {
+  clearTimeout(campusRenderTimer);
+  campusRenderTimer = setTimeout(renderCampusAdminFromEditor, 250);
 }
 
 async function loadCampusEditorData() {
   await loadCampusDataFromFirestore();
   const editor = document.getElementById("campusDataEditor");
   if (editor) editor.value = campusDataToJson();
-  renderCampusAdminSummary();
+  renderCampusAdminFromEditor();
 }
 
 async function saveCampusEditorData() {
@@ -352,7 +604,7 @@ async function saveCampusEditorData() {
     if (saveBtn) saveBtn.innerText = "Saving...";
     await saveCampusDataToFirestore(parsed);
     editor.value = campusDataToJson();
-    renderCampusAdminSummary();
+    renderCampusAdminFromEditor();
     alert("Campus data saved.");
   } catch (err) {
     console.error("Failed to save campus data:", err);
@@ -365,11 +617,14 @@ async function saveCampusEditorData() {
 function bindCampusAdminTools() {
   document.getElementById("reloadCampusDataBtn")?.addEventListener("click", loadCampusEditorData);
   document.getElementById("saveCampusDataBtn")?.addEventListener("click", saveCampusEditorData);
+  document.getElementById("validateCampusDataBtn")?.addEventListener("click", renderCampusAdminFromEditor);
+  document.getElementById("campusDataEditor")?.addEventListener("input", scheduleCampusAdminRender);
   document.getElementById("formatCampusDataBtn")?.addEventListener("click", () => {
     const editor = document.getElementById("campusDataEditor");
     if (!editor) return;
     try {
       editor.value = JSON.stringify(JSON.parse(editor.value), null, 2);
+      renderCampusAdminFromEditor();
     } catch (err) {
       alert(`Invalid JSON: ${err.message}`);
     }
