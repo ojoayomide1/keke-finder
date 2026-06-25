@@ -159,6 +159,21 @@
 
         <div class="admin-panel">
           <div class="campus-admin-summary" id="campusAdminSummary"></div>
+          <div class="campus-admin-grid">
+            <section class="campus-admin-block">
+              <div class="campus-admin-block-head">
+                <h3>Validation</h3>
+                <button type="button" class="yellow" id="validateCampusDataBtn">Validate</button>
+              </div>
+              <div id="campusValidationList" class="campus-validation-list"></div>
+            </section>
+            <section class="campus-admin-block">
+              <div class="campus-admin-block-head">
+                <h3>Data Sections</h3>
+              </div>
+              <div id="campusSectionList" class="campus-section-list"></div>
+            </section>
+          </div>
           <p class="admin-help">Use valid JSON. Campus markers and ride stops have separate coordinates because keke stops can be away from the actual building. Indoor records are stored here but are not shown on the map.</p>
           <textarea id="campusDataEditor" class="admin-json-editor" spellcheck="false"></textarea>
           <div class="admin-actions">

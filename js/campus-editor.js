@@ -6,6 +6,9 @@ import {
   saveCampusDataToFirestore
 } from "./campus-data.js";
 
+const SNAP_DISTANCE_M = 12;
+const PREVIEW_SNAP_DISTANCE_M = 180;
+
 const campusDraft = {
   locations: [],
   rideStops: [],
@@ -16,9 +19,12 @@ const campusDraft = {
 
 let activePathDraft = [];
 let activeBuildingDraft = [];
+let routePreviewDraft = [];
 let campusDraftLayers = [];
 let campusDraftHistory = [];
 let activeShapeLayer = null;
+let graphNodeLayer = null;
+let routePreviewLayer = null;
 let currentLocationLayer = null;
 let campusEditorLocationWatchId = null;
 let lastEditorLocation = null;
@@ -40,6 +46,7 @@ function getCampusEditorElements() {
     undoBtn: document.getElementById("undoCampusDraftBtn"),
     saveShapeBtn: document.getElementById("saveCampusShapeBtn"),
     clearBtn: document.getElementById("clearCampusDraftBtn"),
+    clearPreviewBtn: document.getElementById("clearCampusPreviewBtn"),
     locateBtn: document.getElementById("locateCampusEditorBtn"),
     minimizeBtn: document.getElementById("minimizeCampusEditorBtn"),
     graphStatus: document.getElementById("campusGraphStatus"),
@@ -104,8 +111,7 @@ function pointKey(point) {
   return `${Number(point[0]).toFixed(6)},${Number(point[1]).toFixed(6)}`;
 }
 
-function getGraphDiagnostics() {
-  const data = mergedCampusData();
+function buildEditorGraph(data = mergedCampusData()) {
   const nodes = new Map();
   const nodePoints = new Map();
   let segmentCount = 0;
@@ -145,6 +151,11 @@ function getGraphDiagnostics() {
     }
   }
 
+  return { nodes, nodePoints, segmentCount };
+}
+
+function getGraphDiagnostics() {
+  const { nodes, segmentCount } = buildEditorGraph();
   const visited = new Set();
   let components = 0;
   nodes.forEach((_, startKey) => {
@@ -171,6 +182,162 @@ function getGraphDiagnostics() {
   };
 }
 
+function findNearestGraphNode(point, limitMeters = SNAP_DISTANCE_M) {
+  const { nodePoints } = buildEditorGraph();
+  let nearest = null;
+  let nearestDistance = Infinity;
+
+  nodePoints.forEach((nodePoint) => {
+    const distance = getDistanceMeters(point, nodePoint);
+    if (distance < nearestDistance) {
+      nearest = nodePoint;
+      nearestDistance = distance;
+    }
+  });
+
+  if (!nearest || nearestDistance > limitMeters) {
+    return { point, snapped: false, distance: nearestDistance };
+  }
+
+  return { point: nearest, snapped: true, distance: nearestDistance };
+}
+
+function getSnappedPoint(point, limitMeters = SNAP_DISTANCE_M) {
+  const snapped = findNearestGraphNode(point, limitMeters);
+  return [
+    roundCoord(snapped.point[0]),
+    roundCoord(snapped.point[1])
+  ];
+}
+
+function findNearestNodeInGraph(graph, point) {
+  let nearestKey = null;
+  let nearestPoint = null;
+  let nearestDistance = Infinity;
+
+  graph.nodePoints.forEach((nodePoint, key) => {
+    const distance = getDistanceMeters(point, nodePoint);
+    if (distance < nearestDistance) {
+      nearestKey = key;
+      nearestPoint = nodePoint;
+      nearestDistance = distance;
+    }
+  });
+
+  return { key: nearestKey, point: nearestPoint, distance: nearestDistance };
+}
+
+function findEditorShortestPath(graph, startKey, endKey) {
+  const distances = new Map();
+  const previous = new Map();
+  const unvisited = new Set(graph.nodes.keys());
+
+  graph.nodes.forEach((_, key) => distances.set(key, Infinity));
+  distances.set(startKey, 0);
+
+  while (unvisited.size > 0) {
+    let currentKey = null;
+    let currentDistance = Infinity;
+
+    unvisited.forEach(key => {
+      const distance = distances.get(key);
+      if (distance < currentDistance) {
+        currentKey = key;
+        currentDistance = distance;
+      }
+    });
+
+    if (currentKey == null || currentDistance === Infinity) break;
+    if (currentKey === endKey) break;
+
+    unvisited.delete(currentKey);
+    const currentPoint = graph.nodePoints.get(currentKey);
+    graph.nodes.get(currentKey)?.forEach(neighborKey => {
+      if (!unvisited.has(neighborKey)) return;
+      const edgeDistance = getDistanceMeters(currentPoint, graph.nodePoints.get(neighborKey));
+      const nextDistance = currentDistance + edgeDistance;
+      if (nextDistance < distances.get(neighborKey)) {
+        distances.set(neighborKey, nextDistance);
+        previous.set(neighborKey, currentKey);
+      }
+    });
+  }
+
+  if (startKey !== endKey && !previous.has(endKey)) return null;
+
+  const keys = [endKey];
+  let cursor = endKey;
+  while (cursor !== startKey) {
+    cursor = previous.get(cursor);
+    if (!cursor) return null;
+    keys.unshift(cursor);
+  }
+
+  return keys.map(key => graph.nodePoints.get(key));
+}
+
+function calculateEditorRoute(from, to) {
+  const graph = buildEditorGraph();
+  if (graph.nodes.size === 0) {
+    return { points: [from, to], routed: false, reason: "No route paths mapped yet" };
+  }
+
+  const start = findNearestNodeInGraph(graph, from);
+  const end = findNearestNodeInGraph(graph, to);
+  if (!start.key || !end.key) {
+    return { points: [from, to], routed: false, reason: "No nearby route node found" };
+  }
+
+  if (start.distance > PREVIEW_SNAP_DISTANCE_M || end.distance > PREVIEW_SNAP_DISTANCE_M) {
+    return { points: [from, to], routed: false, reason: "Preview point is too far from the route network" };
+  }
+
+  const path = findEditorShortestPath(graph, start.key, end.key);
+  if (!path) {
+    return { points: [from, to], routed: false, reason: "Route paths are not connected" };
+  }
+
+  return { points: [from, ...path, to], routed: true, reason: "Preview route" };
+}
+
+function drawRoutePreview() {
+  const elements = getCampusEditorElements();
+  if (routePreviewLayer) {
+    map.removeLayer(routePreviewLayer);
+    routePreviewLayer = null;
+  }
+
+  if (routePreviewDraft.length === 0) return "";
+
+  const layers = routePreviewDraft.map((point, index) => L.circleMarker(point, {
+    radius: 6,
+    color: index === 0 ? "#2563eb" : "#db2777",
+    fillColor: index === 0 ? "#bfdbfe" : "#fbcfe8",
+    fillOpacity: 0.95,
+    weight: 2
+  }).bindTooltip(index === 0 ? "Preview start" : "Preview end"));
+
+  if (routePreviewDraft.length === 2) {
+    const route = calculateEditorRoute(routePreviewDraft[0], routePreviewDraft[1]);
+    layers.push(L.polyline(route.points, {
+      color: "#2563eb",
+      weight: 5,
+      opacity: 0.82,
+      dashArray: route.routed ? null : "8, 10",
+      lineCap: "round",
+      lineJoin: "round"
+    }));
+    if (elements.hint) elements.hint.innerText = route.reason;
+    routePreviewLayer = L.layerGroup(layers).addTo(map);
+    return route.reason;
+  } else if (elements.hint) {
+    elements.hint.innerText = "Choose preview endpoint.";
+  }
+
+  routePreviewLayer = L.layerGroup(layers).addTo(map);
+  return "Choose preview endpoint.";
+}
+
 function updateGraphStatus() {
   const { graphStatus } = getCampusEditorElements();
   if (!graphStatus) return;
@@ -194,6 +361,36 @@ function updateGraphStatus() {
   graphStatus.innerText = `${diagnostics.segments} path segments / ${diagnostics.nodes} graph nodes / connected route network.`;
 }
 
+function updateGraphNodeLayer() {
+  if (!map) return;
+  if (graphNodeLayer) {
+    map.removeLayer(graphNodeLayer);
+    graphNodeLayer = null;
+  }
+
+  const { nodes, nodePoints } = buildEditorGraph();
+  graphNodeLayer = L.layerGroup();
+
+  nodePoints.forEach((point, key) => {
+    const degree = nodes.get(key)?.size || 0;
+    const isEndpoint = degree <= 1;
+    const marker = L.circleMarker(point, {
+      radius: isEndpoint ? 5 : 3,
+      color: isEndpoint ? "#ea580c" : "#16a34a",
+      fillColor: isEndpoint ? "#fed7aa" : "#bbf7d0",
+      fillOpacity: 0.9,
+      weight: 2,
+      pane: "markerPane"
+    }).bindTooltip(isEndpoint ? "Route endpoint" : "Route connection", {
+      direction: "top",
+      opacity: 0.9
+    });
+    graphNodeLayer.addLayer(marker);
+  });
+
+  graphNodeLayer.addTo(map);
+}
+
 function updateCampusEditorOutput() {
   const { output, hint } = getCampusEditorElements();
   if (!output) return;
@@ -210,6 +407,7 @@ function updateCampusEditorOutput() {
   }
 
   updateGraphStatus();
+  updateGraphNodeLayer();
 }
 
 function addCampusDraftLayer(layer, action = null) {
@@ -223,6 +421,15 @@ function clearActiveShapeLayer() {
     map.removeLayer(activeShapeLayer);
     activeShapeLayer = null;
   }
+}
+
+function clearRoutePreview() {
+  routePreviewDraft = [];
+  if (routePreviewLayer) {
+    map.removeLayer(routePreviewLayer);
+    routePreviewLayer = null;
+  }
+  updateCampusEditorOutput();
 }
 
 function drawActiveShape(type, points) {
@@ -256,9 +463,14 @@ function clearCampusDraft() {
   campusDraft.indoorLocations = [];
   activePathDraft = [];
   activeBuildingDraft = [];
+  routePreviewDraft = [];
   campusDraftHistory = [];
 
   clearActiveShapeLayer();
+  if (routePreviewLayer) {
+    map.removeLayer(routePreviewLayer);
+    routePreviewLayer = null;
+  }
   campusDraftLayers.forEach(layer => map.removeLayer(layer));
   campusDraftLayers = [];
   updateCampusEditorOutput();
@@ -536,10 +748,12 @@ function captureCampusPoint(event) {
   if (!nameInput || !typeInput) return;
 
   const name = nameInput.value.trim() || "Unnamed";
-  const point = [
+  let point = [
     roundCoord(event.latlng.lat),
     roundCoord(event.latlng.lng)
   ];
+  const rawPoint = [...point];
+  let hintMessage = "";
 
   if (typeInput.value === "location") {
     const category = getCampusEditorElements().categoryInput?.value || "service";
@@ -576,8 +790,16 @@ function captureCampusPoint(event) {
   }
 
   if (typeInput.value === "path") {
+    const snapped = findNearestGraphNode(point, SNAP_DISTANCE_M);
+    point = [
+      roundCoord(snapped.point[0]),
+      roundCoord(snapped.point[1])
+    ];
     activePathDraft.push(point);
     drawActiveShape("path", activePathDraft);
+    if (snapped.snapped) {
+      hintMessage = `Snapped to route node ${Math.round(snapped.distance)}m away.`;
+    }
   }
 
   if (typeInput.value === "building") {
@@ -585,7 +807,19 @@ function captureCampusPoint(event) {
     drawActiveShape("building", activeBuildingDraft);
   }
 
+  if (typeInput.value === "routePreview") {
+    routePreviewDraft.push(getSnappedPoint(rawPoint, PREVIEW_SNAP_DISTANCE_M));
+    if (routePreviewDraft.length > 2) {
+      routePreviewDraft = [routePreviewDraft[routePreviewDraft.length - 1]];
+    }
+    hintMessage = drawRoutePreview();
+  }
+
   updateCampusEditorOutput();
+  if (hintMessage) {
+    const { hint } = getCampusEditorElements();
+    if (hint) hint.innerText = hintMessage;
+  }
 }
 
 export function initCampusEditor(nextMap, options = {}) {
@@ -624,6 +858,7 @@ export function initCampusEditor(nextMap, options = {}) {
   map.on("click", clickHandler);
 
   if (elements.clearBtn) elements.clearBtn.onclick = clearCampusDraft;
+  if (elements.clearPreviewBtn) elements.clearPreviewBtn.onclick = clearRoutePreview;
   if (elements.undoBtn) elements.undoBtn.onclick = undoLastCampusDraftAction;
   if (elements.saveShapeBtn) elements.saveShapeBtn.onclick = saveActiveCampusShape;
   if (elements.saveCloudBtn) elements.saveCloudBtn.onclick = saveCampusDraftToCloud;
