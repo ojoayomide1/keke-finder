@@ -1,196 +1,406 @@
 #loginScreen.screen {
   overflow-y: auto;
   display: flex;
-  justify-content: flex-start;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  padding: 60px 0;
+  padding: 40px 20px;
+  min-height: 100vh;
 }
 
 #loginScreen {
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  position: relative;
+  background: #07070f;
+  overflow: hidden;
 }
 
-#loginScreen h1 {
-  font-size: 2.8rem;
-  text-shadow: 0 4px 15px rgba(0,0,0,0.5);
+/* Drift animations for glowing mesh background */
+#loginScreen::before,
+#loginScreen::after {
+  content: "";
+  position: absolute;
+  width: min(80vw, 320px);
+  height: min(80vw, 320px);
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.12;
+  z-index: 0;
+  pointer-events: none;
+}
+
+#loginScreen::before {
+  background: var(--color-accent);
+  top: -40px;
+  left: -40px;
+  animation: driftBlue 15s infinite alternate ease-in-out;
+}
+
+#loginScreen::after {
+  background: #3b82f6;
+  bottom: -40px;
+  right: -40px;
+  animation: driftOrange 15s infinite alternate ease-in-out;
+}
+
+@keyframes driftBlue {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(50px, 30px) scale(1.15); }
+}
+
+@keyframes driftOrange {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-50px, -30px) scale(1.15); }
+}
+
+/* Wrapper to isolate content from background effects */
+.auth-wrapper {
+  width: 100%;
+  max-width: 390px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 1;
 }
 
 .auth-brand {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  margin-bottom: 24px;
+  text-align: center;
 }
 
-.brand-wordmark {
-  display: block;
-  width: min(76vw, 260px);
-  height: auto;
-}
-
-.brand-wordmark.small {
-  width: 150px;
+.auth-brand p {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  letter-spacing: 0.5px;
 }
 
 .brand-lockup {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: #111;
+  gap: 10px;
   line-height: 1;
   white-space: nowrap;
 }
 
-.brand-lockup-light {
-  color: #fff;
-}
-
-.brand-lockup-small {
-  gap: 5px;
-}
-
 .brand-icon {
-  width: 64px;
-  height: 64px;
+  width: 58px;
+  height: 58px;
   flex: 0 0 auto;
-}
-
-.brand-lockup-small .brand-icon {
-  width: 34px;
-  height: 34px;
+  color: var(--color-accent);
+  filter: drop-shadow(0 0 12px rgba(255, 94, 26, 0.2));
 }
 
 .brand-text {
   display: inline-flex;
   align-items: baseline;
-  gap: 3px;
+  gap: 2px;
+  font-family: 'Syne', sans-serif;
+  color: white;
 }
 
 .brand-op {
-  font-size: 48px;
-  font-weight: 700;
-  font-style: normal;
+  font-size: 42px;
+  font-weight: 800;
 }
 
 .brand-rides {
-  font-size: 48px;
+  font-size: 42px;
   font-weight: 400;
   font-style: italic;
+  color: var(--color-accent);
 }
 
-.brand-lockup-small .brand-op,
-.brand-lockup-small .brand-rides {
-  font-size: 25px;
-}
-
+/* Premium Glassmorphic Card */
 .auth-card {
-  width: 90%;
-  max-width: 380px;
-  margin: 20px auto 0;
-  background: rgba(255,255,255,0.05);
-  backdrop-filter: blur(10px);
-  padding: 24px;
-  border-radius: 24px;
-  border: 1px solid rgba(255,255,255,0.1);
+  width: 100%;
+  background: rgba(26, 26, 26, 0.45);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  padding: 32px 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .auth-tabs {
   display: flex;
-  background: rgba(255,255,255,0.1);
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
   padding: 4px;
-  border-radius: 12px;
-  margin-bottom: 20px;
+  border-radius: 14px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .tab-btn {
   flex: 1;
-  padding: 10px;
+  padding: 12px;
   background: transparent;
-  color: white;
+  color: var(--color-text-secondary);
   border-radius: 10px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   border: none;
   cursor: pointer;
+  z-index: 2;
+  transition: color 0.3s ease;
 }
 
 .tab-btn.active {
-  background: white;
   color: #111;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Toggle Role */
 .role-toggle {
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 24px;
 }
 
 .role-btn {
   flex: 1;
-  padding: 12px;
-  background: rgba(255,255,255,0.1);
-  color: white;
-  border: 2px solid transparent;
-  border-radius: 12px;
-  font-weight: 500;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.role-btn:active {
+  transform: scale(0.97);
 }
 
 .role-btn.active {
-  border-color: #22c55e;
-  background: rgba(34, 197, 94, 0.1);
+  border-color: var(--color-accent);
+  background: rgba(255, 94, 26, 0.08);
+  color: white;
+  box-shadow: inset 0 0 10px rgba(255, 94, 26, 0.1);
+}
+
+/* Floating Label Inputs */
+.input-group {
+  position: relative;
+  margin-bottom: 18px;
+  width: 100%;
+}
+
+/* If input inside input-group is marked hidden, hide parent group */
+.input-group:has(.hidden),
+.input-group:has(#riderFields.hidden) {
+  display: none !important;
+}
+
+.input-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  font-size: 16px;
+  pointer-events: none;
+  transition: color 0.2s ease;
+  z-index: 2;
 }
 
 .input-field {
   width: 100%;
-  padding: 14px 16px;
-  margin-bottom: 12px;
-  border: 2px solid rgba(255,255,255,0.2);
-  border-radius: 12px;
-  background: rgba(255,255,255,0.1);
+  padding: 18px 16px 18px 46px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
   color: white;
-  font-size: 16px;
+  font-size: 15px;
   outline: none;
-  transition: border-color 0.2s;
-}
-
-.input-field::placeholder {
-  color: rgba(255,255,255,0.5);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .input-field:focus {
-  border-color: #22c55e;
+  border-color: var(--color-accent);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 3px rgba(255, 94, 26, 0.12);
 }
 
+.input-field:focus ~ .input-icon {
+  color: var(--color-accent);
+}
+
+/* Floating Label Logic */
+.floating-label {
+  position: absolute;
+  left: 46px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  pointer-events: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: left top;
+  z-index: 2;
+}
+
+/* Slide label up when input is focused or has input content */
+.input-field:focus ~ .floating-label,
+.input-field:not(:placeholder-shown) ~ .floating-label {
+  transform: translateY(-25px) scale(0.8);
+  color: var(--color-accent);
+  background: #0c0d15; /* matching blurred background color to mask borders */
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Special adjustments for Select Dropdowns */
 select.input-field {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23999999'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 20px;
+  background-position: right 16px center;
+  background-size: 18px;
 }
 
+select.input-field:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23FF5E1A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+}
+
+.select-label {
+  /* Select dropdowns don't use typical empty placeholders, so it needs to stay floated */
+  transform: translateY(-25px) scale(0.8) !important;
+  color: var(--color-text-secondary);
+  background: #0c0d15;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Password Toggle */
+.password-group {
+  position: relative;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  z-index: 2;
+  transition: color 0.2s ease;
+}
+
+.password-toggle-btn:hover {
+  color: white;
+}
+
+.password-toggle-btn:active {
+  transform: translateY(-50%) scale(0.9);
+}
+
+/* Message styling */
 .auth-message {
   min-height: 20px;
-  margin-bottom: 12px;
-  color: #fca5a5;
-  font-size: 14px;
+  margin: 4px 0 16px;
+  color: var(--color-error);
+  font-size: 13px;
+  font-weight: 500;
   text-align: left;
 }
 
-.auth-primary {
+/* Actions / Buttons Container */
+.auth-actions {
+  display: flex;
+  gap: 12px;
   width: 100%;
-  margin-bottom: 12px;
+}
+
+.auth-primary {
+  flex: 1;
+  padding: 16px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 0 !important;
+}
+
+.auth-primary:active {
+  transform: scale(0.97);
+}
+
+/* Biometric Login Button styling */
+.biometric-login-btn {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  background: rgba(255, 94, 26, 0.08);
+  border: 1px solid rgba(255, 94, 26, 0.2);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 22px;
+  transition: all 0.2s ease;
+}
+
+.biometric-login-btn:hover {
+  background: rgba(255, 94, 26, 0.15);
+  border-color: var(--color-accent);
+}
+
+.biometric-login-btn:active {
+  transform: scale(0.92);
+}
+
+.biometric-login-btn i {
+  animation: biometricPulse 2s infinite ease-in-out;
+}
+
+@keyframes biometricPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0px var(--color-accent)); }
+  50% { transform: scale(1.08); filter: drop-shadow(0 0 5px var(--color-accent)); }
 }
 
 .auth-secondary {
   width: 100%;
-  background: rgba(255,255,255,0.1);
+  padding: 16px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
   color: white;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.2s ease;
+}
+
+.auth-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.auth-secondary:active {
+  transform: scale(0.97);
 }
 
 .auth-divider {
-  margin: 15px 0;
-  opacity: 0.5;
-  font-size: 12px;
-  letter-spacing: 1px;
+  margin: 20px 0;
+  opacity: 0.3;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-align: center;
 }

@@ -12,6 +12,12 @@ import {
   getDoc
 } from "./firebase.js";
 import { state } from "./modules/state.js";
+import {
+  isBiometricsSupported,
+  registerBiometrics,
+  authenticateBiometrics,
+  disableBiometrics
+} from "./modules/biometrics.js";
 
 let authMode = "login"; // "login" or "signup"
 let signupRole = "student"; // "student" or "rider"
@@ -284,6 +290,105 @@ async function logout() {
   showLoginScreen();
 }
 
+// ================= BIOMETRICS INTEGRATION =================
+async function toggleBiometrics(enabled) {
+  const user = state.currentUser;
+  if (!user) {
+    console.error("No active user session to enable biometrics.");
+    return;
+  }
+
+  const studentToggle = document.getElementById("biometricsToggleStudent");
+  const riderToggle = document.getElementById("biometricsToggleRider");
+  const setToggleState = (val) => {
+    if (studentToggle) studentToggle.checked = val;
+    if (riderToggle) riderToggle.checked = val;
+  };
+
+  if (enabled) {
+    const password = prompt("Enter your account password to secure biometrics:");
+    if (!password) {
+      setToggleState(false);
+      return;
+    }
+
+    try {
+      if (window.showToast) window.showToast("Initiating biometric scan...", "info");
+      const success = await registerBiometrics(user.email, password, user.displayName);
+      if (success) {
+        setToggleState(true);
+        if (window.showToast) window.showToast("Biometric login activated!", "success");
+        updateBiometricsUI();
+      } else {
+        setToggleState(false);
+      }
+    } catch (err) {
+      console.error(err);
+      if (window.showToast) window.showToast(err.message || "Failed to set up biometrics", "error");
+      setToggleState(false);
+    }
+  } else {
+    disableBiometrics();
+    setToggleState(false);
+    if (window.showToast) window.showToast("Biometric login deactivated.", "info");
+    updateBiometricsUI();
+  }
+}
+
+async function handleBiometricLogin() {
+  try {
+    if (window.showToast) window.showToast("Confirm your biometrics...", "info");
+    const credentials = await authenticateBiometrics();
+    if (credentials && credentials.email && credentials.password) {
+      setAuthLoading(true);
+      await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
+      setAuthMessage("");
+      if (window.showToast) window.showToast("Authenticated successfully!", "success");
+    }
+  } catch (err) {
+    console.error(err);
+    if (window.showToast) window.showToast(err.message || "Biometric verification failed", "error");
+    setAuthLoading(false);
+  }
+}
+
+function updateBiometricsUI() {
+  const isSupported = isBiometricsSupported();
+  const studentItem = document.getElementById("biometricsSettingItemStudent");
+  const riderItem = document.getElementById("biometricsSettingItemRider");
+
+  if (studentItem) studentItem.classList.toggle("hidden", !isSupported);
+  if (riderItem) riderItem.classList.toggle("hidden", !isSupported);
+
+  if (isSupported) {
+    const isEnabled = localStorage.getItem("oprBiometricsEnabled") === "true";
+    const studentToggle = document.getElementById("biometricsToggleStudent");
+    const riderToggle = document.getElementById("biometricsToggleRider");
+
+    if (studentToggle) studentToggle.checked = isEnabled;
+    if (riderToggle) riderToggle.checked = isEnabled;
+
+    const biometricLoginBtn = document.getElementById("biometricLoginBtn");
+    if (biometricLoginBtn) {
+      biometricLoginBtn.classList.toggle("hidden", !isEnabled);
+    }
+  }
+}
+
+// Password Visibility Toggle
+function togglePasswordVisibility(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const icon = el.parentElement.querySelector(".password-toggle-btn i");
+  if (el.type === "password") {
+    el.type = "text";
+    if (icon) icon.className = "fas fa-eye-slash";
+  } else {
+    el.type = "password";
+    if (icon) icon.className = "fas fa-eye";
+  }
+}
+
 // Bind to window immediately for HTML onclick handlers
 export function bindAuthGlobals() {
   window.setAuthMode = setAuthMode;
@@ -291,6 +396,9 @@ export function bindAuthGlobals() {
   window.handleAuthSubmit = handleAuthSubmit;
   window.continueAsGuest = continueAsGuest;
   window.logout = logout;
+  window.toggleBiometrics = toggleBiometrics;
+  window.handleBiometricLogin = handleBiometricLogin;
+  window.togglePasswordVisibility = togglePasswordVisibility;
 }
 
 export function initAuth(options) {
@@ -319,8 +427,10 @@ export function initAuth(options) {
         // We'll call onUserChanged anyway, but app.js should handle the missing role.
         onUserChanged(user);
       }
+      updateBiometricsUI();
     } else {
       onUserChanged(null);
+      updateBiometricsUI();
     }
   });
 
@@ -333,6 +443,9 @@ export function initAuth(options) {
       });
     }
   });
+
+  // Initialize biometrics layout status
+  updateBiometricsUI();
 }
 
 // Bind globals immediately upon module load
