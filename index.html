@@ -38,67 +38,106 @@
 
   <!-- AUTH SCREEN -->
   <div id="loginScreen" class="screen center">
-    <div class="auth-brand">
-      <div class="brand-lockup brand-lockup-light" role="img" aria-label="OpRides">
-        <svg class="brand-icon" viewBox="0 0 96 96" aria-hidden="true">
-          <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
-            <path d="M14 32h22" />
-            <path d="M8 48h28" />
-            <path d="M14 64h22" />
-            <path d="M58 14c15 0 27 12 27 27 0 20-27 43-27 43S31 61 31 41c0-15 12-27 27-27Z" />
-            <circle cx="58" cy="41" r="8" />
-          </g>
-        </svg>
-        <span class="brand-text" aria-hidden="true"><span class="brand-op">OP</span><span class="brand-rides">rides</span></span>
-      </div>
-      <p>Let's move.</p>
-    </div>
-
-    <div class="auth-card">
-      <!-- Auth Tabs -->
-      <div class="auth-tabs" id="authTabs">
-        <button type="button" onclick="setAuthMode('login')" class="tab-btn active" id="loginTab">Login</button>
-        <button type="button" onclick="setAuthMode('signup')" class="tab-btn" id="signupTab">Sign Up</button>
-      </div>
-
-      <!-- Role Selection (Visible only in Signup Mode) -->
-      <div id="roleToggle" class="role-toggle hidden">
-        <button type="button" onclick="setSignupRole('student')" class="role-btn active" id="roleStudent">Student</button>
-        <button type="button" onclick="setSignupRole('rider')" class="role-btn" id="roleRider">Rider</button>
-      </div>
-
-      <div class="auth-form">
-        <!-- Common Fields -->
-        <input type="text" id="displayName" placeholder="Full name" class="input-field hidden" autocomplete="name">
-        
-        <!-- Student Specific -->
-        <input type="text" id="matricNo" placeholder="Matric Number" class="input-field hidden">
-        
-        <!-- Rider Specific -->
-        <div id="riderFields" class="hidden">
-          <input type="text" id="plateNo" placeholder="Plate Number" class="input-field">
-          <select id="vehicleType" class="input-field" style="margin-top: 10px;">
-            <option value="keke">Keke</option>
-            <option value="shuttle">Campus Shuttle</option>
-          </select>
+    <div class="auth-wrapper">
+      <div class="auth-brand">
+        <div class="brand-lockup brand-lockup-light" role="img" aria-label="OpRides">
+          <svg class="brand-icon" viewBox="0 0 96 96" aria-hidden="true">
+            <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
+              <path d="M14 32h22" />
+              <path d="M8 48h28" />
+              <path d="M14 64h22" />
+              <path d="M58 14c15 0 27 12 27 27 0 20-27 43-27 43S31 61 31 41c0-15 12-27 27-27Z" />
+              <circle cx="58" cy="41" r="8" />
+            </g>
+          </svg>
+          <span class="brand-text" aria-hidden="true"><span class="brand-op">OP</span><span class="brand-rides">rides</span></span>
         </div>
-        
-        <!-- Shared Info -->
-        <input type="tel" id="phoneNumber" placeholder="Phone Number" class="input-field hidden">
-        <input type="email" id="email" placeholder="Email address" class="input-field" autocomplete="email">
-        <input type="password" id="password" placeholder="Password" class="input-field" autocomplete="current-password">
-        
-        <p id="authMessage" class="auth-message"></p>
+        <p>Let's move smarter.</p>
+      </div>
 
-        <button type="button" id="authSubmitBtn" onclick="handleAuthSubmit()" class="green auth-primary">
-          Login
-        </button>
+      <div class="auth-card">
+        <!-- Auth Tabs -->
+        <div class="auth-tabs" id="authTabs">
+          <button type="button" onclick="setAuthMode('login')" class="tab-btn active" id="loginTab">Login</button>
+          <button type="button" onclick="setAuthMode('signup')" class="tab-btn" id="signupTab">Sign Up</button>
+          <div class="tab-indicator" id="tabIndicator"></div>
+        </div>
 
-        <p class="auth-divider">OR</p>
+        <!-- Role Selection (Visible only in Signup Mode) -->
+        <div id="roleToggle" class="role-toggle hidden">
+          <button type="button" onclick="setSignupRole('student')" class="role-btn active" id="roleStudent">Student</button>
+          <button type="button" onclick="setSignupRole('rider')" class="role-btn" id="roleRider">Rider</button>
+        </div>
 
-        <button type="button" onclick="continueAsGuest()" class="auth-secondary">
-           Continue as Guest
-        </button>
+        <div class="auth-form">
+          <!-- Common Fields -->
+          <div class="input-group">
+            <span class="input-icon"><i class="fas fa-user"></i></span>
+            <input type="text" id="displayName" placeholder=" " class="input-field hidden" autocomplete="name">
+            <label class="floating-label">Full Name</label>
+          </div>
+          
+          <!-- Student Specific -->
+          <div class="input-group">
+            <span class="input-icon"><i class="fas fa-id-card"></i></span>
+            <input type="text" id="matricNo" placeholder=" " class="input-field hidden">
+            <label class="floating-label">Matric Number</label>
+          </div>
+          
+          <!-- Rider Specific -->
+          <div id="riderFields" class="hidden">
+            <div class="input-group" style="margin-bottom: 12px;">
+              <span class="input-icon"><i class="fas fa-car"></i></span>
+              <input type="text" id="plateNo" placeholder=" " class="input-field">
+              <label class="floating-label">Plate Number</label>
+            </div>
+            <div class="input-group">
+              <span class="input-icon"><i class="fas fa-bus"></i></span>
+              <select id="vehicleType" class="input-field">
+                <option value="keke">Keke</option>
+                <option value="shuttle">Campus Shuttle</option>
+              </select>
+              <label class="floating-label select-label">Vehicle Type</label>
+            </div>
+          </div>
+          
+          <!-- Shared Info -->
+          <div class="input-group">
+            <span class="input-icon"><i class="fas fa-phone"></i></span>
+            <input type="tel" id="phoneNumber" placeholder=" " class="input-field hidden">
+            <label class="floating-label">Phone Number</label>
+          </div>
+          <div class="input-group">
+            <span class="input-icon"><i class="fas fa-envelope"></i></span>
+            <input type="email" id="email" placeholder=" " class="input-field" autocomplete="email">
+            <label class="floating-label">Email address</label>
+          </div>
+          <div class="input-group password-group">
+            <span class="input-icon"><i class="fas fa-lock"></i></span>
+            <input type="password" id="password" placeholder=" " class="input-field" autocomplete="current-password">
+            <label class="floating-label">Password</label>
+            <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('password')" aria-label="Toggle password visibility">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+          
+          <p id="authMessage" class="auth-message"></p>
+
+          <div class="auth-actions">
+            <button type="button" id="authSubmitBtn" onclick="handleAuthSubmit()" class="green auth-primary">
+              Login
+            </button>
+            <button type="button" class="biometric-login-btn hidden" id="biometricLoginBtn" onclick="handleBiometricLogin()" aria-label="Log in with biometrics">
+              <i class="fas fa-fingerprint"></i>
+            </button>
+          </div>
+
+          <p class="auth-divider">OR</p>
+
+          <button type="button" onclick="continueAsGuest()" class="auth-secondary">
+             Continue as Guest
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -413,6 +452,16 @@
               <span></span>
             </label>
           </div>
+          <div class="settings-item hidden" id="biometricsSettingItemStudent">
+            <span class="settings-copy">
+              <span>Biometric Login</span>
+              <small>Use Face ID / Fingerprint to log in</small>
+            </span>
+            <label class="theme-switch" aria-label="Toggle biometric login">
+              <input type="checkbox" id="biometricsToggleStudent" onchange="toggleBiometrics(this.checked)">
+              <span></span>
+            </label>
+          </div>
           <div class="settings-item hidden" id="adminLinkStudent" onclick="window.location.href='/admin.html'">
             <span style="color: #22c55e; font-weight: bold;">Admin Dashboard</span>
             <i class="fas fa-shield-alt" style="color: #22c55e;"></i>
@@ -583,6 +632,16 @@
             </span>
             <label class="theme-switch" aria-label="Toggle dark mode">
               <input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)">
+              <span></span>
+            </label>
+          </div>
+          <div class="settings-item hidden" id="biometricsSettingItemRider">
+            <span class="settings-copy">
+              <span>Biometric Login</span>
+              <small>Use Face ID / Fingerprint to log in</small>
+            </span>
+            <label class="theme-switch" aria-label="Toggle biometric login">
+              <input type="checkbox" id="biometricsToggleRider" onchange="toggleBiometrics(this.checked)">
               <span></span>
             </label>
           </div>
