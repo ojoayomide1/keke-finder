@@ -702,57 +702,83 @@ async function transitionToDashboard(user) {
     else return;
   }
 
-  document.getElementById("loginScreen").classList.add("hidden");
-  
-  // Hide all role UIs first to ensure a clean state
-  document.getElementById("studentUI").classList.add("hidden");
-  document.getElementById("riderUI").classList.add("hidden");
+  const loginScreen = document.getElementById("loginScreen");
+  const studentUI = document.getElementById("studentUI");
+  const riderUI = document.getElementById("riderUI");
 
-  // Global welcome name and greeting
-  const firstName = (user.displayName || "User").split(" ")[0];
-  const greeting = getGreeting();
-
-  if (user.role === "student") {
-    console.log("Setting role to student and showing studentUI");
-    state.currentRole = "student";
-    document.getElementById("studentUI").classList.remove("hidden");
-
-    // Update welcome section
-    const welcomeName = document.getElementById("welcome-name-student");
-    const welcomeGreet = document.querySelector("#studentDashboard .welcome-greeting");
-    if (welcomeName) welcomeName.innerHTML = `${firstName}<span>.</span>`;
-    if (welcomeGreet) welcomeGreet.textContent = greeting;
-
-    startScheduledRidesProcessor();
-    populateLocations();
-    updateStudentProfileUI();
-    listenToStudentWallet();
-    
-    // Explicitly make the wallet tab visible in case it was hidden
-    const walletTab = document.getElementById("tab-wallet");
-    if (walletTab) walletTab.classList.remove("hidden");
-    
-    if (window.switchStudentView) window.switchStudentView('dashboard');
-    await checkForActiveRide("student");
-  } else if (user.role === "rider") {
-    console.log("Setting role to rider and showing riderUI");
-    state.currentRole = "rider";
-    document.getElementById("riderUI").classList.remove("hidden");
-
-    // Update welcome section
-    const welcomeName = document.getElementById("welcome-name-rider");
-    const welcomeGreet = document.querySelector("#riderDashboard .welcome-greeting");
-    if (welcomeName) welcomeName.innerHTML = `${firstName}<span>.</span>`;
-    if (welcomeGreet) welcomeGreet.textContent = greeting;
-
-    updateRiderDashboardUI();
-    listenToRiderWallet();
-    switchTab('home');
-    await checkForActiveRide("rider");
-  } else {
-    console.error("Unknown user role:", user.role);
-    showLoginScreen();
+  if (!loginScreen || !studentUI || !riderUI) {
+    // Fallback if DOM elements aren't ready
+    document.getElementById("loginScreen")?.classList.add("hidden");
+    if (user.role === "student") {
+      document.getElementById("studentUI")?.classList.remove("hidden");
+    } else {
+      document.getElementById("riderUI")?.classList.remove("hidden");
+    }
+    return;
   }
+
+  // Trigger fade-out animation on login screen
+  loginScreen.classList.add("screen-fade-out");
+
+  setTimeout(async () => {
+    loginScreen.classList.add("hidden");
+    loginScreen.classList.remove("screen-fade-out");
+
+    // Hide all UIs first
+    studentUI.classList.add("hidden");
+    riderUI.classList.add("hidden");
+
+    const firstName = (user.displayName || "User").split(" ")[0];
+    const greeting = getGreeting();
+
+    if (user.role === "student") {
+      console.log("Setting role to student and showing studentUI");
+      state.currentRole = "student";
+      
+      studentUI.classList.remove("hidden");
+      studentUI.classList.add("screen-fade-in");
+      setTimeout(() => studentUI.classList.remove("screen-fade-in"), 600);
+
+      // Update welcome section
+      const welcomeName = document.getElementById("welcome-name-student");
+      const welcomeGreet = document.querySelector("#studentDashboard .welcome-greeting");
+      if (welcomeName) welcomeName.innerHTML = `${firstName}<span>.</span>`;
+      if (welcomeGreet) welcomeGreet.textContent = greeting;
+
+      startScheduledRidesProcessor();
+      populateLocations();
+      updateStudentProfileUI();
+      listenToStudentWallet();
+      
+      // Explicitly make the wallet tab visible in case it was hidden
+      const walletTab = document.getElementById("tab-wallet");
+      if (walletTab) walletTab.classList.remove("hidden");
+      
+      if (window.switchStudentView) window.switchStudentView('dashboard');
+      await checkForActiveRide("student");
+    } else if (user.role === "rider") {
+      console.log("Setting role to rider and showing riderUI");
+      state.currentRole = "rider";
+      
+      riderUI.classList.remove("hidden");
+      riderUI.classList.add("screen-fade-in");
+      setTimeout(() => riderUI.classList.remove("screen-fade-in"), 600);
+
+      // Update welcome section
+      const welcomeName = document.getElementById("welcome-name-rider");
+      const welcomeGreet = document.querySelector("#riderDashboard .welcome-greeting");
+      if (welcomeName) welcomeName.innerHTML = `${firstName}<span>.</span>`;
+      if (welcomeGreet) welcomeGreet.textContent = greeting;
+
+      updateRiderDashboardUI();
+      listenToRiderWallet();
+      switchTab('home');
+      await checkForActiveRide("rider");
+    } else {
+      console.error("Unknown user role:", user.role);
+      showLoginScreen();
+    }
+  }, 450); // match screen-fade-out duration (0.45s)
 }
 
 async function checkForActiveRide(role) {

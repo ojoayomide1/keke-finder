@@ -18,6 +18,7 @@ import {
   where,
   writeBatch
 } from "./firebase.js";
+import { showConfirmDialog, showPromptDialog } from "./modules/ui.js";
 import {
   campusDataToJson,
   getCampusMapData,
@@ -175,7 +176,12 @@ async function handleAddRider(e) {
 }
 
 async function removeRider(plate) {
-  if (!confirm(`Are you sure you want to remove authorized rider ${plate}?`)) return;
+  const confirmed = await showConfirmDialog({
+    title: "Remove Rider Authorization",
+    message: `Are you sure you want to remove authorized rider ${plate}?`,
+    danger: true
+  });
+  if (!confirmed) return;
   try {
     await deleteDoc(doc(db, "authorized_riders", plate));
   } catch (err) {
@@ -253,8 +259,12 @@ async function rejectWithdrawal(requestId, riderId, reason, amountKobo) {
   await batch.commit();
 }
 
-function rejectWithdrawalPrompt(requestId, riderId, amountKobo) {
-  const reason = prompt("Why is this withdrawal being rejected?");
+async function rejectWithdrawalPrompt(requestId, riderId, amountKobo) {
+  const reason = await showPromptDialog({
+    title: "Reject Withdrawal Request",
+    message: "Why is this withdrawal being rejected?",
+    placeholder: "Enter reason for rejection"
+  });
   if (reason === null) return;
   rejectWithdrawal(requestId, riderId, reason, amountKobo);
 }

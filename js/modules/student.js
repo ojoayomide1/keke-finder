@@ -1,7 +1,7 @@
 import { state } from "./state.js";
 import { db, collection, query, orderBy, onSnapshot, addDoc, deleteDoc, updateDoc, doc, getDoc, getDocs, where, serverTimestamp, runTransaction } from "../firebase.js";
 import { getRideStops } from "../campus-data.js";
-import { showToast, updateBottomSheet, updateRideDetails } from "./ui.js";
+import { showToast, updateBottomSheet, updateRideDetails, showConfirmDialog } from "./ui.js";
 import { initMap } from "./map-manager.js";
 import { calculateDetourScore, getDistance, getQueuePosition, estimateWaitTime, insertStopsIntoQueue, calculateFare } from "./ride-helpers.js";
 import { checkDebtBeforeRide, formatNaira } from "../wallet.js";
@@ -454,7 +454,12 @@ export async function cancelRide() {
 }
 
 export async function deleteRideRecord(requestId) {
-  if (!confirm("Are you sure you want to delete this ride from your history?")) return;
+  const confirmed = await showConfirmDialog({
+    title: "Delete Ride Record",
+    message: "Are you sure you want to delete this ride from your history?",
+    danger: true
+  });
+  if (!confirmed) return;
   
   try {
     await updateDoc(doc(db, "rideRequests", requestId), {

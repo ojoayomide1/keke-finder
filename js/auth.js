@@ -12,6 +12,7 @@ import {
   getDoc
 } from "./firebase.js";
 import { state } from "./modules/state.js";
+import { showPromptDialog } from "./modules/ui.js";
 import {
   isBiometricsSupported,
   registerBiometrics,
@@ -306,7 +307,12 @@ async function toggleBiometrics(enabled) {
   };
 
   if (enabled) {
-    const password = prompt("Enter your account password to secure biometrics:");
+    const password = await showPromptDialog({
+      title: "Secure Biometrics",
+      message: "Enter your account password to secure biometrics:",
+      placeholder: "Enter password",
+      inputType: "password"
+    });
     if (!password) {
       setToggleState(false);
       return;

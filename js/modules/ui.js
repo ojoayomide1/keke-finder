@@ -127,36 +127,93 @@ export function showLoginScreen() {
   document.getElementById("riderUI").classList.add("hidden");
 }
 
-// Confirmation Dialogs
+// Confirmation Dialogs (supports both callback and Promise await style)
 export function showConfirmDialog({ title, message, confirmText, cancelText, onConfirm, danger = false }) {
-  const overlay = document.createElement("div");
-  overlay.className = "dialog-overlay";
-  overlay.innerHTML = `
-    <div class="dialog-sheet">
-      <div class="dialog-handle"></div>
-      <div class="dialog-title">${title}</div>
-      <div class="dialog-message">${message}</div>
-      <div class="dialog-actions">
-        <button class="btn ${danger ? "btn-danger" : "btn-primary"}" id="dialog-confirm">
-          ${confirmText || "Confirm"}
-        </button>
-        <button class="btn btn-ghost" id="dialog-cancel">
-          ${cancelText || "Cancel"}
-        </button>
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "dialog-overlay";
+    overlay.innerHTML = `
+      <div class="dialog-sheet">
+        <div class="dialog-handle"></div>
+        <div class="dialog-title">${title}</div>
+        <div class="dialog-message">${message}</div>
+        <div class="dialog-actions">
+          <button class="btn ${danger ? "btn-danger" : "btn-primary"}" id="dialog-confirm">
+            ${confirmText || "Confirm"}
+          </button>
+          <button class="btn btn-ghost" id="dialog-cancel">
+            ${cancelText || "Cancel"}
+          </button>
+        </div>
       </div>
-    </div>
-  `;
+    `;
 
-  document.body.appendChild(overlay);
+    document.body.appendChild(overlay);
 
-  overlay.querySelector("#dialog-confirm").addEventListener("click", () => {
-    onConfirm();
-    overlay.remove();
+    overlay.querySelector("#dialog-confirm").addEventListener("click", () => {
+      overlay.remove();
+      if (onConfirm) onConfirm();
+      resolve(true);
+    });
+
+    const closeDialog = () => {
+      overlay.remove();
+      resolve(false);
+    };
+
+    overlay.querySelector("#dialog-cancel").addEventListener("click", closeDialog);
+    overlay.addEventListener("click", e => { if (e.target === overlay) closeDialog(); });
   });
-
-  overlay.querySelector("#dialog-cancel").addEventListener("click", () => overlay.remove());
-  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
 }
+
+// Prompt Dialogs (Promise-based)
+export function showPromptDialog({ title, message, placeholder = "", inputType = "text", confirmText = "Submit", cancelText = "Cancel" }) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "dialog-overlay";
+    overlay.innerHTML = `
+      <div class="dialog-sheet">
+        <div class="dialog-handle"></div>
+        <div class="dialog-title">${title}</div>
+        <div class="dialog-message" style="margin-bottom: var(--space-sm);">${message}</div>
+        <div class="input-group" style="margin-bottom: var(--space-md);">
+          <input type="${inputType}" id="dialog-prompt-input" class="input-field" placeholder="${placeholder}" autocomplete="off" style="color: var(--color-text-primary) !important;">
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-primary" id="dialog-confirm">
+            ${confirmText}
+          </button>
+          <button class="btn btn-ghost" id="dialog-cancel">
+            ${cancelText}
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const input = overlay.querySelector("#dialog-prompt-input");
+    setTimeout(() => input.focus(), 50);
+
+    overlay.querySelector("#dialog-confirm").addEventListener("click", () => {
+      const val = input.value;
+      overlay.remove();
+      resolve(val);
+    });
+
+    const closeDialog = () => {
+      overlay.remove();
+      resolve(null);
+    };
+
+    overlay.querySelector("#dialog-cancel").addEventListener("click", closeDialog);
+    overlay.addEventListener("click", e => { if (e.target === overlay) closeDialog(); });
+  });
+}
+
+// Bind to window for HTML access
+window.showConfirmDialog = showConfirmDialog;
+window.showPromptDialog = showPromptDialog;
 
 // Balance Animation
 export function animateBalance(elementId, newValue) {
