@@ -91,14 +91,7 @@
               <input type="text" id="plateNo" placeholder=" " class="input-field">
               <label class="floating-label">Plate Number</label>
             </div>
-            <div class="input-group">
-              <span class="input-icon"><i class="fas fa-bus"></i></span>
-              <select id="vehicleType" class="input-field">
-                <option value="keke">Keke</option>
-                <option value="shuttle">Campus Shuttle</option>
-              </select>
-              <label class="floating-label select-label">Vehicle Type</label>
-            </div>
+            <input type="hidden" id="vehicleType" value="keke">
           </div>
           
           <!-- Shared Info -->
@@ -131,12 +124,6 @@
               <i class="fas fa-fingerprint"></i>
             </button>
           </div>
-
-          <p class="auth-divider">OR</p>
-
-          <button type="button" onclick="continueAsGuest()" class="auth-secondary">
-             Continue as Guest
-          </button>
         </div>
       </div>
     </div>
