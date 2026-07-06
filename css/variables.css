@@ -46,7 +46,7 @@
 
   --bottom-nav-height: 64px;
   --header-height:     60px;
-  --safe-area-bottom:  env(safe-area-inset-bottom, 16px);
+  --safe-area-bottom:  env(safe-area-inset-bottom, 0px);
 
   /* Admin Additions */
   --admin-bg:        #080808;

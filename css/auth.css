@@ -26,6 +26,8 @@
   opacity: 0.12;
   z-index: 0;
   pointer-events: none;
+  will-change: transform;
+  transform: translate3d(0,0,0);
 }
 
 #loginScreen::before {
@@ -43,13 +45,20 @@
 }
 
 @keyframes driftBlue {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(50px, 30px) scale(1.15); }
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(50px, 30px, 0) scale(1.15); }
 }
 
 @keyframes driftOrange {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(-50px, -30px) scale(1.15); }
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(-50px, -30px, 0) scale(1.15); }
+}
+
+@media (max-width: 768px) {
+  #loginScreen::before,
+  #loginScreen::after {
+    animation: none !important;
+  }
 }
 
 /* Wrapper to isolate content from background effects */
@@ -117,14 +126,20 @@
 /* Premium Glassmorphic Card */
 .auth-card {
   width: 100%;
-  background: rgba(26, 26, 26, 0.45);
-  backdrop-filter: blur(20px) saturate(120%);
-  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  background: rgba(26, 26, 26, 0.95);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
   padding: 32px 24px;
   border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@supports (backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px)) {
+  .auth-card {
+    background: rgba(26, 26, 26, 0.45);
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+  }
 }
 
 .auth-tabs {
@@ -213,6 +228,13 @@
   z-index: 2;
 }
 
+#loginScreen input.input-field,
+#loginScreen select.input-field,
+#loginScreen textarea.input-field {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
 .input-field {
   width: 100%;
   padding: 18px 16px 18px 48px !important;
@@ -220,6 +242,7 @@
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.03) !important;
   color: white !important;
+  -webkit-text-fill-color: white !important;
   font-size: 15px;
   outline: none;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -236,6 +259,9 @@
 }
 
 /* Autofill styling overrides to guarantee text visibility on login page */
+#loginScreen .input-field:-webkit-autofill,
+#loginScreen .input-field:-webkit-autofill:hover, 
+#loginScreen .input-field:-webkit-autofill:focus,
 .input-field:-webkit-autofill,
 .input-field:-webkit-autofill:hover, 
 .input-field:-webkit-autofill:focus {

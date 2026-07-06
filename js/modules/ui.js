@@ -248,3 +248,213 @@ export function initSplashScreen() {
     }
   }, 2500);
 }
+
+// Custom dropdown dialog/picker selection functionality
+export function makeCustomSelect(selectId, title) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  if (select.dataset.customSelectInitialized) return;
+  select.dataset.customSelectInitialized = "true";
+
+  // Hide the original select
+  select.style.setProperty("display", "none", "important");
+
+  // Create the trigger button
+  const trigger = document.createElement("div");
+  trigger.className = "input-field custom-select-trigger";
+  trigger.id = `${selectId}-trigger`;
+  trigger.style.cursor = "pointer";
+  trigger.style.display = "flex";
+  trigger.style.alignItems = "center";
+  trigger.style.justifyContent = "space-between";
+  
+  const textSpan = document.createElement("span");
+  textSpan.className = "custom-select-trigger-text";
+  trigger.appendChild(textSpan);
+
+  const caret = document.createElement("i");
+  caret.className = "fas fa-chevron-down custom-select-caret";
+  caret.style.color = "var(--color-accent)";
+  caret.style.transition = "transform 0.2s ease";
+  trigger.appendChild(caret);
+
+  // Insert trigger right after select
+  select.parentNode.insertBefore(trigger, select.nextSibling);
+
+  // Function to update trigger text based on selected option
+  function updateTriggerText() {
+    const selectedOpt = select.options[select.selectedIndex];
+    textSpan.innerText = selectedOpt ? selectedOpt.text : (title || "Select location");
+    if (!select.value) {
+      textSpan.style.color = "var(--color-text-secondary)";
+    } else {
+      textSpan.style.color = "var(--color-text-primary)";
+    }
+  }
+
+  // Intercept value property descriptor to track programmatic changes
+  const originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+  if (originalValueDescriptor) {
+    Object.defineProperty(select, 'value', {
+      get() {
+        return originalValueDescriptor.get.call(this);
+      },
+      set(val) {
+        originalValueDescriptor.set.call(this, val);
+        updateTriggerText();
+      },
+      configurable: true
+    });
+  }
+
+  // Watch for option list changes
+  const observer = new MutationObserver(() => {
+    updateTriggerText();
+  });
+  observer.observe(select, { childList: true, subtree: true });
+
+  // Initial update
+  updateTriggerText();
+
+  // On click: Open bottom sheet overlay selection dialog
+  trigger.addEventListener("click", () => {
+    openCustomSelectModal(select, title, updateTriggerText, caret);
+  });
+}
+
+function openCustomSelectModal(select, title, onSelected, caret) {
+  if (caret) caret.style.transform = "rotate(180deg)";
+
+  const overlay = document.createElement("div");
+  overlay.className = "custom-select-overlay";
+  
+  // Build option list
+  let optionsHtml = "";
+  
+  const children = Array.from(select.children);
+  const hasGroups = children.some(child => child.tagName === "OPTGROUP");
+  
+  const buildOptionRow = (option) => {
+    if (!option.value) return ""; // Skip empty placeholders
+    const isSelected = option.selected ? "selected" : "";
+    return `
+      <div class="custom-select-option ${isSelected}" data-value="${option.value}">
+        <span class="option-text">${option.text}</span>
+        <i class="fas fa-check check-icon"></i>
+      </div>
+    `;
+  };
+
+  if (hasGroups) {
+    children.forEach(child => {
+      if (child.tagName === "OPTGROUP") {
+        const groupLabel = child.label;
+        const groupOptions = Array.from(child.children);
+        optionsHtml += `
+          <div class="custom-select-group">
+            <div class="custom-select-group-title">${groupLabel}</div>
+            <div class="custom-select-group-options">
+              ${groupOptions.map(buildOptionRow).join("")}
+            </div>
+          </div>
+        `;
+      } else if (child.tagName === "OPTION") {
+        optionsHtml += buildOptionRow(child);
+      }
+    });
+  } else {
+    optionsHtml = children.map(buildOptionRow).join("");
+  }
+
+  if (!optionsHtml.trim()) {
+    optionsHtml = `<p class="empty-state" style="padding: var(--space-md); text-align: center; color: var(--color-text-secondary);">No options available</p>`;
+  }
+
+  const totalOptions = select.querySelectorAll("option[value]:not([value=''])").length;
+  const showSearch = totalOptions > 5;
+
+  overlay.innerHTML = `
+    <div class="custom-select-sheet">
+      <div class="custom-select-handle"></div>
+      <div class="custom-select-header">
+        <span class="custom-select-title">${title || "Select Option"}</span>
+        <button class="custom-select-close">&times;</button>
+      </div>
+      ${showSearch ? `
+      <div class="custom-select-search-container">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" class="custom-select-search" placeholder="Search..." autocomplete="off">
+      </div>
+      ` : ''}
+      <div class="custom-select-options-list">
+        ${optionsHtml}
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  
+  setTimeout(() => overlay.classList.add("show"), 10);
+
+  const closeSelect = () => {
+    overlay.classList.remove("show");
+    if (caret) caret.style.transform = "";
+    setTimeout(() => overlay.remove(), 250);
+  };
+
+  overlay.querySelector(".custom-select-close").addEventListener("click", closeSelect);
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeSelect(); });
+
+  overlay.querySelectorAll(".custom-select-option").forEach(row => {
+    row.addEventListener("click", () => {
+      const val = row.dataset.value;
+      select.value = val;
+      select.dispatchEvent(new Event("change"));
+      onSelected();
+      closeSelect();
+    });
+  });
+
+  if (showSearch) {
+    const searchInput = overlay.querySelector(".custom-select-search");
+    const optionRows = overlay.querySelectorAll(".custom-select-option");
+    const groups = overlay.querySelectorAll(".custom-select-group");
+
+    searchInput.addEventListener("input", () => {
+      const query = searchInput.value.toLowerCase().trim();
+      
+      optionRows.forEach(row => {
+        const text = row.querySelector(".option-text").innerText.toLowerCase();
+        if (text.includes(query)) {
+          row.style.display = "flex";
+        } else {
+          row.style.display = "none";
+        }
+      });
+
+      groups.forEach(group => {
+        const visibleOptions = Array.from(group.querySelectorAll(".custom-select-option")).filter(r => r.style.display !== "none");
+        if (visibleOptions.length === 0) {
+          group.style.display = "none";
+        } else {
+          group.style.display = "block";
+        }
+      });
+    });
+
+    setTimeout(() => searchInput.focus(), 150);
+  }
+}
+
+export function initCustomSelects() {
+  makeCustomSelect("pickupSelect", "Select Pickup Location");
+  makeCustomSelect("dropoffSelect", "Select Drop-off Location");
+  makeCustomSelect("pathfinderSelect", "Select Landmark");
+}
+
+// Auto-initialize when content loads
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initCustomSelects);
+} else {
+  initCustomSelects();
+}
