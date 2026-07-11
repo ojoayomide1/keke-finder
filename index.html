@@ -404,6 +404,201 @@
             <div class="controls" style="display:flex">
               <button type="button" class="green" onclick="completePathfinderSession()">Complete walk</button>
             </div>
+      </main>
+    </div>
+
+    <div id="walletView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>My Wallet</h2>
+      </div>
+      <div class="profile-content">
+        <div class="wallet-balance-panel">
+          <span>Balance</span>
+          <strong id="walletBalance">₦0</strong>
+          <p id="walletDebt" class="wallet-debt hidden"></p>
+          <button type="button" class="green" onclick="openTopUpScreen()">+ Top Up</button>
+        </div>
+        <h3 class="section-title">Recent Transactions</h3>
+        <div id="walletTransactionsList" class="wallet-list">
+          <p class="empty-state">No wallet transactions yet</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="topUpView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchTab('wallet')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Top Up Wallet</h2>
+      </div>
+      <div class="profile-content">
+        <div class="ride-form-card">
+          <div style="background: #fef3c7; color: #92400e; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 20px; text-align: center;">
+            <i class="fas fa-info-circle" style="margin-right: 5px;"></i>
+            For the fastest top-up, please select <strong>Bank Transfer</strong> in the next step.
+          </div>
+          <h3>Enter Amount</h3>
+          <div class="form-group">
+            <input type="number" id="topUpAmountInput" class="input-field" placeholder="₦0.00" style="font-size: 24px; text-align: center; padding: 20px;">
+          </div>
+          <button type="button" class="green auth-primary" onclick="continueTopUp()">Generate Account</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="transferDetailsView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <button class="iconBtn" onclick="switchTab('topup')"><i class="fas fa-arrow-left"></i></button>
+        <h2>Transfer Details</h2>
+      </div>
+      <div class="profile-content">
+        <div class="ride-form-card transfer-card">
+          <p>Send exactly <strong id="transferAmount">₦0</strong> to:</p>
+          <div class="settings-list">
+            <div class="settings-item"><span>Bank</span><strong id="transferBank">Wema Bank</strong></div>
+            <div class="settings-item"><span>Account</span><strong id="transferAccountNumber">Not available</strong></div>
+            <div class="settings-item"><span>Name</span><strong id="transferAccountName">OpRides</strong></div>
+            <div class="settings-item"><span>Expires</span><strong id="transferAccountExpiry" style="color: #ef4444;">--</strong></div>
+          </div>
+          <p class="wallet-note">Send the exact amount. Your wallet updates automatically after your bank confirms the transfer.</p>
+          <button type="button" class="green auth-primary" onclick="showTopUpWaitingScreen()">I've Sent The Money</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="topUpWaitingView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>Waiting for Transfer</h2>
+      </div>
+      <div class="center waiting-panel">
+        <i class="fas fa-hourglass-half"></i>
+        <h3>Waiting for your transfer...</h3>
+        <p>Your wallet will update automatically once your bank confirms the transfer.</p>
+        <button type="button" class="green" onclick="switchTab('home')">Back to Home</button>
+      </div>
+    </div>
+
+    <!-- Live Section (Map + Bottom Sheet) -->
+    <div id="liveRideView" class="view-overlay map-view hidden tab-view">
+      <div id="studentMap" class="map map-screen"></div>
+      
+      <div class="bottomSheet hidden" id="studentSheet" style="position: absolute;">
+        <div class="dragZone" onmousedown="startDrag(event, 'studentSheet')" ontouchstart="startDrag(event, 'studentSheet')">
+          <div class="handle"></div>
+        </div>
+        <h3 id="studentTitle">Live Trip</h3>
+        <p id="studentSub">Waiting for rider...</p>
+        
+        <div class="sheet-content">
+          <div class="ride-details" id="studentRideDetails"></div>
+          <div class="controls" id="studentControls" style="display:none">
+            <button type="button" onclick="cancelRide()" class="danger">Cancel Request</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Campus Map Section -->
+    <div id="pathfinderView" class="view-overlay hidden tab-view">
+      <div class="view-header">
+        <h2>Campus Map</h2>
+      </div>
+      <div id="pathfinderSelectPanel" class="profile-content">
+        <div class="ride-form-card">
+          <h3 style="margin-bottom: 8px;">Find your way</h3>
+          <p style="font-size: 13px; color: #6b7280; margin-bottom: 20px;">Find lecture halls, hostels, and campus spots fast.</p>
+          
+          <div class="form-group">
+            <label>Where are you going?</label>
+            <select id="pathfinderSelect" class="input-field" onchange="navigateToLandmark(this.value)">
+              <option value="">Select Landmark</option>
+            </select>
+          </div>
+          <button type="button" id="campusEditorOpenBtn" class="yellow hidden" onclick="openCampusEditor()">
+            <i class="fas fa-map-pin"></i>
+            Open map editor
+          </button>
+        </div>
+      </div>
+      <div id="pathfinderMapPanel" class="pathfinder-map-panel hidden">
+        <div id="pathfinderMap" class="map map-screen"></div>
+        <div id="campusEditor" class="campus-editor hidden">
+          <div class="campus-editor__header">
+            <div>
+              <strong>Campus Editor</strong>
+              <span id="campusEditorHint">Click the map to capture coordinates.</span>
+            </div>
+            <div class="campus-editor__header-actions">
+              <button type="button" id="locateCampusEditorBtn" class="iconBtn" aria-label="Show my location">
+                <i class="fas fa-location-crosshairs"></i>
+              </button>
+              <button type="button" id="minimizeCampusEditorBtn" class="iconBtn" aria-label="Minimize editor">
+                <i class="fas fa-minus"></i>
+              </button>
+              <button type="button" id="undoCampusDraftBtn" class="iconBtn" aria-label="Undo last draft item">
+                <i class="fas fa-rotate-left"></i>
+              </button>
+              <button type="button" id="clearCampusDraftBtn" class="iconBtn" aria-label="Clear draft">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="campus-editor__grid">
+            <label for="campusPointName">
+              Name
+              <input type="text" id="campusPointName" class="input-field" placeholder="New pickup spot" autocomplete="off">
+            </label>
+            <label for="campusPointType">
+              Mode
+              <select id="campusPointType" class="input-field">
+                <option value="location">Campus marker</option>
+                <option value="rideStop">Pickup / drop-off stop</option>
+                <option value="path">Road / path</option>
+                <option value="roadArea">Road area</option>
+                <option value="building">Building shape</option>
+                <option value="buildingEdit">Edit building</option>
+                <option value="routePreview">Route preview</option>
+              </select>
+            </label>
+            <label for="campusPointCategory">
+              Category
+              <select id="campusPointCategory" class="input-field"></select>
+            </label>
+          </div>
+
+          <div id="campusGraphStatus" class="campus-editor__status"></div>
+          <textarea id="campusEditorOutput" readonly spellcheck="false"></textarea>
+          <div class="campus-editor__actions">
+            <button type="button" id="saveCampusShapeBtn" class="yellow">
+              <i class="fas fa-draw-polygon"></i>
+              Save shape
+            </button>
+            <button type="button" id="clearCampusPreviewBtn" class="yellow">
+              <i class="fas fa-route"></i>
+              Clear route
+            </button>
+            <button type="button" id="saveCampusCloudBtn" class="blue">
+              <i class="fas fa-cloud-arrow-up"></i>
+              Save map
+            </button>
+            <button type="button" id="copyCampusJsonBtn" class="green">
+              <i class="fas fa-copy"></i>
+              Copy JSON
+            </button>
+          </div>
+        </div>
+        <button type="button" id="pathfinderBackBtn" class="backBtn" onclick="resetPathfinder()" aria-label="Back to pathfinder"></button>
+        <div class="bottomSheet hidden" id="pathfinderSheet" style="position: absolute;">
+          <div class="dragZone" onmousedown="startDrag(event, 'pathfinderSheet')" ontouchstart="startDrag(event, 'pathfinderSheet')">
+            <div class="handle"></div>
+          </div>
+          <h3 id="pathfinderTitle">Route</h3>
+          <p id="pathfinderSub">Calculating route...</p>
+          <div class="sheet-content">
+            <div class="ride-details" id="pathfinderDetails"></div>
+            <div class="controls" style="display:flex">
+              <button type="button" class="green" onclick="completePathfinderSession()">Complete walk</button>
+            </div>
           </div>
         </div>
       </div>
@@ -421,17 +616,42 @@
           <p id="profileEmail">email@example.com</p>
         </div>
         
+        <div class="settings-group-title">Account & Security</div>
         <div class="settings-list" style="margin-bottom: 20px;">
           <div class="settings-item" onclick="switchTab('activity')">
-            <span>Ride Activity</span>
-            <i class="fas fa-chevron-right"></i>
+            <span class="settings-label-with-icon">
+              <i class="fas fa-history settings-icon"></i>
+              <span>Ride Activity</span>
+            </span>
+            <i class="fas fa-chevron-right arrow-icon"></i>
           </div>
           <div class="settings-item" onclick="switchTab('wallet')">
-            <span>Wallet</span>
-            <i class="fas fa-chevron-right"></i>
+            <span class="settings-label-with-icon">
+              <i class="fas fa-wallet settings-icon"></i>
+              <span>Wallet</span>
+            </span>
+            <i class="fas fa-chevron-right arrow-icon"></i>
           </div>
+          <div class="settings-item hidden" id="biometricsSettingItemStudent">
+            <div class="settings-copy">
+              <span class="settings-label-with-icon">
+                <i class="fas fa-fingerprint settings-icon"></i>
+                <span>Biometric Login</span>
+              </span>
+              <small>Use Face ID / Fingerprint to log in</small>
+            </div>
+            <label class="theme-switch" aria-label="Toggle biometric login">
+              <input type="checkbox" id="biometricsToggleStudent" onchange="toggleBiometrics(this.checked)">
+              <span></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group-title">Preferences & Info</div>
+        <div class="settings-list" style="margin-bottom: 20px;">
           <div class="settings-item">
-            <span class="settings-copy">
+            <span class="settings-label-with-icon">
+              <i class="fas fa-adjust settings-icon"></i>
               <span>Dark Mode</span>
             </span>
             <label class="theme-switch" aria-label="Toggle dark mode">
@@ -439,27 +659,28 @@
               <span></span>
             </label>
           </div>
-          <div class="settings-item hidden" id="biometricsSettingItemStudent">
-            <span class="settings-copy">
-              <span>Biometric Login</span>
-              <small>Use Face ID / Fingerprint to log in</small>
-            </span>
-            <label class="theme-switch" aria-label="Toggle biometric login">
-              <input type="checkbox" id="biometricsToggleStudent" onchange="toggleBiometrics(this.checked)">
-              <span></span>
-            </label>
-          </div>
           <div class="settings-item hidden" id="adminLinkStudent" onclick="window.location.href='/admin.html'">
-            <span style="color: #22c55e; font-weight: bold;">Admin Dashboard</span>
-            <i class="fas fa-shield-alt" style="color: #22c55e;"></i>
+            <span class="settings-label-with-icon" style="color: #22c55e;">
+              <i class="fas fa-shield-alt settings-icon"></i>
+              <strong style="font-weight: 600;">Admin Dashboard</strong>
+            </span>
+            <i class="fas fa-chevron-right arrow-icon" style="color: #22c55e;"></i>
           </div>
-          <div class="settings-item">
-            <span>App Version</span>
-            <strong>1.2.1</strong>
+          <div class="settings-item no-clickable">
+            <span class="settings-label-with-icon">
+              <i class="fas fa-info-circle settings-icon"></i>
+              <span>App Version</span>
+            </span>
+            <strong class="app-version-badge">1.2.1</strong>
           </div>
         </div>
         
-        <button onclick="logout()" class="danger-text">Logout from account</button>
+        <div class="settings-action-container">
+          <button onclick="logout()" class="logout-btn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -560,7 +781,7 @@
       </div>
     </div>
 
-    <!-- Profile Section -->
+    <!-- Earnings Section -->
     <div id="riderEarningsView" class="view-overlay hidden tab-view">
       <div class="view-header">
         <h2>My Earnings</h2>
@@ -612,9 +833,11 @@
           </div>
         </div>
         
+        <div class="settings-group-title">Preferences & Security</div>
         <div class="settings-list" style="margin-bottom: 20px;">
           <div class="settings-item">
-            <span class="settings-copy">
+            <span class="settings-label-with-icon">
+              <i class="fas fa-adjust settings-icon"></i>
               <span>Dark Mode</span>
             </span>
             <label class="theme-switch" aria-label="Toggle dark mode">
@@ -623,27 +846,46 @@
             </label>
           </div>
           <div class="settings-item hidden" id="biometricsSettingItemRider">
-            <span class="settings-copy">
-              <span>Biometric Login</span>
+            <div class="settings-copy">
+              <span class="settings-label-with-icon">
+                <i class="fas fa-fingerprint settings-icon"></i>
+                <span>Biometric Login</span>
+              </span>
               <small>Use Face ID / Fingerprint to log in</small>
-            </span>
+            </div>
             <label class="theme-switch" aria-label="Toggle biometric login">
               <input type="checkbox" id="biometricsToggleRider" onchange="toggleBiometrics(this.checked)">
               <span></span>
             </label>
           </div>
-          <div class="settings-item">
-            <span>App Version</span>
-            <strong>1.2.1</strong>
+        </div>
+
+        <div class="settings-group-title">App Info & Admin</div>
+        <div class="settings-list" style="margin-bottom: 20px;">
+          <div class="settings-item no-clickable">
+            <span class="settings-label-with-icon">
+              <i class="fas fa-info-circle settings-icon"></i>
+              <span>App Version</span>
+            </span>
+            <strong class="app-version-badge">1.2.1</strong>
           </div>
           <div class="settings-item hidden" id="adminLinkRider" onclick="window.location.href='/admin.html'">
-            <span style="color: #22c55e; font-weight: bold;">Admin Dashboard</span>
-            <i class="fas fa-shield-alt" style="color: #22c55e;"></i>
+            <span class="settings-label-with-icon" style="color: #22c55e;">
+              <i class="fas fa-shield-alt settings-icon"></i>
+              <strong style="font-weight: 600;">Admin Dashboard</strong>
+            </span>
+            <i class="fas fa-chevron-right arrow-icon" style="color: #22c55e;"></i>
           </div>
-          </div>        
-        <button onclick="logout()" class="danger-text">Logout from account</button>
+        </div>
+
+        <div class="settings-action-container">
+          <button onclick="logout()" class="logout-btn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+          </button>
+        </div>
       </div>
-      </div>
+    </div>
 
       <!-- Bottom Navigation Bar -->
       <nav class="bottom-nav">
@@ -669,5 +911,14 @@
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://js.paystack.co/v2/inline.js"></script>
   <script type="module" src="js/app.js?v=1.2.1"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('ServiceWorker registered with scope: ', reg.scope))
+          .catch(err => console.warn('ServiceWorker registration failed: ', err));
+      });
+    }
+  </script>
 </body>
-                </html>
+</html>

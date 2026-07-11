@@ -172,6 +172,20 @@ export function updateStudentProfileUI() {
 export async function fetchRideHistory() {
   const list = document.getElementById("activityList");
   if (!list || !state.currentUser || state.currentUser.isGuest) return;
+
+  // Insert animated skeleton loaders while fetching real-time data
+  list.innerHTML = Array(3).fill(`
+    <div class="activity-item-skeleton" style="padding: 16px 20px; border-bottom: 1px solid var(--color-border);">
+      <div class="skeleton" style="height: 16px; width: 60%; border-radius: 4px; margin-bottom: 8px;"></div>
+      <div class="skeleton" style="height: 12px; width: 40%; border-radius: 4px; margin-bottom: 14px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <div class="skeleton" style="height: 24px; width: 64px; border-radius: 6px;"></div>
+        <div class="skeleton" style="height: 24px; width: 50px; border-radius: 6px;"></div>
+        <div class="skeleton" style="height: 24px; width: 50px; border-radius: 6px;"></div>
+      </div>
+    </div>
+  `).join("");
+
   const q = query(
     collection(db, "rideRequests"),
     where("studentId", "==", state.currentUser.uid),
