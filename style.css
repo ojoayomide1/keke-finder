@@ -1,9 +1,9 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;1,400&display=swap");
 
-@import "css/variables.css";
-@import "css/animations.css";
-@import "css/base.css";
-@import "css/auth.css";
-@import "css/dashboard.css";
-@import "css/map.css";
-@import "css/components.css";
+@import "css/variables.css?v=1.2.1";
+@import "css/animations.css?v=1.2.1";
+@import "css/base.css?v=1.2.1";
+@import "css/auth.css?v=1.2.1";
+@import "css/dashboard.css?v=1.2.1";
+@import "css/map.css?v=1.2.1";
+@import "css/components.css?v=1.2.1";
