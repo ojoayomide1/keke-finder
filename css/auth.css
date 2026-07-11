@@ -58,6 +58,13 @@
   #loginScreen::before,
   #loginScreen::after {
     animation: none !important;
+    display: none !important;
+  }
+  .auth-card {
+    background: #14141b !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5) !important;
   }
 }
 
@@ -131,7 +138,6 @@
   padding: 32px 24px;
   border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @supports (backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px)) {
@@ -189,7 +195,7 @@
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .role-btn:active {
@@ -245,7 +251,7 @@
   -webkit-text-fill-color: white !important;
   font-size: 15px;
   outline: none;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .input-field:focus {
@@ -279,7 +285,7 @@
   color: var(--color-text-secondary);
   font-size: 15px;
   pointer-events: none;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: left top;
   z-index: 2;
 }
@@ -368,7 +374,7 @@ select.input-field:focus {
   font-weight: 600;
   font-size: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   margin-bottom: 0 !important;
 }
 
@@ -389,7 +395,7 @@ select.input-field:focus {
   justify-content: center;
   cursor: pointer;
   font-size: 22px;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .biometric-login-btn:hover {
@@ -420,7 +426,7 @@ select.input-field:focus {
   background: rgba(255, 255, 255, 0.04);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .auth-secondary:hover {

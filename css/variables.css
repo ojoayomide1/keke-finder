@@ -44,9 +44,9 @@
   --radius-lg:  20px;
   --radius-full: 9999px;
 
-  --bottom-nav-height: 64px;
+  --bottom-nav-height: 54px;
   --header-height:     60px;
-  --safe-area-bottom:  env(safe-area-inset-bottom, 0px);
+  --safe-area-bottom:  clamp(0px, env(safe-area-inset-bottom, 0px), 20px);
 
   /* Admin Additions */
   --admin-bg:        #080808;

@@ -306,6 +306,12 @@ async function toggleBiometrics(enabled) {
     if (riderToggle) riderToggle.checked = val;
   };
 
+  if (!isBiometricsSupported()) {
+    if (window.showToast) window.showToast("Biometric authentication is not supported in this container.", "error");
+    setToggleState(false);
+    return;
+  }
+
   if (enabled) {
     const password = await showPromptDialog({
       title: "Secure Biometrics",
@@ -362,21 +368,52 @@ function updateBiometricsUI() {
   const isSupported = isBiometricsSupported();
   const studentItem = document.getElementById("biometricsSettingItemStudent");
   const riderItem = document.getElementById("biometricsSettingItemRider");
+  const studentToggle = document.getElementById("biometricsToggleStudent");
+  const riderToggle = document.getElementById("biometricsToggleRider");
+  const biometricLoginBtn = document.getElementById("biometricLoginBtn");
 
-  if (studentItem) studentItem.classList.toggle("hidden", !isSupported);
-  if (riderItem) riderItem.classList.toggle("hidden", !isSupported);
+  if (studentItem) {
+    studentItem.classList.remove("hidden");
+    if (!isSupported) {
+      studentItem.style.opacity = "0.6";
+      const small = studentItem.querySelector("small");
+      if (small) small.innerText = "Not supported in this container (Use Safari/Chrome)";
+      if (studentToggle) studentToggle.disabled = true;
+    } else {
+      studentItem.style.opacity = "1";
+      const small = studentItem.querySelector("small");
+      if (small) small.innerText = "Use Face ID / Fingerprint to log in";
+      if (studentToggle) studentToggle.disabled = false;
+    }
+  }
+
+  if (riderItem) {
+    riderItem.classList.remove("hidden");
+    if (!isSupported) {
+      riderItem.style.opacity = "0.6";
+      const small = riderItem.querySelector("small");
+      if (small) small.innerText = "Not supported in this container (Use Safari/Chrome)";
+      if (riderToggle) riderToggle.disabled = true;
+    } else {
+      riderItem.style.opacity = "1";
+      const small = riderItem.querySelector("small");
+      if (small) small.innerText = "Use Face ID / Fingerprint to log in";
+      if (riderToggle) riderToggle.disabled = false;
+    }
+  }
 
   if (isSupported) {
     const isEnabled = localStorage.getItem("oprBiometricsEnabled") === "true";
-    const studentToggle = document.getElementById("biometricsToggleStudent");
-    const riderToggle = document.getElementById("biometricsToggleRider");
-
     if (studentToggle) studentToggle.checked = isEnabled;
     if (riderToggle) riderToggle.checked = isEnabled;
-
-    const biometricLoginBtn = document.getElementById("biometricLoginBtn");
     if (biometricLoginBtn) {
       biometricLoginBtn.classList.toggle("hidden", !isEnabled);
+    }
+  } else {
+    if (studentToggle) studentToggle.checked = false;
+    if (riderToggle) riderToggle.checked = false;
+    if (biometricLoginBtn) {
+      biometricLoginBtn.classList.add("hidden");
     }
   }
 }

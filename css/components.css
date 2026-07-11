@@ -883,11 +883,11 @@ select.input-field option {
 .custom-select-sheet {
   width: 100%;
   max-width: 500px;
-  background: #0c0d15;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
   border-radius: 28px 28px 0 0;
   padding: 24px 20px;
-  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.35);
   transform: translateY(100%);
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
@@ -903,7 +903,8 @@ select.input-field option {
 .custom-select-handle {
   width: 36px;
   height: 4px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--color-border);
+  opacity: 0.6;
   border-radius: var(--radius-full);
   margin: 0 auto 20px;
   flex-shrink: 0;
@@ -925,8 +926,8 @@ select.input-field option {
 }
 
 .custom-select-close {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   font-size: 20px;
   width: 32px;
@@ -936,13 +937,13 @@ select.input-field option {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s, background-color 0.2s, transform 0.2s;
   line-height: 1;
 }
 
 .custom-select-close:active {
   transform: scale(0.92);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-border);
 }
 
 .custom-select-search-container {
@@ -955,21 +956,21 @@ select.input-field option {
 .custom-select-search {
   width: 100%;
   padding: 14px 16px 14px 44px !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid var(--color-border) !important;
   border-radius: 14px !important;
-  background: rgba(255, 255, 255, 0.03) !important;
-  color: white !important;
-  -webkit-text-fill-color: white !important;
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-text-primary) !important;
+  -webkit-text-fill-color: var(--color-text-primary) !important;
   font-size: 15px;
   outline: none;
   box-sizing: border-box;
-  transition: all 0.25s ease;
+  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
 }
 
 .custom-select-search:focus {
   border-color: var(--color-accent) !important;
-  background: rgba(255, 255, 255, 0.05) !important;
-  box-shadow: 0 0 0 3px rgba(255, 94, 26, 0.12);
+  background: var(--color-bg-tertiary) !important;
+  box-shadow: 0 0 0 3px var(--color-accent-dim);
 }
 
 .custom-select-search-container .search-icon {
@@ -997,7 +998,7 @@ select.input-field option {
   background: transparent;
 }
 .custom-select-options-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-border);
   border-radius: 10px;
 }
 
@@ -1009,9 +1010,9 @@ select.input-field option {
   border-radius: 14px;
   cursor: pointer;
   margin-bottom: 8px;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  background: rgba(255, 255, 255, 0.01);
+  transition: border-color 0.2s, background-color 0.2s, transform 0.2s;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
 }
 
 .custom-select-option:active {
@@ -1019,12 +1020,12 @@ select.input-field option {
 }
 
 .custom-select-option:hover {
-  background: rgba(255, 94, 26, 0.06);
-  border-color: rgba(255, 94, 26, 0.15);
+  background: var(--color-accent-dim);
+  border-color: var(--color-accent);
 }
 
 .custom-select-option.selected {
-  background: rgba(255, 94, 26, 0.09);
+  background: var(--color-accent-dim);
   border-color: var(--color-accent);
 }
 
@@ -1069,6 +1070,6 @@ select.input-field option {
   letter-spacing: 1.2px;
   padding: 0 12px 10px;
   opacity: 0.85;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 10px;
 }
