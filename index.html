@@ -286,6 +286,14 @@
     <div id="liveRideView" class="view-overlay map-view hidden tab-view">
       <div id="studentMap" class="map map-screen"></div>
       
+      <!-- Floating Map Legend -->
+      <div class="map-legend">
+        <div class="legend-item"><span class="legend-dot dot-user"></span><span>You</span></div>
+        <div class="legend-item"><span class="legend-dot dot-pickup"></span><span>Pickup</span></div>
+        <div class="legend-item"><span class="legend-dot dot-dropoff"></span><span>Destination</span></div>
+        <div class="legend-item"><span class="legend-dot dot-keke"></span><span>Keke</span></div>
+      </div>
+      
       <div class="bottomSheet hidden" id="studentSheet" style="position: absolute;">
         <div class="dragZone" onmousedown="startDrag(event, 'studentSheet')" ontouchstart="startDrag(event, 'studentSheet')">
           <div class="handle"></div>
@@ -568,6 +576,14 @@
     <!-- Live Section (Map + Sheet) -->
     <div id="riderLiveView" class="view-overlay map-view hidden tab-view">
       <div id="riderMap" class="map map-screen"></div>
+      
+      <!-- Floating Map Legend -->
+      <div class="map-legend">
+        <div class="legend-item"><span class="legend-dot dot-user"></span><span>You</span></div>
+        <div class="legend-item"><span class="legend-dot dot-pickup"></span><span>Pickup</span></div>
+        <div class="legend-item"><span class="legend-dot dot-dropoff"></span><span>Destination</span></div>
+        <div class="legend-item"><span class="legend-dot dot-keke"></span><span>Keke</span></div>
+      </div>
       
       <div class="bottomSheet hidden" id="riderSheet" style="position: absolute;">
         <div class="dragZone" onmousedown="startDrag(event, 'riderSheet')" ontouchstart="startDrag(event, 'riderSheet')">

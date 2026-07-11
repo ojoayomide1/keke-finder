@@ -103,7 +103,10 @@ export async function markStopComplete(rideId, stopId, stop) {
 
       if (currentStop.type === "dropoff") {
         updates[`passengers.${currentStop.passengerId}.dropoffStatus`] = "completed";
-        await applyFareSplit(transaction, currentStop.passengerId, ride.riderId, rideId);
+        const passenger = ride.passengers?.[currentStop.passengerId];
+        if (!passenger?.paid) {
+          await applyFareSplit(transaction, currentStop.passengerId, ride.riderId, rideId);
+        }
       }
 
       if (updatedQueue.every(s => s.status === "completed")) updates.status = "completed";
@@ -189,7 +192,7 @@ async function applyFareSplit(transaction, studentId, riderId, rideId) {
   if (adminActual > 0) addWalletTransaction(transaction, "admin", "commission", adminActual, adminBalance, adminBalance + adminActual, "Partial commission from ride", rideId);
 }
 
-function writeAdminWalletTotals(transaction, adminRef, balance, totalEarned) {
+export function writeAdminWalletTotals(transaction, adminRef, balance, totalEarned) {
   transaction.set(adminRef, {
       balance,
       totalEarned,
@@ -199,7 +202,7 @@ function writeAdminWalletTotals(transaction, adminRef, balance, totalEarned) {
   );
 }
 
-function addWalletTransaction(transaction, userId, type, amount, balanceBefore, balanceAfter, description, rideId) {
+export function addWalletTransaction(transaction, userId, type, amount, balanceBefore, balanceAfter, description, rideId) {
   transaction.set(doc(collection(db, "walletTransactions")), {
     userId,
     type,
@@ -229,6 +232,14 @@ export function listenToActiveRide(rideId) {
         // Reset Dashboard Stats
         const detailsContainer = document.getElementById("riderRideDetails");
         if (detailsContainer) detailsContainer.innerHTML = "";
+        
+        // Check if going offline gracefully
+        if (ride.isGoingOffline) {
+          await toggleOnlineStatus();
+          previousStatus = "completed";
+          return;
+        }
+
         document.getElementById("riderTitle").innerText = "Online & Ready";
         document.getElementById("riderSub").innerText = "All passengers dropped off. Waiting for new requests.";
         
@@ -274,21 +285,47 @@ export function listenToActiveRide(rideId) {
       );
     }
 
+    // Construct passenger status list
+    let passengersListHtml = "";
+    Object.entries(ride.passengers || {}).forEach(([pId, p]) => {
+      const isPaid = p.paid === true;
+      const statusClass = isPaid ? "status-paid" : "status-unpaid";
+      const statusText = isPaid ? "Paid" : "Unpaid";
+      const dropoffStop = (ride.stopQueue || []).find(s => s.passengerId === pId && s.type === "dropoff");
+      const dropoffLabel = dropoffStop ? dropoffStop.locationLabel : "Destination";
+      
+      passengersListHtml += `
+        <div class="passenger-list-item">
+          <div class="passenger-info">
+            <span class="passenger-name">${p.name || "Passenger"}</span>
+            <span class="passenger-dest">${dropoffLabel}</span>
+          </div>
+          <button class="pay-status-btn ${statusClass}">
+            ${isPaid ? '<i class="fas fa-check-circle"></i> ' : ''}${statusText}
+          </button>
+        </div>
+      `;
+    });
+
     // Update stats on dashboard or sheet
     const statsHtml = `
-      <div style="display:flex; justify-content:space-around; padding:15px; background:#f9fafb; border-radius:12px; margin:10px 0;">
+      <div style="display:flex; justify-content:space-around; padding:15px; background:var(--color-bg-secondary); border-radius:12px; margin:10px 0; border: 1px solid var(--color-border);">
         <div style="text-align:center;">
-          <div style="font-size:0.8em; color:#6b7280;">Seats</div>
+          <div style="font-size:0.8em; color:var(--color-text-secondary);">Seats</div>
           <div style="font-weight:bold;">${ride.seats.occupied}/${ride.seats.total}</div>
         </div>
         <div style="text-align:center;">
-          <div style="font-size:0.8em; color:#6b7280;">Passengers</div>
+          <div style="font-size:0.8em; color:var(--color-text-secondary);">Passengers</div>
           <div style="font-weight:bold;">${Object.keys(ride.passengers).length}</div>
         </div>
         <div style="text-align:center;">
-          <div style="font-size:0.8em; color:#6b7280;">Next Stop</div>
+          <div style="font-size:0.8em; color:var(--color-text-secondary);">Next Stop</div>
           <div style="font-weight:bold;">${nextStop ? nextStop.passengerName : "None"}</div>
         </div>
+      </div>
+      <div class="passenger-status-list" style="margin-top: 15px;">
+        <h4 style="font-size: 11px; text-transform: uppercase; color: var(--color-text-secondary); margin-bottom: 8px; font-weight: 700; letter-spacing: 0.5px;">Onboard Passengers</h4>
+        ${passengersListHtml || '<p style="font-size: 13px; color: var(--color-text-secondary); text-align: center; padding: 10px;">No passengers matched</p>'}
       </div>
     `;
     
@@ -347,6 +384,7 @@ export async function drainWaitingQueueForRide(rideId) {
 
         if (ride.riderId !== state.currentUser?.uid) return false;
         if (!["waiting", "active"].includes(ride.status)) return false;
+        if (ride.isGoingOffline === true || ride.acceptingNewPassengers === false) return false;
         if ((ride.seats?.available || 0) <= 0) return false;
         if (!queued.requestId || !queued.studentId) return false;
         if (queued.studentId in (ride.passengers || {})) return false;
@@ -410,10 +448,36 @@ export async function completeRide() {
 
 export async function toggleOnlineStatus() {
   const btn = document.getElementById("statusToggleBtn");
-  const isOnline = btn.innerText === "Go Offline";
+  const isOnline = btn.innerText === "Go Offline" || btn.innerText === "Completing Trips...";
   
   if (isOnline) {
     // Go Offline Logic
+    if (state.currentRideId && btn.innerText !== "Completing Trips...") {
+      try {
+        const rideSnap = await getDoc(doc(db, "rides", state.currentRideId));
+        if (rideSnap.exists()) {
+          const ride = rideSnap.data();
+          const hasPendingStops = (ride.stopQueue || []).some(s => s.status === "pending");
+          
+          if (hasPendingStops) {
+            // Initiate Graceful Offline
+            await updateDoc(doc(db, "rides", state.currentRideId), {
+              isGoingOffline: true,
+              acceptingNewPassengers: false
+            });
+            btn.innerText = "Completing Trips...";
+            btn.className = "btn btn-primary yellow";
+            document.getElementById("riderSub").innerText = "Finishing current trips (Going offline)";
+            showToast("Going offline after dropping off passengers", "info");
+            return; // Exit, keeping GPS reporting online
+          }
+        }
+      } catch (err) {
+        console.warn("Graceful offline verification failed, forcing offline:", err);
+      }
+    }
+
+    // Force Offline or Normal Offline
     if (state.currentRideId) {
       await updateDoc(doc(db, "rides", state.currentRideId), { status: "completed" });
       state.currentRideId = null;

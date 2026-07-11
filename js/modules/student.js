@@ -5,6 +5,7 @@ import { showToast, updateBottomSheet, updateRideDetails, showConfirmDialog } fr
 import { initMap } from "./map-manager.js";
 import { calculateDetourScore, getDistance, getQueuePosition, estimateWaitTime, insertStopsIntoQueue, calculateFare } from "./ride-helpers.js";
 import { checkDebtBeforeRide, formatNaira } from "../wallet.js";
+import { addWalletTransaction, writeAdminWalletTotals } from "./rider.js";
 
 const MAX_DETOUR_ACTIVE = 300; // metres
 const MAX_DETOUR_IDLE = 800; // metres
@@ -329,6 +330,11 @@ export function listenToRequest(requestId) {
 
     if (request.status === "matched") {
       showToast("Ride matched!", "success");
+      if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification("OpRides Match Found!", {
+          body: "Your keke has been matched! Open the app to view details."
+        });
+      }
       state.currentRideId = request.matchedRideId;
       listenToRide(request.matchedRideId, state.currentUser?.uid);
     }
@@ -341,6 +347,12 @@ export function listenToRequest(requestId) {
     }
 
     if (request.status === "cancelled") {
+      showToast("Ride request cancelled", "info");
+      if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification("Ride Cancelled", {
+          body: "Your ride request has been cancelled."
+        });
+      }
       state.currentRideId = null;
       state.currentRequestId = null;
       document.getElementById("studentSheet")?.classList.add("hidden");
@@ -359,6 +371,11 @@ export function listenToRide(matchedRideId, currentUserId) {
       // If I was a passenger and it's completed, it means I've arrived
       if (myInfo) {
         showToast("You have arrived at your destination!", "success");
+        if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification("Trip Completed!", {
+            body: "You have arrived safely. Thank you for riding with OpRides!"
+          });
+        }
         state.currentRideId = null;
         state.currentRequestId = null;
         document.getElementById("studentSheet").classList.add("hidden");
@@ -378,6 +395,23 @@ export function listenToRide(matchedRideId, currentUserId) {
 
     const myInfo = ride.passengers[currentUserId];
 
+    // Proximity arriving notification
+    if (myInfo?.pickupStatus !== "completed" && ride.currentLocation && myPickup?.location) {
+      const dist = getDistance(ride.currentLocation.lat, ride.currentLocation.lng, myPickup.location.lat, myPickup.location.lng);
+      if (dist <= 50) {
+        if (!state.notifiedArriving) {
+          state.notifiedArriving = true;
+          if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification("Your Keke is Arriving!", {
+              body: "Your driver is within 50 meters of your pickup stop. Be ready to board!"
+            });
+          }
+        }
+      } else {
+        state.notifiedArriving = false;
+      }
+    }
+
     updateRideDetails("student", [
       { label: "Status", value: myInfo?.pickupStatus === "completed" ? "On Trip" : "Coming to you" },
       { label: "Stops Away", value: stopsAway },
@@ -387,8 +421,34 @@ export function listenToRide(matchedRideId, currentUserId) {
 
     updateBottomSheet(
       myInfo?.pickupStatus === "completed" ? "On Trip" : "Keke is on the way!",
-      myInfo?.pickupStatus === "completed" ? `Heading to ${ride.stopQueue.find(s => s.passengerId === currentUserId && s.type === "dropoff")?.locationLabel}` : `${stopsAway} stops away`
+      myInfo?.pickupStatus === "completed" ? `Heading to ${(ride.stopQueue || []).find(s => s.passengerId === currentUserId && s.type === "dropoff")?.locationLabel || 'Destination'}` : `${stopsAway} stops away`
     );
+
+    // Dynamic Pay Now / Cancel Request button logic
+    const studentControls = document.getElementById("studentControls");
+    if (studentControls) {
+      if (myInfo?.pickupStatus === "completed") {
+        if (myInfo?.paid) {
+          studentControls.innerHTML = `
+            <button type="button" class="green no-clickable" style="width: 100%; pointer-events: none;" disabled>
+              <i class="fas fa-check-circle"></i> Paid ₦${(myInfo.fare || 15000) / 100}
+            </button>
+          `;
+        } else {
+          studentControls.innerHTML = `
+            <button type="button" id="payNowBtn" onclick="payForActiveRide()" class="green" style="width: 100%; font-weight: 700;">
+              <i class="fas fa-wallet"></i> Pay Now ₦${(myInfo.fare || 15000) / 100}
+            </button>
+          `;
+        }
+        studentControls.style.display = "flex";
+      } else {
+        studentControls.innerHTML = `
+          <button type="button" onclick="cancelRide()" class="danger" style="width: 100%;">Cancel Request</button>
+        `;
+        studentControls.style.display = "flex";
+      }
+    }
     
     // Update map etc. (could be handled in app.js or here)
     if (window.updateRideUI) window.updateRideUI(ride);
@@ -488,3 +548,87 @@ export async function deleteRideRecord(requestId) {
 
 // Bind to window for HTML access
 window.deleteRideRecord = deleteRideRecord;
+
+export async function payForActiveRide() {
+  if (!state.currentRideId || !state.currentUser) return;
+  const studentId = state.currentUser.uid;
+  const rideId = state.currentRideId;
+
+  const rideRef = doc(db, "rides", rideId);
+  const studentRef = doc(db, "users", studentId);
+  const adminRef = doc(db, "adminWallet", "main");
+
+  try {
+    showToast("Processing payment...");
+    await runTransaction(db, async (transaction) => {
+      const rideSnap = await transaction.get(rideRef);
+      const studentSnap = await transaction.get(studentRef);
+      if (!rideSnap.exists()) throw new Error("Ride not found");
+      if (!studentSnap.exists()) throw new Error("Student not found");
+
+      const ride = rideSnap.data();
+      const student = studentSnap.data();
+      
+      const passenger = ride.passengers?.[studentId];
+      if (!passenger) throw new Error("Passenger not matched to this ride");
+      if (passenger.paid) throw new Error("Already paid");
+
+      const currentBalance = student.wallet?.balance || 0;
+      const fare = passenger.fare || 15000; 
+      const riderShare = Math.floor(fare * 13000 / 15000); 
+      const adminShare = fare - riderShare;
+
+      if (currentBalance < fare) {
+        throw new Error("INSUFFICIENT_BALANCE");
+      }
+
+      // 1. Deduct from student
+      const studentNewBalance = currentBalance - fare;
+      transaction.update(studentRef, {
+        "wallet.balance": studentNewBalance,
+        "wallet.lastDeduction": serverTimestamp()
+      });
+
+      // 2. Add to rider
+      const riderRef = doc(db, "users", ride.riderId);
+      const riderSnap = await transaction.get(riderRef);
+      if (riderSnap.exists()) {
+        const rider = riderSnap.data();
+        const riderBalance = rider.earnings?.balance || 0;
+        const riderTotalEarned = rider.earnings?.totalEarned || 0;
+        transaction.update(riderRef, {
+          "earnings.balance": riderBalance + riderShare,
+          "earnings.totalEarned": riderTotalEarned + riderShare
+        });
+        addWalletTransaction(transaction, ride.riderId, "earning", riderShare, riderBalance, riderBalance + riderShare, "Ride fare received (prepaid)", rideId);
+      }
+
+      // 3. Add to admin commission
+      const adminSnap = await transaction.get(adminRef);
+      const admin = adminSnap.exists() ? adminSnap.data() : { balance: 0, totalEarned: 0 };
+      const adminBalance = admin.balance || admin.wallet?.balance || 0;
+      const adminTotalEarned = admin.totalEarned || admin.wallet?.totalEarned || 0;
+      writeAdminWalletTotals(transaction, adminRef, adminBalance + adminShare, adminTotalEarned + adminShare);
+
+      // 4. Mark paid in ride doc
+      transaction.update(rideRef, {
+        [`passengers.${studentId}.paid`]: true
+      });
+
+      // 5. Add transactions
+      addWalletTransaction(transaction, studentId, "deduction", fare, currentBalance, studentNewBalance, "Ride fare (prepaid)", rideId);
+      addWalletTransaction(transaction, "admin", "commission", adminShare, adminBalance, adminBalance + adminShare, "Commission from ride (prepaid)", rideId);
+    });
+
+    showToast("Payment successful!", "success");
+  } catch (err) {
+    console.error(err);
+    if (err.message === "INSUFFICIENT_BALANCE") {
+      showToast("Insufficient balance. Please top up to pay.", "error");
+    } else {
+      showToast("Failed to process payment: " + err.message, "error");
+    }
+  }
+}
+
+window.payForActiveRide = payForActiveRide;

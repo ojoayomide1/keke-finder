@@ -1149,3 +1149,162 @@ select.input-field option {
   transform: scale(0.98);
   background: rgba(239, 68, 68, 0.1);
 }
+
+/* Floating Map Legend */
+.map-legend {
+  position: absolute;
+  top: calc(var(--header-height) + 16px);
+  right: 16px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 10px 14px;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid white;
+}
+
+.dot-user {
+  background: #3b82f6;
+  box-shadow: 0 0 8px #3b82f6;
+}
+
+.dot-pickup {
+  background: #22c55e;
+}
+
+.dot-dropoff {
+  background: #ef4444;
+}
+
+.dot-keke {
+  background: #facc15;
+}
+
+/* Custom Leaflet Pins */
+.custom-leaflet-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-pin {
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 13px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+  border: 2px solid white;
+}
+
+.pin-pickup {
+  background: #22c55e;
+  transform: rotate(-45deg);
+}
+.pin-pickup i {
+  transform: rotate(45deg);
+}
+
+.pin-dropoff {
+  background: #ef4444;
+  transform: rotate(-45deg);
+}
+.pin-dropoff i {
+  transform: rotate(45deg);
+}
+
+.pin-keke-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pin-keke {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #facc15;
+  color: #1e1b4b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(250, 204, 21, 0.45);
+  border: 2.5px solid white;
+}
+
+/* Onboard Passenger List & Payments */
+.passenger-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  padding: 12px 0;
+}
+.passenger-list-item:last-child {
+  border-bottom: none;
+}
+
+.passenger-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.passenger-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.passenger-dest {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.pay-status-btn {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  cursor: default;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.pay-status-btn.status-unpaid {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.pay-status-btn.status-paid {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
+  font-weight: 700;
+}

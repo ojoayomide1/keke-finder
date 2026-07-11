@@ -94,3 +94,47 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Push Notifications Event (Service Worker listener)
+self.addEventListener('push', (event) => {
+  let data = { title: 'OpRides', body: 'New update on your ride!' };
+  
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = { title: 'OpRides', body: event.data.text() };
+    }
+  }
+
+  const options = {
+    body: data.body,
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || '/'
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Notification Click Event
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then((clientList) => {
+      for (const client of clientList) {
+        const urlObj = new URL(client.url);
+        if (urlObj.pathname === '/' && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(event.notification.data.url || '/');
+      }
+    })
+  );
+});

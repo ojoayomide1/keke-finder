@@ -74,6 +74,31 @@ const pathfinderStudentIcon = L.divIcon({
   popupAnchor: [0, -18]
 });
 
+// Custom Leaflet DivIcons for Premium Map styling
+const pickupPinIcon = L.divIcon({
+  html: '<div class="custom-pin pin-pickup"><i class="fas fa-arrow-down-long"></i></div>',
+  className: 'custom-leaflet-pin',
+  iconSize: [30, 30],
+  iconAnchor: [15, 30],
+  popupAnchor: [0, -30]
+});
+
+const dropoffPinIcon = L.divIcon({
+  html: '<div class="custom-pin pin-dropoff"><i class="fas fa-flag"></i></div>',
+  className: 'custom-leaflet-pin',
+  iconSize: [30, 30],
+  iconAnchor: [15, 30],
+  popupAnchor: [0, -30]
+});
+
+const riderKekeIcon = L.divIcon({
+  html: '<div class="custom-pin pin-keke"><i class="fas fa-motorcycle"></i></div>',
+  className: 'custom-leaflet-pin pin-keke-container',
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
+  popupAnchor: [0, -18]
+});
+
 function applyTheme(theme) {
   const isLight = theme === "light";
   document.body.classList.toggle("light-theme", isLight);
@@ -630,7 +655,7 @@ window.becomeAvailable = () => {
     
     if (state.map && !state.currentRideId) {
       if (!state.riderMarker) {
-        state.riderMarker = L.circleMarker([latitude, longitude], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(state.map);
+        state.riderMarker = L.marker([latitude, longitude], { icon: riderKekeIcon }).addTo(state.map);
       } else {
         animateMarker(state.riderMarker, latitude, longitude, 800);
       }
@@ -715,6 +740,11 @@ async function transitionToDashboard(user) {
       document.getElementById("riderUI")?.classList.remove("hidden");
     }
     return;
+  }
+
+  // Request local notification permissions on login
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(err => console.warn("Notification permission request rejected:", err));
   }
 
   // Trigger fade-out animation on login screen
@@ -861,7 +891,7 @@ window.updateRideUI = (ride) => {
   const currentLocation = ride.currentLocation;
   if (currentLocation) {
     if (!state.riderMarker) {
-      state.riderMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(state.map);
+      state.riderMarker = L.marker([currentLocation.lat, currentLocation.lng], { icon: riderKekeIcon }).addTo(state.map);
     } else {
       animateMarker(state.riderMarker, currentLocation.lat, currentLocation.lng, 1000);
     }
@@ -890,14 +920,12 @@ window.updateRideUI = (ride) => {
     state.requestMarkers = [];
     pendingStops.forEach(stop => {
        if (!state.map) return;
-       const marker = L.circleMarker([stop.location.lat, stop.location.lng], { 
-         radius: 6, 
-         color: stop.type === 'pickup' ? '#3b82f6' : '#ef4444', 
-         fillOpacity: 1 
+       const marker = L.marker([stop.location.lat, stop.location.lng], { 
+         icon: stop.type === 'pickup' ? pickupPinIcon : dropoffPinIcon
        }).addTo(state.map);
        marker.bindPopup(`${stop.type === 'pickup' ? 'Pick up' : 'Drop off'}: ${stop.passengerName}<br>${stop.locationLabel}`);
        state.requestMarkers.push(marker);
-    });
+     });
   } else {
     clearRouteLayer();
   }
