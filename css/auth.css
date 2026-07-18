@@ -1,3 +1,9 @@
+/* Ensure seamless background when keyboard is shown/hidden on login screen */
+html:has(#loginScreen:not(.hidden)),
+body:has(#loginScreen:not(.hidden)) {
+  background-color: #07070f !important;
+}
+
 #loginScreen.screen {
   overflow-y: auto;
   display: flex;
@@ -241,7 +247,7 @@
   -webkit-text-fill-color: #ffffff !important;
 }
 
-.input-field {
+#loginScreen .input-field {
   width: 100%;
   padding: 18px 16px 18px 48px !important;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -249,28 +255,25 @@
   background: rgba(255, 255, 255, 0.03) !important;
   color: white !important;
   -webkit-text-fill-color: white !important;
-  font-size: 15px;
+  font-size: 16px;
   outline: none;
   transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.input-field:focus {
+#loginScreen .input-field:focus {
   border-color: var(--color-accent);
   background: rgba(255, 255, 255, 0.05) !important;
   box-shadow: 0 0 0 3px rgba(255, 94, 26, 0.12);
 }
 
-.input-field:focus ~ .input-icon {
+#loginScreen .input-field:focus ~ .input-icon {
   color: var(--color-accent);
 }
 
 /* Autofill styling overrides to guarantee text visibility on login page */
 #loginScreen .input-field:-webkit-autofill,
 #loginScreen .input-field:-webkit-autofill:hover, 
-#loginScreen .input-field:-webkit-autofill:focus,
-.input-field:-webkit-autofill,
-.input-field:-webkit-autofill:hover, 
-.input-field:-webkit-autofill:focus {
+#loginScreen .input-field:-webkit-autofill:focus {
   -webkit-text-fill-color: white !important;
   -webkit-box-shadow: 0 0 0px 1000px #07070f inset !important;
   transition: background-color 5000s ease-in-out 0s;
@@ -283,7 +286,7 @@
   top: 50%;
   transform: translateY(-50%);
   color: var(--color-text-secondary);
-  font-size: 15px;
+  font-size: 16px;
   pointer-events: none;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: left top;
@@ -291,8 +294,8 @@
 }
 
 /* Slide label up when input is focused or has input content */
-.input-field:focus ~ .floating-label,
-.input-field:not(:placeholder-shown) ~ .floating-label {
+#loginScreen .input-field:focus ~ .floating-label,
+#loginScreen .input-field:not(:placeholder-shown) ~ .floating-label {
   transform: translateY(-25px) scale(0.8);
   color: var(--color-accent);
   background: #0c0d15; /* matching blurred background color to mask borders */
@@ -301,7 +304,7 @@
 }
 
 /* Special adjustments for Select Dropdowns */
-select.input-field {
+#loginScreen select.input-field {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23999999'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -309,7 +312,7 @@ select.input-field {
   background-size: 18px;
 }
 
-select.input-field:focus {
+#loginScreen select.input-field:focus {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23FF5E1A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
 }
 
