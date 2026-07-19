@@ -788,6 +788,8 @@ select.input-field option {
 
 .wallet-row {
   width: 100%;
+  display: grid;
+  justify-content: stretch;
   text-align: left;
   color: inherit;
   align-items: stretch;
@@ -889,6 +891,69 @@ select.input-field option {
   .wallet-transaction-amount {
     grid-column: 2;
     justify-self: start;
+  }
+}
+
+.rider-earnings-panel {
+  border-color: rgba(255, 184, 0, 0.28);
+  background: linear-gradient(135deg, rgba(255, 184, 0, 0.28), rgba(0, 196, 140, 0.16)), rgba(26, 26, 26, 0.72);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.rider-earnings-totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.rider-earnings-totals div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.rider-breakdown-summary {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.rider-history-tabs {
+  grid-template-columns: 1fr 1fr;
+}
+
+.wallet-status-pill {
+  justify-self: start;
+  margin-top: -4px;
+  padding: 5px 9px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.wallet-status-pill.status-pending {
+  color: var(--color-warning);
+  background: rgba(255, 184, 0, 0.12);
+}
+
+.wallet-status-pill.status-processed {
+  color: var(--color-success);
+  background: rgba(0, 196, 140, 0.12);
+}
+
+.wallet-status-pill.status-rejected {
+  color: var(--color-error);
+  background: rgba(255, 77, 77, 0.12);
+}
+
+@media (max-width: 420px) {
+  .rider-earnings-totals,
+  .rider-breakdown-summary {
+    grid-template-columns: 1fr;
   }
 }
 /* Bottom Navigation */

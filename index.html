@@ -656,14 +656,42 @@
         <h2>My Earnings</h2>
       </div>
       <div class="profile-content">
-        <div class="wallet-balance-panel yellow-panel">
+        <div id="riderEarningsPanel" class="wallet-balance-panel rider-earnings-panel">
           <span>Available Balance</span>
-          <strong id="riderEarningsBalance">₦0</strong>
-          <span>Total Earned</span>
-          <b id="riderTotalEarned">₦0</b>
-          <button type="button" class="yellow" onclick="openWithdrawalScreen()">Request Withdrawal</button>
+          <strong id="riderEarningsBalance">&#8358;0</strong>
+          <div class="rider-earnings-totals">
+            <div>
+              <span>Total Earned</span>
+              <b id="riderTotalEarned">&#8358;0</b>
+            </div>
+            <div>
+              <span>This Week</span>
+              <b id="riderWeeklyEarned">&#8358;0</b>
+            </div>
+          </div>
+          <button type="button" class="yellow" onclick="openWithdrawalScreen()"><i class="fas fa-money-bill-transfer"></i> Request Withdrawal</button>
         </div>
-        <h3 class="section-title">Recent Earnings</h3>
+        <div id="riderEarningsBreakdown" class="wallet-summary rider-breakdown-summary">
+          <div>
+            <span>Rides Completed</span>
+            <strong id="riderWeeklyRides">0</strong>
+          </div>
+          <div>
+            <span>Passengers Served</span>
+            <strong id="riderWeeklyPassengers">0</strong>
+          </div>
+          <div>
+            <span>Average Per Ride</span>
+            <strong id="riderAverageEarning">&#8358;0</strong>
+          </div>
+        </div>
+        <div class="wallet-transactions-header">
+          <h3 class="section-title" id="riderEarningsSectionTitle">Earnings History</h3>
+          <div class="wallet-filter-tabs rider-history-tabs" role="tablist" aria-label="Rider earnings history tabs">
+            <button type="button" class="wallet-filter-tab active" data-rider-history-tab="earnings" onclick="setRiderEarningsTab('earnings')">Earnings History</button>
+            <button type="button" class="wallet-filter-tab" data-rider-history-tab="withdrawals" onclick="setRiderEarningsTab('withdrawals')">Withdrawals</button>
+          </div>
+        </div>
         <div id="riderEarningsList" class="wallet-list">
           <p class="empty-state">No earnings yet</p>
         </div>

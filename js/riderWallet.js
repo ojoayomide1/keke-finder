@@ -16,11 +16,18 @@ import { formatNaira } from "./wallet.js";
 
 let riderWalletUnsubscribe = null;
 let riderTransactionsUnsubscribe = null;
+let riderWithdrawalsUnsubscribe = null;
+let riderTransactions = [];
+let riderWithdrawals = [];
+let riderHistoryTab = "earnings";
+let displayedRiderBalance = 0;
+let riderBalanceAnimationFrame = null;
 
 export function listenToRiderWallet() {
   if (!state.currentUser?.uid || state.currentUser?.role !== "rider") return;
   if (riderWalletUnsubscribe) riderWalletUnsubscribe();
   if (riderTransactionsUnsubscribe) riderTransactionsUnsubscribe();
+  if (riderWithdrawalsUnsubscribe) riderWithdrawalsUnsubscribe();
 
   riderWalletUnsubscribe = onSnapshot(doc(db, "users", state.currentUser.uid), (snapshot) => {
     if (!snapshot.exists()) return;
@@ -36,32 +43,181 @@ export function listenToRiderWallet() {
       where("userId", "==", state.currentUser.uid),
       where("type", "in", ["earning", "withdrawal"]),
       orderBy("createdAt", "desc"),
-      limit(10)
+      limit(50)
     ),
-    (snapshot) => renderRiderEarnings(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))),
+    (snapshot) => {
+      riderTransactions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderRiderEarningsExperience();
+    },
     (err) => {
       console.warn("Rider transaction listener unavailable:", err.code || err.message);
-      renderRiderEarnings([]);
+      riderTransactions = [];
+      renderRiderEarningsExperience();
+    }
+  );
+
+  riderWithdrawalsUnsubscribe = onSnapshot(
+    query(
+      collection(db, "withdrawalRequests"),
+      where("riderId", "==", state.currentUser.uid),
+      orderBy("requestedAt", "desc"),
+      limit(25)
+    ),
+    (snapshot) => {
+      riderWithdrawals = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderRiderEarningsExperience();
+    },
+    (err) => {
+      console.warn("Rider withdrawal listener unavailable:", err.code || err.message);
+      riderWithdrawals = [];
+      renderRiderEarningsExperience();
     }
   );
 }
 
 export function renderRiderWallet() {
   const earnings = state.currentUser?.earnings || { balance: 0, totalEarned: 0 };
-  const balanceEl = document.getElementById("riderEarningsBalance");
   const totalEl = document.getElementById("riderTotalEarned");
   const availableEl = document.getElementById("withdrawAvailable");
-  if (balanceEl) balanceEl.innerText = formatNaira(earnings.balance);
+
+  animateRiderBalance(earnings.balance);
   if (totalEl) totalEl.innerText = formatNaira(earnings.totalEarned);
   if (availableEl) availableEl.innerText = `Available: ${formatNaira(earnings.balance)}`;
+  renderRiderEarningsExperience();
 }
 
-function formatTime(timestamp) {
-  if (!timestamp?.seconds) return "Just now";
-  return new Date(timestamp.seconds * 1000).toLocaleTimeString([], {
+function timestampToDate(timestamp) {
+  if (!timestamp) return null;
+  if (timestamp.toDate) return timestamp.toDate();
+  if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatFullTime(timestamp) {
+  const date = timestampToDate(timestamp);
+  if (!date) return "Just now";
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
     hour: "numeric",
     minute: "2-digit"
   });
+}
+
+function formatRelativeTime(timestamp) {
+  const date = timestampToDate(timestamp);
+  if (!date) return "Just now";
+  const diffMs = Date.now() - date.getTime();
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < minute) return "Just now";
+  if (diffMs < hour) {
+    const minutes = Math.floor(diffMs / minute);
+    return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  }
+  if (diffMs < day) {
+    const hours = Math.floor(diffMs / hour);
+    return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  }
+  if (diffMs < day * 2) return "Yesterday";
+  if (diffMs < day * 7) {
+    const days = Math.floor(diffMs / day);
+    return `${days} days ago`;
+  }
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function animateRiderBalance(targetBalance) {
+  const balanceEl = document.getElementById("riderEarningsBalance");
+  if (!balanceEl) return;
+  const startBalance = displayedRiderBalance || 0;
+  const endBalance = Number(targetBalance) || 0;
+  const duration = 700;
+  const startTime = performance.now();
+
+  if (riderBalanceAnimationFrame) cancelAnimationFrame(riderBalanceAnimationFrame);
+
+  const tick = (now) => {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(startBalance + (endBalance - startBalance) * eased);
+    balanceEl.innerText = formatNaira(current);
+
+    if (progress < 1) {
+      riderBalanceAnimationFrame = requestAnimationFrame(tick);
+    } else {
+      displayedRiderBalance = endBalance;
+      riderBalanceAnimationFrame = null;
+    }
+  };
+
+  riderBalanceAnimationFrame = requestAnimationFrame(tick);
+}
+
+function getWeekStart() {
+  const weekStart = new Date();
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  return weekStart;
+}
+
+function getWeeklyEarningTransactions() {
+  const weekStart = getWeekStart();
+  return riderTransactions.filter(tx => tx.type === "earning" && timestampToDate(tx.createdAt) >= weekStart);
+}
+
+function getRideCount(transactions) {
+  const rideIds = new Set(transactions.map(tx => tx.rideId).filter(Boolean));
+  return rideIds.size || transactions.length;
+}
+
+function renderRiderEarningsSummary() {
+  const weeklyEarnedEl = document.getElementById("riderWeeklyEarned");
+  const ridesEl = document.getElementById("riderWeeklyRides");
+  const passengersEl = document.getElementById("riderWeeklyPassengers");
+  const averageEl = document.getElementById("riderAverageEarning");
+  const weeklyTransactions = getWeeklyEarningTransactions();
+  const weeklyEarned = weeklyTransactions.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  const ridesCompleted = getRideCount(weeklyTransactions);
+  const passengersServed = weeklyTransactions.length;
+  const average = ridesCompleted ? Math.round(weeklyEarned / ridesCompleted) : 0;
+
+  if (weeklyEarnedEl) weeklyEarnedEl.innerText = formatNaira(weeklyEarned);
+  if (ridesEl) ridesEl.innerText = String(ridesCompleted);
+  if (passengersEl) passengersEl.innerText = String(passengersServed);
+  if (averageEl) averageEl.innerText = formatNaira(average);
+}
+
+function renderRiderHistoryTabs() {
+  document.querySelectorAll(".rider-history-tabs .wallet-filter-tab").forEach(tab => {
+    const isActive = tab.dataset.riderHistoryTab === riderHistoryTab;
+    tab.classList.toggle("active", isActive);
+    tab.setAttribute("aria-selected", String(isActive));
+  });
+  const title = document.getElementById("riderEarningsSectionTitle");
+  if (title) title.innerText = riderHistoryTab === "withdrawals" ? "Withdrawal History" : "Earnings History";
+}
+
+export function renderRiderEarningsExperience() {
+  renderRiderEarningsSummary();
+  renderRiderHistoryTabs();
+  if (riderHistoryTab === "withdrawals") {
+    renderRiderWithdrawals(riderWithdrawals);
+    return;
+  }
+  renderRiderEarnings(riderTransactions.filter(tx => tx.type === "earning"));
 }
 
 function renderRiderEarnings(transactions) {
@@ -72,14 +228,80 @@ function renderRiderEarnings(transactions) {
     return;
   }
   list.innerHTML = transactions.map(tx => `
-    <div class="wallet-row">
-      <div>
-        <strong>${tx.description || tx.type}</strong>
-        <span>${formatTime(tx.createdAt)}</span>
+    <button type="button" class="wallet-row" onclick="toggleRiderHistoryCard(this)" aria-expanded="false">
+      <div class="wallet-transaction-main">
+        <span class="wallet-transaction-icon credit-icon"><i class="fas fa-money-bill-trend-up"></i></span>
+        <div class="wallet-transaction-copy">
+          <strong>${escapeHtml(tx.description || "Ride earning")}</strong>
+          <span>${escapeHtml(formatRelativeTime(tx.createdAt))}</span>
+        </div>
+        <b class="wallet-transaction-amount credit">+${formatNaira(tx.amount)}</b>
       </div>
-      <b class="${tx.type === "earning" ? "credit" : "debit"}">${tx.type === "earning" ? "+" : "-"}${formatNaira(tx.amount)}</b>
-    </div>
+      <div class="wallet-transaction-detail">
+        <div><span>Type</span><strong>Earning</strong></div>
+        <div><span>Date</span><strong>${escapeHtml(formatFullTime(tx.createdAt))}</strong></div>
+        <div><span>Ride</span><strong>${escapeHtml(tx.rideId || "Not linked")}</strong></div>
+        <div><span>Status</span><strong>${escapeHtml(tx.status || "completed")}</strong></div>
+        <div><span>Balance before</span><strong>${formatNaira(tx.balanceBefore)}</strong></div>
+        <div><span>Balance after</span><strong>${formatNaira(tx.balanceAfter)}</strong></div>
+      </div>
+    </button>
   `).join("");
+}
+
+function getWithdrawalStatusClass(status) {
+  if (status === "paid" || status === "processed" || status === "completed") return "status-processed";
+  if (status === "rejected") return "status-rejected";
+  return "status-pending";
+}
+
+function getWithdrawalStatusLabel(status) {
+  if (status === "paid") return "processed";
+  return status || "pending";
+}
+
+function renderRiderWithdrawals(withdrawals) {
+  const list = document.getElementById("riderEarningsList");
+  if (!list) return;
+  if (!withdrawals.length) {
+    list.innerHTML = '<p class="empty-state">No withdrawal requests yet</p>';
+    return;
+  }
+  list.innerHTML = withdrawals.map(w => {
+    const status = getWithdrawalStatusLabel(w.status);
+    return `
+      <button type="button" class="wallet-row" onclick="toggleRiderHistoryCard(this)" aria-expanded="false">
+        <div class="wallet-transaction-main">
+          <span class="wallet-transaction-icon debit-icon"><i class="fas fa-building-columns"></i></span>
+          <div class="wallet-transaction-copy">
+            <strong>Withdrawal request</strong>
+            <span>${escapeHtml(formatRelativeTime(w.requestedAt))}</span>
+          </div>
+          <b class="wallet-transaction-amount debit">-${formatNaira(w.amount)}</b>
+        </div>
+        <div class="wallet-status-pill ${getWithdrawalStatusClass(status)}">${escapeHtml(status)}</div>
+        <div class="wallet-transaction-detail">
+          <div><span>Requested</span><strong>${escapeHtml(formatFullTime(w.requestedAt))}</strong></div>
+          <div><span>Status</span><strong>${escapeHtml(status)}</strong></div>
+          <div><span>Bank</span><strong>${escapeHtml(w.bankName || "Not provided")}</strong></div>
+          <div><span>Account</span><strong>${escapeHtml(w.accountNumber || "Not provided")}</strong></div>
+          <div><span>Account name</span><strong>${escapeHtml(w.accountName || "Not provided")}</strong></div>
+          <div><span>Processed</span><strong>${escapeHtml(formatFullTime(w.paidAt))}</strong></div>
+          ${w.rejectedReason ? `<div><span>Reason</span><strong>${escapeHtml(w.rejectedReason)}</strong></div>` : ""}
+        </div>
+      </button>
+    `;
+  }).join("");
+}
+
+export function setRiderEarningsTab(tab) {
+  riderHistoryTab = tab === "withdrawals" ? "withdrawals" : "earnings";
+  renderRiderEarningsExperience();
+}
+
+export function toggleRiderHistoryCard(row) {
+  const expanded = row.classList.toggle("expanded");
+  row.setAttribute("aria-expanded", String(expanded));
 }
 
 export function openWithdrawalScreen() {
@@ -139,5 +361,7 @@ export async function requestWithdrawal(riderId, amountNaira, bankDetails) {
   });
 }
 
+window.setRiderEarningsTab = setRiderEarningsTab;
+window.toggleRiderHistoryCard = toggleRiderHistoryCard;
 window.openWithdrawalScreen = openWithdrawalScreen;
 window.submitWithdrawalRequest = submitWithdrawalRequest;
