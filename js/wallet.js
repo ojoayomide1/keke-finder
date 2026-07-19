@@ -23,6 +23,10 @@ let walletUnsubscribe = null;
 let transactionUnsubscribe = null;
 let lastSeenTopUp = null;
 let selectedTopUpAmount = 1000;
+let studentTransactions = [];
+let walletTransactionFilter = "all";
+let displayedWalletBalance = 0;
+let balanceAnimationFrame = null;
 
 export function formatNaira(kobo = 0) {
   return new Intl.NumberFormat("en-NG", {
@@ -32,12 +36,99 @@ export function formatNaira(kobo = 0) {
   }).format((Number(kobo) || 0) / 100);
 }
 
+function timestampToDate(timestamp) {
+  if (!timestamp) return null;
+  if (timestamp.toDate) return timestamp.toDate();
+  if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function formatTransactionTime(timestamp) {
-  if (!timestamp?.seconds) return "Just now";
-  return new Date(timestamp.seconds * 1000).toLocaleDateString([], {
+  const date = timestampToDate(timestamp);
+  if (!date) return "Just now";
+  return date.toLocaleString([], {
     month: "short",
-    day: "numeric"
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
   });
+}
+
+function formatRelativeTransactionTime(timestamp) {
+  const date = timestampToDate(timestamp);
+  if (!date) return "Just now";
+  const diffMs = Date.now() - date.getTime();
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < minute) return "Just now";
+  if (diffMs < hour) {
+    const minutes = Math.floor(diffMs / minute);
+    return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  }
+  if (diffMs < day) {
+    const hours = Math.floor(diffMs / hour);
+    return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  }
+  if (diffMs < day * 2) return "Yesterday";
+  if (diffMs < day * 7) {
+    const days = Math.floor(diffMs / day);
+    return `${days} days ago`;
+  }
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function isCreditTransaction(tx) {
+  return ["topup", "refund", "earning"].includes(tx.type);
+}
+
+function isRideTransaction(tx) {
+  return ["deduction", "ride", "fare"].includes(tx.type);
+}
+
+function getTransactionIcon(tx) {
+  if (["topup", "refund"].includes(tx.type)) return "fa-arrow-down";
+  if (isRideTransaction(tx)) return "fa-route";
+  if (tx.type === "earning") return "fa-money-bill-trend-up";
+  return "fa-wallet";
+}
+
+function animateWalletBalance(targetBalance) {
+  const balanceEl = document.getElementById("walletBalance");
+  if (!balanceEl) return;
+  const startBalance = displayedWalletBalance || 0;
+  const endBalance = Number(targetBalance) || 0;
+  const duration = 700;
+  const startTime = performance.now();
+
+  if (balanceAnimationFrame) cancelAnimationFrame(balanceAnimationFrame);
+
+  const tick = (now) => {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(startBalance + (endBalance - startBalance) * eased);
+    balanceEl.innerText = formatNaira(current);
+
+    if (progress < 1) {
+      balanceAnimationFrame = requestAnimationFrame(tick);
+    } else {
+      displayedWalletBalance = endBalance;
+      balanceAnimationFrame = null;
+    }
+  };
+
+  balanceAnimationFrame = requestAnimationFrame(tick);
 }
 
 function getWallet() {
@@ -78,21 +169,32 @@ export function listenToStudentWallet() {
       collection(db, "walletTransactions"),
       where("userId", "==", state.currentUser.uid),
       orderBy("createdAt", "desc"),
-      limit(10)
+      limit(50)
     ),
-    (snapshot) => renderStudentTransactions(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))),
+    (snapshot) => {
+      studentTransactions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderStudentTransactionExperience();
+    },
     (err) => {
       console.warn("Student transaction listener unavailable:", err.code || err.message);
-      renderStudentTransactions([]);
+      studentTransactions = [];
+      renderStudentTransactionExperience();
     }
   );
 }
 
 export function renderStudentWallet() {
-  const balanceEl = document.getElementById("walletBalance");
   const debtEl = document.getElementById("walletDebt");
+  const panelEl = document.getElementById("walletBalancePanel");
   const wallet = getWallet();
-  if (balanceEl) balanceEl.innerText = formatNaira(wallet.balance);
+  animateWalletBalance(wallet.balance);
+
+  if (panelEl) {
+    const isLow = (Number(wallet.balance) || 0) < LOW_BALANCE_THRESHOLD_KOBO;
+    panelEl.classList.toggle("wallet-balance-low", isLow);
+    panelEl.classList.toggle("wallet-balance-healthy", !isLow);
+  }
+
   if (debtEl) {
     const amount = state.currentUser?.debt?.amount || 0;
     debtEl.classList.toggle("hidden", amount <= 0);
@@ -100,25 +202,100 @@ export function renderStudentWallet() {
   }
 }
 
+function getFilteredStudentTransactions() {
+  if (walletTransactionFilter === "topups") {
+    return studentTransactions.filter(tx => ["topup", "refund"].includes(tx.type));
+  }
+  if (walletTransactionFilter === "rides") {
+    return studentTransactions.filter(isRideTransaction);
+  }
+  return studentTransactions;
+}
+
+function renderSpendingSummary(transactions) {
+  const weeklySpendEl = document.getElementById("walletWeeklySpend");
+  const averageRideEl = document.getElementById("walletAverageRide");
+  if (!weeklySpendEl && !averageRideEl) return;
+
+  const weekStart = new Date();
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+
+  const rideTransactions = transactions.filter(isRideTransaction);
+  const weeklyRides = rideTransactions.filter(tx => {
+    const date = timestampToDate(tx.createdAt);
+    return date && date >= weekStart;
+  });
+  const weeklySpend = weeklyRides.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  const totalRideSpend = rideTransactions.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  const averageRide = rideTransactions.length ? Math.round(totalRideSpend / rideTransactions.length) : 0;
+
+  if (weeklySpendEl) weeklySpendEl.innerText = `You spent ${formatNaira(weeklySpend)} on ${weeklyRides.length} ride${weeklyRides.length === 1 ? "" : "s"}`;
+  if (averageRideEl) averageRideEl.innerText = formatNaira(averageRide);
+}
+
+function renderTransactionFilters() {
+  document.querySelectorAll(".wallet-filter-tab").forEach(tab => {
+    const isActive = tab.dataset.walletFilter === walletTransactionFilter;
+    tab.classList.toggle("active", isActive);
+    tab.setAttribute("aria-selected", String(isActive));
+  });
+}
+
+function renderStudentTransactionExperience() {
+  renderSpendingSummary(studentTransactions);
+  renderTransactionFilters();
+  renderStudentTransactions(getFilteredStudentTransactions());
+}
+
 function renderStudentTransactions(transactions) {
   const list = document.getElementById("walletTransactionsList");
   if (!list) return;
   if (!transactions.length) {
-    list.innerHTML = '<p class="empty-state">No wallet transactions yet</p>';
+    const label = walletTransactionFilter === "all" ? "wallet transactions" : walletTransactionFilter === "topups" ? "top ups" : "ride payments";
+    list.innerHTML = `<p class="empty-state">No ${label} yet</p>`;
     return;
   }
   list.innerHTML = transactions.map(tx => {
-    const isCredit = ["topup", "refund"].includes(tx.type);
+    const isCredit = isCreditTransaction(tx);
+    const amountClass = isCredit ? "credit" : "debit";
+    const sign = isCredit ? "+" : "-";
+    const typeLabel = tx.type === "topup" ? "Top Up" : isRideTransaction(tx) ? "Ride" : tx.type || "Transaction";
     return `
-      <div class="wallet-row">
-        <div>
-          <strong>${tx.description || tx.type}</strong>
-          <span>${formatTransactionTime(tx.createdAt)}</span>
+      <button type="button" class="wallet-row" onclick="toggleWalletTransaction(this)" aria-expanded="false">
+        <div class="wallet-transaction-main">
+          <span class="wallet-transaction-icon ${isCredit ? "credit-icon" : "debit-icon"}"><i class="fas ${getTransactionIcon(tx)}"></i></span>
+          <div class="wallet-transaction-copy">
+            <strong>${escapeHtml(tx.description || typeLabel)}</strong>
+            <span>${escapeHtml(formatRelativeTransactionTime(tx.createdAt))}</span>
+          </div>
+          <b class="wallet-transaction-amount ${amountClass}">${sign}${formatNaira(tx.amount)}</b>
         </div>
-        <b class="${isCredit ? "credit" : "debit"}">${isCredit ? "+" : "-"}${formatNaira(tx.amount)}</b>
-      </div>
+        <div class="wallet-transaction-detail">
+          <div><span>Type</span><strong>${escapeHtml(typeLabel)}</strong></div>
+          <div><span>Date</span><strong>${escapeHtml(formatTransactionTime(tx.createdAt))}</strong></div>
+          <div><span>Balance before</span><strong>${formatNaira(tx.balanceBefore)}</strong></div>
+          <div><span>Balance after</span><strong>${formatNaira(tx.balanceAfter)}</strong></div>
+          <div><span>Reference</span><strong>${escapeHtml(tx.reference || tx.rideId || tx.id)}</strong></div>
+          <div><span>Status</span><strong>${escapeHtml(tx.status || "completed")}</strong></div>
+        </div>
+      </button>
     `;
   }).join("");
+}
+
+export function setWalletTransactionFilter(filter) {
+  walletTransactionFilter = ["all", "topups", "rides"].includes(filter) ? filter : "all";
+  renderStudentTransactionExperience();
+}
+
+export function scrollToWalletTransactions() {
+  document.getElementById("walletTransactionsHeader")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+export function toggleWalletTransaction(row) {
+  const expanded = row.classList.toggle("expanded");
+  row.setAttribute("aria-expanded", String(expanded));
 }
 
 export function openTopUpScreen() {
@@ -241,6 +418,9 @@ export function checkLowBalance(balanceKobo) {
   showToast(`Low wallet balance: ${formatNaira(balanceKobo)} left`, "error");
 }
 
+window.setWalletTransactionFilter = setWalletTransactionFilter;
+window.scrollToWalletTransactions = scrollToWalletTransactions;
+window.toggleWalletTransaction = toggleWalletTransaction;
 window.openTopUpScreen = openTopUpScreen;
 window.selectTopUpAmount = selectTopUpAmount;
 window.selectCustomTopUpAmount = selectCustomTopUpAmount;

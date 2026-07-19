@@ -245,13 +245,33 @@
         <h2>My Wallet</h2>
       </div>
       <div class="profile-content">
-        <div class="wallet-balance-panel">
-          <span>Balance</span>
-          <strong id="walletBalance">₦0</strong>
+        <div id="walletBalancePanel" class="wallet-balance-panel wallet-balance-healthy">
+          <span>Available Balance</span>
+          <strong id="walletBalance">&#8358;0</strong>
           <p id="walletDebt" class="wallet-debt hidden"></p>
-          <button type="button" class="green" onclick="openTopUpScreen()">+ Top Up</button>
+          <div class="wallet-actions">
+            <button type="button" class="green" onclick="openTopUpScreen()"><i class="fas fa-plus"></i> Top Up</button>
+            <button type="button" class="secondary-btn" onclick="scrollToWalletTransactions()"><i class="fas fa-clock-rotate-left"></i> View History</button>
+          </div>
         </div>
-        <h3 class="section-title">Recent Transactions</h3>
+        <div id="walletSpendingSummary" class="wallet-summary">
+          <div>
+            <span>This week</span>
+            <strong id="walletWeeklySpend">You spent &#8358;0 on 0 rides</strong>
+          </div>
+          <div>
+            <span>Average ride</span>
+            <strong id="walletAverageRide">&#8358;0</strong>
+          </div>
+        </div>
+        <div id="walletTransactionsHeader" class="wallet-transactions-header">
+          <h3 class="section-title">Recent Transactions</h3>
+          <div class="wallet-filter-tabs" role="tablist" aria-label="Wallet transaction filters">
+            <button type="button" class="wallet-filter-tab active" data-wallet-filter="all" onclick="setWalletTransactionFilter('all')">All</button>
+            <button type="button" class="wallet-filter-tab" data-wallet-filter="topups" onclick="setWalletTransactionFilter('topups')">Top Ups</button>
+            <button type="button" class="wallet-filter-tab" data-wallet-filter="rides" onclick="setWalletTransactionFilter('rides')">Rides</button>
+          </div>
+        </div>
         <div id="walletTransactionsList" class="wallet-list">
           <p class="empty-state">No wallet transactions yet</p>
         </div>
