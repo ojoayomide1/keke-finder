@@ -187,6 +187,46 @@ function renderSidebarMenu() {
   `;
 }
 
+function setCampusActivityValue(elementId, value) {
+  const el = document.getElementById(elementId);
+  if (el) el.textContent = value;
+}
+
+function stopCampusActivityListeners() {
+  if (state.campusActivityUnsubscribeRides) state.campusActivityUnsubscribeRides();
+  if (state.campusActivityUnsubscribeQueue) state.campusActivityUnsubscribeQueue();
+  state.campusActivityUnsubscribeRides = null;
+  state.campusActivityUnsubscribeQueue = null;
+}
+
+function startCampusActivityListeners() {
+  stopCampusActivityListeners();
+  setCampusActivityValue("onlineKekesCount", "...");
+  setCampusActivityValue("waitingStudentsCount", "...");
+
+  state.campusActivityUnsubscribeRides = onSnapshot(
+    query(collection(db, "rides"), where("status", "in", ["waiting", "active"])),
+    (snapshot) => {
+      setCampusActivityValue("onlineKekesCount", snapshot.size);
+    },
+    (err) => {
+      console.warn("Campus online rider count unavailable:", err.code || err.message);
+      setCampusActivityValue("onlineKekesCount", "--");
+    }
+  );
+
+  // Students cannot list waitingQueue directly, so use queued ride requests as the public queue count.
+  state.campusActivityUnsubscribeQueue = onSnapshot(
+    query(collection(db, "rideRequests"), where("status", "==", "queued")),
+    (snapshot) => {
+      setCampusActivityValue("waitingStudentsCount", snapshot.size);
+    },
+    (err) => {
+      console.warn("Campus waiting student count unavailable:", err.code || err.message);
+      setCampusActivityValue("waitingStudentsCount", "--");
+    }
+  );
+}
 function switchTab(tab) {
   const role = state.currentRole || "student";
   
@@ -779,6 +819,7 @@ async function transitionToDashboard(user) {
       populateLocations();
       updateStudentProfileUI();
       listenToStudentWallet();
+      startCampusActivityListeners();
       
       // Explicitly make the wallet tab visible in case it was hidden
       const walletTab = document.getElementById("tab-wallet");
@@ -947,6 +988,7 @@ window.addEventListener("load", () => {
         // Clear all state on logout
         if (state.unsubscribeRequests) state.unsubscribeRequests();
         if (state.unsubscribeQueueListener) state.unsubscribeQueueListener();
+        stopCampusActivityListeners();
         if (state.map) state.map.remove();
         if (state.riderWatchId) navigator.geolocation.clearWatch(state.riderWatchId);
         stopPathfinderWatch();

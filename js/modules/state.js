@@ -20,6 +20,8 @@ export const state = {
   latestRide: null,
   unsubscribeRequests: null,
   unsubscribeQueueListener: null,
+  campusActivityUnsubscribeRides: null,
+  campusActivityUnsubscribeQueue: null,
   activeMarkerAnimations: new Map(),
   vehicleType: null // 'keke' or 'shuttle'
 };
