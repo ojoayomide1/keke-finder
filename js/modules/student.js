@@ -147,22 +147,87 @@ export function populateLocations() {
   dropoff.innerHTML = `<option value="">Select Drop-off Location</option>` + options;
 }
 
+function setProfileText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = value;
+}
+
+function getProfileInitials(name, fallback = "ST") {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return fallback;
+  return parts.slice(0, 2).map(part => part.charAt(0).toUpperCase()).join("");
+}
+
+function getNameGradient(name) {
+  const source = String(name || "OpRides");
+  let hash = 0;
+  for (let i = 0; i < source.length; i++) hash = source.charCodeAt(i) + ((hash << 5) - hash);
+  const hue = Math.abs(hash) % 360;
+  return `linear-gradient(135deg, hsl(${hue}, 72%, 46%), hsl(${(hue + 52) % 360}, 78%, 58%))`;
+}
+
+function stopLabel(value) {
+  if (!value) return "Unknown stop";
+  if (typeof value === "string") return value;
+  return value.label || value.name || value.locationLabel || "Unknown stop";
+}
+
+function mostFrequent(values) {
+  const counts = new Map();
+  values.filter(Boolean).forEach(value => counts.set(value, (counts.get(value) || 0) + 1));
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "No rides yet";
+}
+
+async function renderStudentProfileStats() {
+  if (!state.currentUser?.uid || state.currentUser.isGuest) return;
+  try {
+    const [requestSnap, transactionSnap] = await Promise.all([
+      getDocs(query(collection(db, "rideRequests"), where("studentId", "==", state.currentUser.uid))),
+      getDocs(query(collection(db, "walletTransactions"), where("userId", "==", state.currentUser.uid)))
+    ]);
+
+    const requests = requestSnap.docs.map(docSnap => docSnap.data());
+    const completedRequests = requests.filter(request => request.status === "completed" || request.status === "matched");
+    const deductions = transactionSnap.docs
+      .map(docSnap => docSnap.data())
+      .filter(tx => tx.type === "deduction" || /ride/i.test(tx.description || ""));
+    const totalSpent = deductions.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+
+    setProfileText("studentTotalRides", String(completedRequests.length || deductions.length || 0));
+    setProfileText("studentTotalSpent", formatNaira(totalSpent));
+    setProfileText("studentTopPickup", mostFrequent(requests.map(request => stopLabel(request.pickup))));
+    setProfileText("studentTopDropoff", mostFrequent(requests.map(request => stopLabel(request.dropoff))));
+  } catch (err) {
+    console.warn("Student profile stats unavailable:", err.code || err.message);
+    setProfileText("studentTotalRides", "--");
+    setProfileText("studentTotalSpent", "--");
+  }
+}
+
 export function updateStudentProfileUI() {
   if (!state.currentUser) return;
-  const name = state.currentUser.displayName || "Guest Student";
+  const name = state.currentUser.displayName || state.currentUser.name || "Guest Student";
   const email = state.currentUser.email || "Guest User";
   const dashName = document.getElementById("studentDashName");
   const sideName = document.getElementById("sidebarName");
   const sideEmail = document.getElementById("sidebarEmail");
   const profName = document.getElementById("profileName");
   const profEmail = document.getElementById("profileEmail");
-  const avatar = document.querySelector(".profile-avatar");
+  const avatar = document.getElementById("profileAvatar") || document.querySelector("#profileView .profile-avatar");
   if (dashName) dashName.innerText = name;
   if (sideName) sideName.innerText = name;
   if (sideEmail) sideEmail.innerText = email;
   if (profName) profName.innerText = name;
   if (profEmail) profEmail.innerText = email;
-  if (avatar && name) avatar.innerText = name.charAt(0).toUpperCase();
+  if (avatar) {
+    avatar.innerText = getProfileInitials(name, "ST");
+    avatar.style.background = getNameGradient(name);
+  }
+
+  setProfileText("profileMatricNo", state.currentUser.matricNo || "Not provided");
+  setProfileText("profilePhone", state.currentUser.phone || state.currentUser.phoneNumber || "Not provided");
+  setProfileText("profileEmailReadonly", email);
+  renderStudentProfileStats();
 
   const adminLink = document.getElementById("adminLinkStudent");
   if (adminLink) {

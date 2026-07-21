@@ -9,8 +9,10 @@ import {
   getDocs,
   where,
   db,
+  auth,
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  deleteUser
 } from "./firebase.js";
 import { initAuth } from "./auth.js";
 import "./seeding.js";
@@ -28,7 +30,8 @@ import {
   setButtonVisible,
   showLoginScreen,
   initSplashScreen,
-  getGreeting
+  getGreeting,
+  showConfirmDialog
 } from "./modules/ui.js";
 
 // Initialize splash screen on app start
@@ -57,7 +60,7 @@ import {
   completeRide as _completeRide
 } from "./modules/rider.js";
 import { startScheduledRidesProcessor } from "./modules/scheduled-rides.js";
-import { listenToStudentWallet, renderStudentWallet } from "./wallet.js";
+import { listenToStudentWallet, renderStudentWallet, formatNaira } from "./wallet.js";
 import { listenToRiderWallet, renderRiderWallet } from "./riderWallet.js";
 
 const THEME_STORAGE_KEY = "oprTheme";
@@ -312,16 +315,73 @@ function switchTab(tab) {
   });
 }
 
+function setProfileText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = value;
+}
+
+function getProfileInitials(name, fallback = "OP") {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return fallback;
+  return parts.slice(0, 2).map(part => part.charAt(0).toUpperCase()).join("");
+}
+
+function getNameGradient(name) {
+  const source = String(name || "OpRides");
+  let hash = 0;
+  for (let i = 0; i < source.length; i++) hash = source.charCodeAt(i) + ((hash << 5) - hash);
+  const hue = Math.abs(hash) % 360;
+  return `linear-gradient(135deg, hsl(${hue}, 72%, 46%), hsl(${(hue + 52) % 360}, 78%, 58%))`;
+}
+
+function formatVehicleType(type) {
+  const normalized = String(type || "keke").toLowerCase();
+  if (normalized === "shuttle") return "Shuttle";
+  if (normalized === "bike") return "Bike";
+  return "Keke";
+}
+
+async function renderRiderProfileStats() {
+  if (!state.currentUser?.uid) return;
+  try {
+    const ridesSnap = await getDocs(query(
+      collection(db, "rides"),
+      where("riderId", "==", state.currentUser.uid)
+    ));
+    const rides = ridesSnap.docs.map(docSnap => docSnap.data()).filter(ride => ride.status === "completed");
+    const passengers = rides.reduce((sum, ride) => sum + Object.keys(ride.passengers || {}).length, 0);
+    const earned = state.currentUser.earnings?.totalEarned || 0;
+
+    setProfileText("riderProfileTotalRides", String(rides.length));
+    setProfileText("riderProfilePassengers", String(passengers));
+    setProfileText("riderProfileTotalEarned", formatNaira(earned));
+  } catch (err) {
+    console.warn("Rider profile stats unavailable:", err.code || err.message);
+    setProfileText("riderProfileTotalRides", "--");
+    setProfileText("riderProfilePassengers", "--");
+  }
+}
+
 function updateRiderProfileUI() {
   if (!state.currentUser) return;
   const user = state.currentUser;
-  const nameEl = document.getElementById("riderProfileName");
-  const emailEl = document.getElementById("riderProfileEmail");
-  const plateEl = document.getElementById("riderProfilePlate");
-  
-  if (nameEl) nameEl.innerText = user.displayName || "Rider";
-  if (emailEl) emailEl.innerText = user.email || "No email";
-  if (plateEl) plateEl.innerText = user.plateNo || "No Plate";
+  const name = user.displayName || user.name || "Rider";
+  const email = user.email || "No email";
+  const avatar = document.getElementById("riderProfileAvatar");
+  const statusEl = document.getElementById("riderProfileStatus");
+  const isOnline = Boolean(state.currentRideId || state.riderDocId || state.riderWatchId);
+
+  setProfileText("riderProfileName", name);
+  setProfileText("riderProfileEmail", email);
+  setProfileText("riderProfilePlate", user.plateNo || "No Plate");
+  setProfileText("riderProfileVehicle", formatVehicleType(user.vehicleType));
+  setProfileText("riderProfileStatus", isOnline ? "Online" : "Offline");
+  if (statusEl) statusEl.classList.toggle("online", isOnline);
+  if (avatar) {
+    avatar.innerText = getProfileInitials(name, "RD");
+    avatar.style.background = getNameGradient(name);
+  }
+  renderRiderProfileStats();
 
   const adminLink = document.getElementById("adminLinkRider");
   if (adminLink) {
@@ -584,6 +644,49 @@ function populateCampusMapLandmarks() {
   select.innerHTML = `<option value="">Select Landmark</option>` + options;
 }
 
+function openLegalModal(type) {
+  const isPrivacy = type === "privacy";
+  showConfirmDialog({
+    title: isPrivacy ? "Privacy Policy" : "Terms of Service",
+    message: isPrivacy
+      ? "OpRides uses your account, ride, wallet, and location data only to operate campus transport features and support your account. Full hosted policy page will be added before public release."
+      : "By using OpRides, you agree to use the service responsibly, keep account details accurate, and follow campus transport rules. Full hosted terms page will be added before public release.",
+    confirmText: "Close",
+    cancelText: "Dismiss"
+  });
+}
+
+async function confirmDeleteAccount() {
+  if (state.currentUser?.isGuest) {
+    logout();
+    return;
+  }
+
+  const confirmed = await showConfirmDialog({
+    title: "Delete Account",
+    message: "This signs out and permanently deletes your login account. You may need to sign in again first if this session is old.",
+    confirmText: "Delete Account",
+    cancelText: "Keep Account",
+    danger: true
+  });
+  if (!confirmed) return;
+
+  try {
+    const activeUser = auth.currentUser;
+    if (!activeUser) throw new Error("No active authenticated user");
+    await deleteUser(activeUser);
+    showToast("Account deleted", "success");
+    showLoginScreen();
+  } catch (err) {
+    console.warn("Delete account failed:", err.code || err.message);
+    if (err.code === "auth/requires-recent-login") {
+      showToast("Please log in again before deleting your account", "error", 5000);
+      await logout();
+      return;
+    }
+    showToast("Could not delete account right now", "error");
+  }
+}
 function bindAppGlobals() {
   window.switchTab = switchTab;
   window.toggleSidebar = toggleSidebar;
@@ -600,6 +703,8 @@ function bindAppGlobals() {
   window.navigateToLandmark = navigateToLandmark;
   window.resetPathfinder = resetPathfinder;
   window.completePathfinderSession = completePathfinderSession;
+  window.openLegalModal = openLegalModal;
+  window.confirmDeleteAccount = confirmDeleteAccount;
 }
 
 bindAppGlobals();

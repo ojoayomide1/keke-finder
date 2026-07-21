@@ -471,76 +471,70 @@
         <h2>Profile</h2>
       </div>
       <div class="profile-content">
-        <div class="profile-card">
-          <div class="profile-avatar">S</div>
-          <h3 id="profileName">Student Name</h3>
+        <div class="profile-card premium-profile-card">
+          <div class="profile-avatar profile-avatar-gradient" id="profileAvatar">ST</div>
+          <div class="profile-title-row">
+            <h3 id="profileName">Student Name</h3>
+            <span class="role-badge role-badge-student">Student</span>
+          </div>
           <p id="profileEmail">email@example.com</p>
+        </div>
+
+        <div class="profile-info-card">
+          <div class="profile-section-heading">Account Info</div>
+          <div class="profile-info-grid">
+            <div class="profile-info-item"><span>Matric number</span><strong id="profileMatricNo">Not provided</strong></div>
+            <div class="profile-info-item"><span>Phone number</span><strong id="profilePhone">Not provided</strong></div>
+            <div class="profile-info-item profile-info-wide"><span>Email</span><strong id="profileEmailReadonly">email@example.com</strong></div>
+          </div>
+        </div>
+
+        <div class="profile-info-card">
+          <div class="profile-section-heading">Ride Stats</div>
+          <div class="profile-stats-grid">
+            <div class="profile-stat"><span>Total rides</span><strong id="studentTotalRides">0</strong></div>
+            <div class="profile-stat"><span>Total spent</span><strong id="studentTotalSpent">&#8358;0</strong></div>
+          </div>
+          <div class="profile-route-stats">
+            <div><span>Top pickup</span><strong id="studentTopPickup">No rides yet</strong></div>
+            <div><span>Top dropoff</span><strong id="studentTopDropoff">No rides yet</strong></div>
+          </div>
         </div>
         
         <div class="settings-group-title">Account & Security</div>
-        <div class="settings-list" style="margin-bottom: 20px;">
+        <div class="settings-list profile-settings-list">
           <div class="settings-item" onclick="switchTab('activity')">
-            <span class="settings-label-with-icon">
-              <i class="fas fa-history settings-icon"></i>
-              <span>Ride Activity</span>
-            </span>
+            <span class="settings-label-with-icon"><i class="fas fa-history settings-icon"></i><span>Ride Activity</span></span>
             <i class="fas fa-chevron-right arrow-icon"></i>
           </div>
           <div class="settings-item" onclick="switchTab('wallet')">
-            <span class="settings-label-with-icon">
-              <i class="fas fa-wallet settings-icon"></i>
-              <span>Wallet</span>
-            </span>
+            <span class="settings-label-with-icon"><i class="fas fa-wallet settings-icon"></i><span>Wallet</span></span>
             <i class="fas fa-chevron-right arrow-icon"></i>
           </div>
           <div class="settings-item hidden" id="biometricsSettingItemStudent">
-            <div class="settings-copy">
-              <span class="settings-label-with-icon">
-                <i class="fas fa-fingerprint settings-icon"></i>
-                <span>Biometric Login</span>
-              </span>
-              <small>Use Face ID / Fingerprint to log in</small>
-            </div>
-            <label class="theme-switch" aria-label="Toggle biometric login">
-              <input type="checkbox" id="biometricsToggleStudent" onchange="toggleBiometrics(this.checked)">
-              <span></span>
-            </label>
+            <div class="settings-copy"><span class="settings-label-with-icon"><i class="fas fa-fingerprint settings-icon"></i><span>Biometric Login</span></span><small>Use Face ID / Fingerprint to log in</small></div>
+            <label class="theme-switch" aria-label="Toggle biometric login"><input type="checkbox" id="biometricsToggleStudent" onchange="toggleBiometrics(this.checked)"><span></span></label>
           </div>
         </div>
 
         <div class="settings-group-title">Preferences & Info</div>
-        <div class="settings-list" style="margin-bottom: 20px;">
-          <div class="settings-item">
-            <span class="settings-label-with-icon">
-              <i class="fas fa-adjust settings-icon"></i>
-              <span>Dark Mode</span>
-            </span>
-            <label class="theme-switch" aria-label="Toggle dark mode">
-              <input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)">
-              <span></span>
-            </label>
-          </div>
-          <div class="settings-item hidden" id="adminLinkStudent" onclick="window.location.href='/admin.html'">
-            <span class="settings-label-with-icon" style="color: #22c55e;">
-              <i class="fas fa-shield-alt settings-icon"></i>
-              <strong style="font-weight: 600;">Admin Dashboard</strong>
-            </span>
-            <i class="fas fa-chevron-right arrow-icon" style="color: #22c55e;"></i>
-          </div>
-          <div class="settings-item no-clickable">
-            <span class="settings-label-with-icon">
-              <i class="fas fa-info-circle settings-icon"></i>
-              <span>App Version</span>
-            </span>
-            <strong class="app-version-badge">1.2.1</strong>
-          </div>
+        <div class="settings-list profile-settings-list">
+          <div class="settings-item"><span class="settings-label-with-icon"><i class="fas fa-bell settings-icon"></i><span>Notification Preferences</span></span><label class="theme-switch" aria-label="Toggle notifications"><input type="checkbox" disabled><span></span></label></div>
+          <div class="settings-item no-clickable"><span class="settings-label-with-icon"><i class="fas fa-language settings-icon"></i><span>Language</span></span><strong>English</strong></div>
+          <div class="settings-item"><span class="settings-label-with-icon"><i class="fas fa-adjust settings-icon"></i><span>Dark Mode</span></span><label class="theme-switch" aria-label="Toggle dark mode"><input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)"><span></span></label></div>
+          <div class="settings-item" onclick="openLegalModal('privacy')"><span class="settings-label-with-icon"><i class="fas fa-user-shield settings-icon"></i><span>Privacy Policy</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
+          <div class="settings-item" onclick="openLegalModal('terms')"><span class="settings-label-with-icon"><i class="fas fa-file-contract settings-icon"></i><span>Terms of Service</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
+          <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Support"><span class="settings-label-with-icon"><i class="fas fa-envelope settings-icon"></i><span>Contact Support</span></span><strong>Email</strong></a>
+          <a class="settings-item settings-link-item" href="https://wa.me/2349070707363" target="_blank" rel="noopener"><span class="settings-label-with-icon"><i class="fab fa-whatsapp settings-icon"></i><span>WhatsApp Support</span></span><strong>09070707363</strong></a>
+          <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Feedback"><span class="settings-label-with-icon"><i class="fas fa-star settings-icon"></i><span>Rate the App</span></span><i class="fas fa-chevron-right arrow-icon"></i></a>
+          <div class="settings-item hidden" id="adminLinkStudent" onclick="window.location.href='/admin.html'"><span class="settings-label-with-icon" style="color: #22c55e;"><i class="fas fa-shield-alt settings-icon"></i><strong style="font-weight: 600;">Admin Dashboard</strong></span><i class="fas fa-chevron-right arrow-icon" style="color: #22c55e;"></i></div>
+          <div class="settings-item no-clickable"><span class="settings-label-with-icon"><i class="fas fa-info-circle settings-icon"></i><span>App Version</span></span><strong class="app-version-badge">1.2.1</strong></div>
         </div>
         
-        <div class="settings-action-container">
-          <button onclick="logout()" class="logout-btn">
-            <i class="fas fa-sign-out-alt"></i>
-            <span>Logout</span>
-          </button>
+        <div class="danger-zone">
+          <div class="settings-group-title">Danger Zone</div>
+          <button onclick="logout()" class="logout-btn"><i class="fas fa-sign-out-alt"></i><span>Logout</span></button>
+          <button onclick="confirmDeleteAccount()" class="delete-account-btn"><i class="fas fa-user-slash"></i><span>Delete Account</span></button>
         </div>
       </div>
     </div>
@@ -721,69 +715,62 @@
         <h2>Profile</h2>
       </div>
       <div class="profile-content">
-        <div class="profile-card">
-          <div class="profile-avatar" style="background: #facc15;">R</div>
-          <h3 id="riderProfileName">Rider Name</h3>
+        <div class="profile-card premium-profile-card">
+          <div class="profile-avatar profile-avatar-gradient" id="riderProfileAvatar">RD</div>
+          <div class="profile-title-row">
+            <h3 id="riderProfileName">Rider Name</h3>
+            <span class="role-badge role-badge-rider">Rider</span>
+          </div>
           <p id="riderProfileEmail">email@example.com</p>
-          <div style="margin-top: 10px;">
-             <span id="riderProfilePlate" class="role-tag yellow-tag">ABC-123</span>
+        </div>
+
+        <div class="profile-info-card">
+          <div class="profile-section-heading">Vehicle Info</div>
+          <div class="profile-info-grid">
+            <div class="profile-info-item"><span>Plate number</span><strong id="riderProfilePlate">No Plate</strong></div>
+            <div class="profile-info-item"><span>Vehicle type</span><strong id="riderProfileVehicle">Keke</strong></div>
+            <div class="profile-info-item profile-info-wide"><span>Status</span><strong id="riderProfileStatus" class="profile-status-indicator offline">Offline</strong></div>
+          </div>
+        </div>
+
+        <div class="profile-info-card">
+          <div class="profile-section-heading">Rider Stats</div>
+          <div class="profile-stats-grid profile-stats-grid-three">
+            <div class="profile-stat"><span>Rides completed</span><strong id="riderProfileTotalRides">0</strong></div>
+            <div class="profile-stat"><span>Passengers served</span><strong id="riderProfilePassengers">0</strong></div>
+            <div class="profile-stat"><span>All-time earned</span><strong id="riderProfileTotalEarned">&#8358;0</strong></div>
           </div>
         </div>
         
         <div class="settings-group-title">Preferences & Security</div>
-        <div class="settings-list" style="margin-bottom: 20px;">
-          <div class="settings-item">
-            <span class="settings-label-with-icon">
-              <i class="fas fa-adjust settings-icon"></i>
-              <span>Dark Mode</span>
-            </span>
-            <label class="theme-switch" aria-label="Toggle dark mode">
-              <input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)">
-              <span></span>
-            </label>
-          </div>
+        <div class="settings-list profile-settings-list">
+          <div class="settings-item"><span class="settings-label-with-icon"><i class="fas fa-bell settings-icon"></i><span>Notification Preferences</span></span><label class="theme-switch" aria-label="Toggle notifications"><input type="checkbox" disabled><span></span></label></div>
+          <div class="settings-item no-clickable"><span class="settings-label-with-icon"><i class="fas fa-language settings-icon"></i><span>Language</span></span><strong>English</strong></div>
+          <div class="settings-item"><span class="settings-label-with-icon"><i class="fas fa-adjust settings-icon"></i><span>Dark Mode</span></span><label class="theme-switch" aria-label="Toggle dark mode"><input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)"><span></span></label></div>
           <div class="settings-item hidden" id="biometricsSettingItemRider">
-            <div class="settings-copy">
-              <span class="settings-label-with-icon">
-                <i class="fas fa-fingerprint settings-icon"></i>
-                <span>Biometric Login</span>
-              </span>
-              <small>Use Face ID / Fingerprint to log in</small>
-            </div>
-            <label class="theme-switch" aria-label="Toggle biometric login">
-              <input type="checkbox" id="biometricsToggleRider" onchange="toggleBiometrics(this.checked)">
-              <span></span>
-            </label>
+            <div class="settings-copy"><span class="settings-label-with-icon"><i class="fas fa-fingerprint settings-icon"></i><span>Biometric Login</span></span><small>Use Face ID / Fingerprint to log in</small></div>
+            <label class="theme-switch" aria-label="Toggle biometric login"><input type="checkbox" id="biometricsToggleRider" onchange="toggleBiometrics(this.checked)"><span></span></label>
           </div>
         </div>
 
-        <div class="settings-group-title">App Info & Admin</div>
-        <div class="settings-list" style="margin-bottom: 20px;">
-          <div class="settings-item no-clickable">
-            <span class="settings-label-with-icon">
-              <i class="fas fa-info-circle settings-icon"></i>
-              <span>App Version</span>
-            </span>
-            <strong class="app-version-badge">1.2.1</strong>
-          </div>
-          <div class="settings-item hidden" id="adminLinkRider" onclick="window.location.href='/admin.html'">
-            <span class="settings-label-with-icon" style="color: #22c55e;">
-              <i class="fas fa-shield-alt settings-icon"></i>
-              <strong style="font-weight: 600;">Admin Dashboard</strong>
-            </span>
-            <i class="fas fa-chevron-right arrow-icon" style="color: #22c55e;"></i>
-          </div>
+        <div class="settings-group-title">App Info & Support</div>
+        <div class="settings-list profile-settings-list">
+          <div class="settings-item" onclick="openLegalModal('privacy')"><span class="settings-label-with-icon"><i class="fas fa-user-shield settings-icon"></i><span>Privacy Policy</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
+          <div class="settings-item" onclick="openLegalModal('terms')"><span class="settings-label-with-icon"><i class="fas fa-file-contract settings-icon"></i><span>Terms of Service</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
+          <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Support"><span class="settings-label-with-icon"><i class="fas fa-envelope settings-icon"></i><span>Contact Support</span></span><strong>Email</strong></a>
+          <a class="settings-item settings-link-item" href="https://wa.me/2349070707363" target="_blank" rel="noopener"><span class="settings-label-with-icon"><i class="fab fa-whatsapp settings-icon"></i><span>WhatsApp Support</span></span><strong>09070707363</strong></a>
+          <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Feedback"><span class="settings-label-with-icon"><i class="fas fa-star settings-icon"></i><span>Rate the App</span></span><i class="fas fa-chevron-right arrow-icon"></i></a>
+          <div class="settings-item hidden" id="adminLinkRider" onclick="window.location.href='/admin.html'"><span class="settings-label-with-icon" style="color: #22c55e;"><i class="fas fa-shield-alt settings-icon"></i><strong style="font-weight: 600;">Admin Dashboard</strong></span><i class="fas fa-chevron-right arrow-icon" style="color: #22c55e;"></i></div>
+          <div class="settings-item no-clickable"><span class="settings-label-with-icon"><i class="fas fa-info-circle settings-icon"></i><span>App Version</span></span><strong class="app-version-badge">1.2.1</strong></div>
         </div>
 
-        <div class="settings-action-container">
-          <button onclick="logout()" class="logout-btn">
-            <i class="fas fa-sign-out-alt"></i>
-            <span>Logout</span>
-          </button>
+        <div class="danger-zone">
+          <div class="settings-group-title">Danger Zone</div>
+          <button onclick="logout()" class="logout-btn"><i class="fas fa-sign-out-alt"></i><span>Logout</span></button>
+          <button onclick="confirmDeleteAccount()" class="delete-account-btn"><i class="fas fa-user-slash"></i><span>Delete Account</span></button>
         </div>
       </div>
     </div>
-
       <!-- Bottom Navigation Bar -->
       <nav class="bottom-nav">
       <button class="nav-tab active" id="tab-home" onclick="switchTab('home')">
