@@ -21,7 +21,7 @@ let riderTransactions = [];
 let riderWithdrawals = [];
 let riderHistoryTab = "earnings";
 let displayedRiderBalance = 0;
-let riderBalanceAnimationFrame = null;
+let riderBalanceAnimationFrame = null;`r`nlet riderPullRefreshBound = false;
 
 export function listenToRiderWallet() {
   if (!state.currentUser?.uid || state.currentUser?.role !== "rider") return;
@@ -141,7 +141,7 @@ function escapeHtml(value) {
 
 function animateRiderBalance(targetBalance) {
   const balanceEl = document.getElementById("riderEarningsBalance");
-  if (!balanceEl) return;
+  const headerBalanceEl = document.getElementById("header-balance-rider");
   const startBalance = displayedRiderBalance || 0;
   const endBalance = Number(targetBalance) || 0;
   const duration = 700;
@@ -149,17 +149,24 @@ function animateRiderBalance(targetBalance) {
 
   if (riderBalanceAnimationFrame) cancelAnimationFrame(riderBalanceAnimationFrame);
 
+  // Add pop animation
+  if (balanceEl) balanceEl.classList.add("balance-animate");
+
   const tick = (now) => {
     const progress = Math.min((now - startTime) / duration, 1);
     const eased = 1 - Math.pow(1 - progress, 3);
     const current = Math.round(startBalance + (endBalance - startBalance) * eased);
-    balanceEl.innerText = formatNaira(current);
+    if (balanceEl) balanceEl.innerText = formatNaira(current);
+    if (headerBalanceEl) headerBalanceEl.textContent = current;
 
     if (progress < 1) {
       riderBalanceAnimationFrame = requestAnimationFrame(tick);
     } else {
       displayedRiderBalance = endBalance;
       riderBalanceAnimationFrame = null;
+      if (balanceEl) balanceEl.classList.remove("balance-animate");
+      // Update balance chip glow
+      window.updateBalanceChipGlow?.("rider");
     }
   };
 
@@ -218,8 +225,44 @@ export function renderRiderEarningsExperience() {
     return;
   }
   renderRiderEarnings(riderTransactions.filter(tx => tx.type === "earning"));
+  initRiderPullToRefresh();
 }
 
+function initRiderPullToRefresh() {
+  if (riderPullRefreshBound) return;
+  const list = document.getElementById("riderEarningsList");
+  if (!list) return;
+  riderPullRefreshBound = true;
+
+  const indicator = document.createElement("div");
+  indicator.className = "pull-refresh-indicator";
+  indicator.innerHTML = '<span class="pull-spinner"></span><span>Pull to refresh</span>';
+  list.parentNode.insertBefore(indicator, list);
+
+  let startY = 0;
+  let pulling = false;
+
+  list.addEventListener("touchstart", (event) => {
+    if (window.scrollY > 0) return;
+    startY = event.touches[0].clientY;
+    pulling = true;
+  }, { passive: true });
+
+  list.addEventListener("touchmove", (event) => {
+    if (!pulling) return;
+    const deltaY = event.touches[0].clientY - startY;
+    if (deltaY > 35) indicator.classList.add("visible");
+  }, { passive: true });
+
+  list.addEventListener("touchend", () => {
+    if (!pulling) return;
+    pulling = false;
+    if (indicator.classList.contains("visible")) {
+      renderRiderEarningsExperience();
+      setTimeout(() => indicator.classList.remove("visible"), 500);
+    }
+  });
+}
 function renderRiderEarnings(transactions) {
   const list = document.getElementById("riderEarningsList");
   if (!list) return;

@@ -26,7 +26,7 @@ let selectedTopUpAmount = 1000;
 let studentTransactions = [];
 let walletTransactionFilter = "all";
 let displayedWalletBalance = 0;
-let balanceAnimationFrame = null;
+let balanceAnimationFrame = null;`r`nlet pullRefreshBound = false;
 
 export function formatNaira(kobo = 0) {
   return new Intl.NumberFormat("en-NG", {
@@ -106,7 +106,7 @@ function getTransactionIcon(tx) {
 
 function animateWalletBalance(targetBalance) {
   const balanceEl = document.getElementById("walletBalance");
-  if (!balanceEl) return;
+  const headerBalanceEl = document.getElementById("header-balance-student");
   const startBalance = displayedWalletBalance || 0;
   const endBalance = Number(targetBalance) || 0;
   const duration = 700;
@@ -114,17 +114,24 @@ function animateWalletBalance(targetBalance) {
 
   if (balanceAnimationFrame) cancelAnimationFrame(balanceAnimationFrame);
 
+  // Add pop animation
+  if (balanceEl) balanceEl.classList.add("balance-animate");
+
   const tick = (now) => {
     const progress = Math.min((now - startTime) / duration, 1);
     const eased = 1 - Math.pow(1 - progress, 3);
     const current = Math.round(startBalance + (endBalance - startBalance) * eased);
-    balanceEl.innerText = formatNaira(current);
+    if (balanceEl) balanceEl.innerText = formatNaira(current);
+    if (headerBalanceEl) headerBalanceEl.textContent = current;
 
     if (progress < 1) {
       balanceAnimationFrame = requestAnimationFrame(tick);
     } else {
       displayedWalletBalance = endBalance;
       balanceAnimationFrame = null;
+      if (balanceEl) balanceEl.classList.remove("balance-animate");
+      // Update balance chip glow
+      window.updateBalanceChipGlow?.("student");
     }
   };
 
@@ -246,8 +253,44 @@ function renderStudentTransactionExperience() {
   renderSpendingSummary(studentTransactions);
   renderTransactionFilters();
   renderStudentTransactions(getFilteredStudentTransactions());
+  initWalletPullToRefresh();
 }
 
+function initWalletPullToRefresh() {
+  if (pullRefreshBound) return;
+  const list = document.getElementById("walletTransactionsList");
+  if (!list) return;
+  pullRefreshBound = true;
+
+  const indicator = document.createElement("div");
+  indicator.className = "pull-refresh-indicator";
+  indicator.innerHTML = '<span class="pull-spinner"></span><span>Pull to refresh</span>';
+  list.parentNode.insertBefore(indicator, list);
+
+  let startY = 0;
+  let pulling = false;
+
+  list.addEventListener("touchstart", (event) => {
+    if (window.scrollY > 0) return;
+    startY = event.touches[0].clientY;
+    pulling = true;
+  }, { passive: true });
+
+  list.addEventListener("touchmove", (event) => {
+    if (!pulling) return;
+    const deltaY = event.touches[0].clientY - startY;
+    if (deltaY > 35) indicator.classList.add("visible");
+  }, { passive: true });
+
+  list.addEventListener("touchend", () => {
+    if (!pulling) return;
+    pulling = false;
+    if (indicator.classList.contains("visible")) {
+      renderStudentTransactionExperience();
+      setTimeout(() => indicator.classList.remove("visible"), 500);
+    }
+  });
+}
 function renderStudentTransactions(transactions) {
   const list = document.getElementById("walletTransactionsList");
   if (!list) return;

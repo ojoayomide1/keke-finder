@@ -232,7 +232,7 @@ function startCampusActivityListeners() {
 }
 function switchTab(tab) {
   const role = state.currentRole || "student";
-  
+
   const studentViews = {
     home: "studentDashboard",
     wallet: "walletView",
@@ -259,11 +259,26 @@ function switchTab(tab) {
     stopPathfinderWatch();
   }
 
-  // Hide all views for both roles to be safe
-  [...Object.values(studentViews), ...Object.values(riderViews)].forEach(vId => {
-    const el = document.getElementById(vId);
-    if (el) el.classList.add("hidden");
-  });
+  // Fade out current view
+  const currentViewIds = [...Object.values(studentViews), ...Object.values(riderViews)];
+  const visibleView = currentViewIds.map(vId => document.getElementById(vId)).find(el => el && !el.classList.contains("hidden"));
+  if (visibleView && visibleView.id !== views[tab]) {
+    visibleView.classList.add("tab-fade-out");
+    setTimeout(() => {
+      visibleView.classList.add("hidden");
+      visibleView.classList.remove("tab-fade-out");
+    }, 150);
+    // Hide all others
+    currentViewIds.forEach(vId => {
+      const el = document.getElementById(vId);
+      if (el && el !== visibleView) el.classList.add("hidden");
+    });
+  } else {
+    currentViewIds.forEach(vId => {
+      const el = document.getElementById(vId);
+      if (el) el.classList.add("hidden");
+    });
+  }
 
   // Handle specific tab logic
   if (role === "student") {
@@ -299,20 +314,32 @@ function switchTab(tab) {
     }
   }
 
-  // Show selected view
+  // Show selected view with fade-in
   const targetView = views[tab];
   if (targetView) {
-    document.getElementById(targetView).classList.remove("hidden");
+    const targetEl = document.getElementById(targetView);
+    targetEl.classList.remove("hidden");
+    targetEl.classList.add("tab-fade-in");
+    setTimeout(() => targetEl.classList.remove("tab-fade-in"), 300);
   }
 
   closeSidebar();
 
-  // Update bottom nav active state
+  // Update bottom nav active state + animated pill
+  const pillId = role === "student" ? "studentNavPill" : "riderNavPill";
+  const activeTabEl = document.querySelector(`#${role === "student" ? "studentUI" : "riderUI"} .nav-tab[onclick*="${tab}"]`);
   const navSelector = role === "student" ? "#studentUI .nav-tab" : "#riderUI .nav-tab";
   document.querySelectorAll(navSelector).forEach(t => {
     const tId = t.id.replace("tab-", "").replace("rider-", "");
     t.classList.toggle("active", tId === tab);
   });
+  updateNavPill(pillId, activeTabEl);
+
+  // Update notification dot on Live tab
+  updateLiveNotifDot(role);
+
+  // Update balance chip glow state
+  updateBalanceChipGlow(role);
 }
 
 function setProfileText(id, value) {
@@ -333,6 +360,220 @@ function getNameGradient(name) {
   const hue = Math.abs(hash) % 360;
   return `linear-gradient(135deg, hsl(${hue}, 72%, 46%), hsl(${(hue + 52) % 360}, 78%, 58%))`;
 }
+
+// ================= NAV PILL ANIMATION =================
+function updateNavPill(pillId, activeTabEl) {
+  const pill = document.getElementById(pillId);
+  if (!pill || !activeTabEl) return;
+
+  const nav = pill.parentElement;
+  if (!nav) return;
+
+  const navRect = nav.getBoundingClientRect();
+  const tabRect = activeTabEl.getBoundingClientRect();
+
+  const left = tabRect.left - navRect.left;
+  const width = tabRect.width;
+
+  pill.style.left = `${left}px`;
+  pill.style.width = `${width}px`;
+}
+
+// Initialize nav pill on load
+function initNavPills() {
+  const role = state.currentRole || "student";
+  const pillId = role === "student" ? "studentNavPill" : "riderNavPill";
+  const navSelector = role === "student" ? "#studentUI .nav-tab.active" : "#riderUI .nav-tab.active";
+  const activeTab = document.querySelector(navSelector);
+  if (activeTab) {
+    updateNavPill(pillId, activeTab);
+  }
+}
+
+// Handle window resize to update pill position
+window.addEventListener("resize", () => {
+  initNavPills();
+});
+
+// ================= NOTIFICATION DOT =================
+function updateLiveNotifDot(role) {
+  const dotId = role === "student" ? "studentLiveNotifDot" : "riderLiveNotifDot";
+  const dot = document.getElementById(dotId);
+  if (!dot) return;
+
+  const hasActiveRide = !!state.currentRideId;
+  dot.classList.toggle("visible", hasActiveRide);
+}
+
+// ================= BALANCE CHIP GLOW =================
+function updateBalanceChipGlow(role) {
+  const chipSelector = role === "student"
+    ? "#studentUI .balance-chip"
+    : "#riderUI .balance-chip";
+  const chip = document.querySelector(chipSelector);
+  if (!chip) return;
+
+  const balanceEl = chip.querySelector(".balance-amount");
+  if (!balanceEl) return;
+
+  const balanceText = balanceEl.textContent.replace(/[^\d]/g, "");
+  const balance = parseInt(balanceText, 10) || 0;
+
+  // Low balance threshold: < ₦500
+  chip.classList.toggle("is-low", balance < 500);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[char]));
+}
+
+function estimateRideEtaMinutes(ride) {
+  const pendingStops = (ride.stopQueue || []).filter(stop => stop.status === "pending");
+  const currentLocation = ride.currentLocation;
+  if (!currentLocation || !pendingStops.length) return null;
+  const nextStop = pendingStops[0];
+  if (!nextStop?.location) return null;
+  const distance = getDistance(currentLocation.lat, currentLocation.lng, nextStop.location.lat, nextStop.location.lng);
+  return Math.max(1, Math.round(distance / 80));
+}
+
+function renderLiveSheetEnhancements(ride) {
+  const role = state.currentRole || "student";
+  const target = role === "rider" ? "riderSheetDetails" : "studentRideDetails";
+  const details = document.getElementById(target);
+  if (!details || !ride) return;
+
+  const pendingStops = (ride.stopQueue || []).filter(stop => stop.status === "pending");
+  const nextStop = pendingStops[0];
+  const etaMinutes = estimateRideEtaMinutes(ride);
+  const riderName = ride.riderName || state.currentUser?.displayName || "Campus rider";
+  const plate = ride.plateNo || state.currentUser?.plateNo || "Campus plate";
+  const vehicle = formatVehicleType(ride.vehicleType || state.currentUser?.vehicleType || "keke");
+  const statusLabel = ride.status === "waiting"
+    ? "Waiting for students"
+    : role === "student"
+      ? "Rider en route"
+      : nextStop ? `Next ${nextStop.type === "pickup" ? "pickup" : "drop-off"}` : "Route clear";
+
+  const etaLabel = etaMinutes == null
+    ? (ride.status === "waiting" ? "Waiting" : "Calculating")
+    : `${etaMinutes} min`;
+
+  const premiumHtml = `
+    <div class="rider-info-row">
+      <div class="rider-avatar">${escapeHtml(getProfileInitials(riderName, "OP"))}</div>
+      <div class="rider-info-details">
+        <strong>${escapeHtml(riderName)}</strong>
+        <span>${escapeHtml(plate)} · ${escapeHtml(vehicle)}</span>
+      </div>
+      <div class="rider-vehicle-badge"><i class="fas fa-motorcycle"></i>${escapeHtml(vehicle)}</div>
+    </div>
+    <div class="eta-countdown ${ride.status === "waiting" ? "is-waiting" : ""}">
+      <div class="eta-icon"><i class="fas fa-clock"></i></div>
+      <div class="eta-text">
+        <strong>${escapeHtml(etaLabel)}</strong>
+        <span>${escapeHtml(nextStop?.locationLabel || statusLabel)}</span>
+      </div>
+      <div class="status-text-animated"><span class="status-dot"></span>${escapeHtml(statusLabel)}</div>
+    </div>
+  `;
+
+  details.querySelectorAll(".rider-info-row, .eta-countdown").forEach(el => el.remove());
+  details.insertAdjacentHTML("afterbegin", premiumHtml);
+}
+// ================= RIPPLE EFFECT =================
+function initRippleEffect() {
+  document.addEventListener("click", (e) => {
+    const rippleTarget = e.target.closest(
+      "button:not(.iconBtn):not(.nav-tab):not(.toast-close-btn), .card-tappable, .card-student, .card-rider, .role-select-card"
+    );
+    if (!rippleTarget) return;
+
+    // Don't double-ripple
+    if (rippleTarget.querySelector(".ripple-circle")) return;
+
+    rippleTarget.classList.add("ripple-effect");
+    const ripple = document.createElement("span");
+    ripple.className = "ripple-circle";
+
+    const rect = rippleTarget.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height) * 2;
+    ripple.style.width = ripple.style.height = `${size}px`;
+    ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+    ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+
+    rippleTarget.appendChild(ripple);
+    ripple.addEventListener("animationend", () => ripple.remove());
+  });
+}
+
+// ================= BALANCE COUNTER ANIMATION =================
+function animateBalanceCounter(elementId, targetValue) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+
+  const currentText = el.textContent.replace(/[^\d]/g, "");
+  const current = parseInt(currentText, 10) || 0;
+  const target = parseInt(targetValue, 10) || 0;
+  if (current === target) return;
+
+  const duration = 600;
+  const start = performance.now();
+
+  el.classList.add("balance-animate");
+
+  function step(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    // Ease out cubic
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const value = Math.round(current + (target - current) * eased);
+
+    if (el.id.startsWith("header-balance")) {
+      el.textContent = value;
+    } else {
+      el.textContent = formatNaira(value);
+    }
+
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      el.classList.remove("balance-animate");
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
+// Call initRippleEffect on startup
+initRippleEffect();
+
+// ================= ROLE SELECT =================
+function selectRole(role) {
+  state.currentRole = role;
+  const roleSelect = document.getElementById("roleSelect");
+  if (roleSelect) {
+    roleSelect.classList.add("screen-fade-out");
+    setTimeout(() => {
+      roleSelect.classList.add("hidden");
+      roleSelect.classList.remove("screen-fade-out");
+    }, 400);
+  }
+  if (role === "student") {
+    document.getElementById("studentUI")?.classList.remove("hidden");
+  } else {
+    document.getElementById("riderUI")?.classList.remove("hidden");
+  }
+  // Initialize nav pill for selected role
+  setTimeout(() => initNavPills(), 50);
+}
+window.selectRole = selectRole;
 
 function formatVehicleType(type) {
   const normalized = String(type || "keke").toLowerCase();
@@ -422,11 +663,13 @@ async function requestKeke() {
 async function cancelRide() {
   await _cancelRide();
   state.currentRideId = null;
+  updateLiveNotifDot(state.currentRole);
 }
 
 async function completeRide() {
   await _completeRide();
   state.currentRideId = null;
+  updateLiveNotifDot(state.currentRole);
 }
 
 async function cleanupRiderSession(previousUser = state.currentUser) {
@@ -705,6 +948,11 @@ function bindAppGlobals() {
   window.completePathfinderSession = completePathfinderSession;
   window.openLegalModal = openLegalModal;
   window.confirmDeleteAccount = confirmDeleteAccount;
+  window.updateNavPill = updateNavPill;
+  window.initNavPills = initNavPills;
+  window.updateLiveNotifDot = updateLiveNotifDot;
+  window.updateBalanceChipGlow = updateBalanceChipGlow;
+  window.animateBalanceCounter = animateBalanceCounter;
 }
 
 bindAppGlobals();
@@ -834,6 +1082,7 @@ window.becomeAvailable = () => {
       });
       state.riderDocId = ref.id;
       state.currentRideId = ref.id;
+      updateLiveNotifDot("rider");
       listenToActiveRide(ref.id);
       listenForQueuedStudents(ref.id);
       await drainWaitingQueueForRide(ref.id);
@@ -932,6 +1181,8 @@ async function transitionToDashboard(user) {
       
       if (window.switchStudentView) window.switchStudentView('dashboard');
       await checkForActiveRide("student");
+      // Initialize nav pill + balance glow
+      setTimeout(() => { initNavPills(); updateBalanceChipGlow("student"); }, 100);
     } else if (user.role === "rider") {
       console.log("Setting role to rider and showing riderUI");
       state.currentRole = "rider";
@@ -950,6 +1201,8 @@ async function transitionToDashboard(user) {
       listenToRiderWallet();
       switchTab('home');
       await checkForActiveRide("rider");
+      // Initialize nav pill + balance glow
+      setTimeout(() => { initNavPills(); updateBalanceChipGlow("rider"); }, 100);
     } else {
       console.error("Unknown user role:", user.role);
       showLoginScreen();
@@ -986,6 +1239,7 @@ async function checkForActiveRide(role) {
       const activeRide = sortedDocs[0];
       state.riderDocId = activeRide.id;
       state.currentRideId = activeRide.id;
+      updateLiveNotifDot("rider");
       const activeRideSection = document.getElementById("riderActiveRideSection");
       const activeRideSub = document.getElementById("riderActiveRideSub");
       activeRideSection?.classList.remove("hidden");
@@ -1032,12 +1286,19 @@ function listenForQueuedStudents(rideId) {
 
 window.updateRideUI = (ride) => {
   state.latestRide = ride;
+  renderLiveSheetEnhancements(ride);
   if (!state.map) return;
   
   const currentLocation = ride.currentLocation;
   if (currentLocation) {
     if (!state.riderMarker) {
       state.riderMarker = L.marker([currentLocation.lat, currentLocation.lng], { icon: riderKekeIcon }).addTo(state.map);
+      state.riderMarker.bindTooltip('<span class="map-keke-label"><i class="fas fa-motorcycle keke-moving"></i> Keke</span>', {
+        permanent: true,
+        direction: "top",
+        offset: [0, -18],
+        className: "map-keke-tooltip"
+      });
     } else {
       animateMarker(state.riderMarker, currentLocation.lat, currentLocation.lng, 1000);
     }

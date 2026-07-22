@@ -146,13 +146,27 @@
     <p id="userBadge" class="user-badge hidden"></p>
     <p>How are you moving today?</p>
 
-    <button type="button" onclick="selectRole('student')" class="green" style="width:80%; max-width:280px;">
-       I'm a Student
-    </button>
+    <div class="role-select-card card-student role-card-spring" onclick="selectRole('student')">
+      <div class="role-icon">
+        <i class="fas fa-graduation-cap"></i>
+      </div>
+      <div class="role-card-content">
+        <strong>I'm a Student</strong>
+        <span>Request rides across campus</span>
+      </div>
+      <i class="fas fa-chevron-right role-card-arrow"></i>
+    </div>
 
-    <button type="button" onclick="selectRole('rider')" class="yellow" style="width:80%; max-width:280px;">
-       I'm a Rider - Go Online
-    </button>
+    <div class="role-select-card card-rider role-card-spring" onclick="selectRole('rider')">
+      <div class="role-icon">
+        <i class="fas fa-motorcycle"></i>
+      </div>
+      <div class="role-card-content">
+        <strong>I'm a Rider</strong>
+        <span>Go online and start earning</span>
+      </div>
+      <i class="fas fa-chevron-right role-card-arrow"></i>
+    </div>
   </div>
 
 
@@ -552,6 +566,7 @@
 
     <!-- Bottom Navigation Bar -->
     <nav class="bottom-nav">
+      <div class="nav-active-pill" id="studentNavPill"></div>
       <button class="nav-tab active" id="tab-home" onclick="switchTab('home')">
         <i class="fas fa-home"></i>
         <span>Home</span>
@@ -563,6 +578,7 @@
       <button class="nav-tab" id="tab-live" onclick="switchTab('live')">
         <i class="fas fa-satellite-dish"></i>
         <span>Live</span>
+        <div class="notif-dot" id="studentLiveNotifDot"></div>
       </button>
       <button class="nav-tab" id="tab-map" onclick="switchTab('map')">
         <i class="fas fa-map-marked-alt"></i>
@@ -773,6 +789,7 @@
     </div>
       <!-- Bottom Navigation Bar -->
       <nav class="bottom-nav">
+      <div class="nav-active-pill" id="riderNavPill"></div>
       <button class="nav-tab active" id="tab-home" onclick="switchTab('home')">
         <i class="fas fa-home"></i>
         <span>Home</span>
@@ -784,6 +801,7 @@
       <button class="nav-tab" id="tab-live" onclick="switchTab('live')">
         <i class="fas fa-satellite-dish"></i>
         <span>Live</span>
+        <div class="notif-dot" id="riderLiveNotifDot"></div>
       </button>
       <button class="nav-tab" id="tab-profile" onclick="switchTab('profile')">
         <i class="fas fa-user"></i>

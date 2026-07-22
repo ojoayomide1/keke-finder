@@ -401,6 +401,7 @@ export function listenToRequest(requestId) {
         });
       }
       state.currentRideId = request.matchedRideId;
+      window.updateLiveNotifDot?.("student");
       listenToRide(request.matchedRideId, state.currentUser?.uid);
     }
 
@@ -420,6 +421,7 @@ export function listenToRequest(requestId) {
       }
       state.currentRideId = null;
       state.currentRequestId = null;
+      window.updateLiveNotifDot?.("student");
       document.getElementById("studentSheet")?.classList.add("hidden");
       if (window.switchTab) window.switchTab('home');
     }
@@ -443,6 +445,7 @@ export function listenToRide(matchedRideId, currentUserId) {
         }
         state.currentRideId = null;
         state.currentRequestId = null;
+        window.updateLiveNotifDot?.("student");
         document.getElementById("studentSheet").classList.add("hidden");
         if (window.switchTab) window.switchTab('home');
         return;

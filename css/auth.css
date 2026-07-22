@@ -20,58 +20,41 @@ body:has(#loginScreen:not(.hidden)) {
   overflow: hidden;
 }
 
-/* Drift animations for glowing mesh background */
-#loginScreen::before,
+/* Animated gradient background (always visible, no performance cost) */
+#loginScreen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    #0a0a14 0%,
+    #0f0f1e 25%,
+    #0a0a18 50%,
+    #12122a 75%,
+    #0a0a14 100%
+  );
+  background-size: 400% 400%;
+  animation: authGradientShift 12s ease infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
 #loginScreen::after {
   content: "";
   position: absolute;
-  width: min(80vw, 320px);
-  height: min(80vw, 320px);
+  width: min(60vw, 280px);
+  height: min(60vw, 280px);
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.12;
+  filter: blur(100px);
+  opacity: 0.1;
   z-index: 0;
   pointer-events: none;
   will-change: transform;
   transform: translate3d(0,0,0);
-}
-
-#loginScreen::before {
   background: var(--color-accent);
-  top: -40px;
-  left: -40px;
-  animation: driftBlue 15s infinite alternate ease-in-out;
-}
-
-#loginScreen::after {
-  background: #3b82f6;
-  bottom: -40px;
-  right: -40px;
-  animation: driftOrange 15s infinite alternate ease-in-out;
-}
-
-@keyframes driftBlue {
-  0% { transform: translate3d(0, 0, 0) scale(1); }
-  100% { transform: translate3d(50px, 30px, 0) scale(1.15); }
-}
-
-@keyframes driftOrange {
-  0% { transform: translate3d(0, 0, 0) scale(1); }
-  100% { transform: translate3d(-50px, -30px, 0) scale(1.15); }
-}
-
-@media (max-width: 768px) {
-  #loginScreen::before,
-  #loginScreen::after {
-    animation: none !important;
-    display: none !important;
-  }
-  .auth-card {
-    background: #14141b !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5) !important;
-  }
+  top: -60px;
+  left: -60px;
+  animation: blobDrift1 18s infinite alternate ease-in-out;
 }
 
 /* Wrapper to isolate content from background effects */
@@ -82,6 +65,43 @@ body:has(#loginScreen:not(.hidden)) {
   flex-direction: column;
   align-items: center;
   z-index: 1;
+  position: relative;
+}
+
+/* Additional blobs via auth-wrapper pseudo-elements */
+.auth-wrapper::before {
+  content: "";
+  position: absolute;
+  width: min(50vw, 240px);
+  height: min(50vw, 240px);
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.08;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+  background: #3b82f6;
+  bottom: -40px;
+  right: -40px;
+  animation: blobDrift2 20s infinite alternate ease-in-out;
+}
+
+.auth-wrapper::after {
+  content: "";
+  position: absolute;
+  width: min(40vw, 200px);
+  height: min(40vw, 200px);
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.06;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+  background: #8b5cf6;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: blobDrift3 22s infinite alternate ease-in-out;
 }
 
 .auth-brand {
@@ -139,19 +159,28 @@ body:has(#loginScreen:not(.hidden)) {
 /* Premium Glassmorphic Card */
 .auth-card {
   width: 100%;
-  background: rgba(26, 26, 26, 0.95);
+  background: rgba(26, 26, 26, 0.85);
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
   padding: 32px 24px;
   border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
 }
 
-@supports (backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px)) {
-  .auth-card {
-    background: rgba(26, 26, 26, 0.45);
-    backdrop-filter: blur(10px) saturate(120%);
-    -webkit-backdrop-filter: blur(10px) saturate(120%);
-  }
+/* Subtle card glow edge */
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 25%;
+  right: 25%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 94, 26, 0.4), transparent);
+  pointer-events: none;
 }
 
 .auth-tabs {

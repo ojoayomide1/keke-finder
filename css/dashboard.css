@@ -246,6 +246,187 @@
   margin-bottom: 24px;
   border: 1px solid var(--color-border);
 }
+
+/* =============================================
+   ROLE SELECT SCREEN (Premium Upgrade)
+   ============================================= */
+#roleSelect {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  gap: 20px;
+  padding: 40px 24px;
+  text-align: center;
+  color: white;
+}
+
+#roleSelect::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    #0a0a14 0%,
+    #0f0f1e 25%,
+    #0a0a18 50%,
+    #12122a 75%,
+    #0a0a14 100%
+  );
+  background-size: 400% 400%;
+  animation: authGradientShift 12s ease infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+#roleSelect::after {
+  content: '';
+  position: absolute;
+  width: min(70vw, 300px);
+  height: min(70vw, 300px);
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.08;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--color-accent);
+  top: -80px;
+  right: -80px;
+  animation: blobDrift1 18s infinite alternate ease-in-out;
+}
+
+#roleSelect > * {
+  position: relative;
+  z-index: 1;
+}
+
+#roleSelect .brand-lockup {
+  margin-bottom: 4px;
+}
+
+#roleSelect .brand-lockup .brand-icon {
+  width: 48px;
+  height: 48px;
+}
+
+#roleSelect .brand-lockup .brand-op {
+  font-size: 34px;
+}
+
+#roleSelect .brand-lockup .brand-rides {
+  font-size: 34px;
+}
+
+#roleSelect > p {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.role-select-card {
+  width: 100%;
+  max-width: 320px;
+  padding: 28px 24px;
+  border-radius: var(--radius-xl);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: all 0.25s var(--ease-smooth);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  box-shadow: var(--shadow-card);
+}
+
+.role-select-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-elevated);
+}
+
+.role-select-card:active {
+  transform: scale(0.97);
+}
+
+.role-select-card.card-student {
+  background: var(--glass-student-bg);
+  border-color: var(--glass-student-border);
+  box-shadow: var(--shadow-student);
+}
+
+.role-select-card.card-student:hover {
+  border-color: var(--color-student);
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2);
+}
+
+.role-select-card.card-rider {
+  background: var(--glass-rider-bg);
+  border-color: var(--glass-rider-border);
+  box-shadow: var(--shadow-rider);
+}
+
+.role-select-card.card-rider:hover {
+  border-color: var(--color-rider);
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.2);
+}
+
+.role-select-card .role-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.role-select-card.card-student .role-icon {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--color-student);
+}
+
+.role-select-card.card-rider .role-icon {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--color-rider);
+}
+
+.role-select-card .role-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.role-select-card .role-card-content strong {
+  display: block;
+  font-family: 'Syne', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
+}
+
+.role-select-card .role-card-content span {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.role-select-card .role-card-arrow {
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.role-select-card:hover .role-card-arrow {
+  transform: translateX(4px);
+}
 .status-card h3 { font-size: 1.5rem; margin-bottom: 8px; color: var(--color-text-primary); }
 .status-card p { color: var(--color-text-secondary); margin-bottom: 24px; }
 .fab { width: 100%; position: static; transform: none; box-shadow: none; }

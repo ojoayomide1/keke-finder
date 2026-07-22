@@ -143,7 +143,7 @@
   cursor: pointer;
 }
 
-/* App Header */
+/* App Header — with gradient underline and glassmorphic border */
 .app-header {
   position: fixed;
   top: 0;
@@ -160,6 +160,19 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   background: var(--color-header-bg);
+}
+
+/* Gradient underline below header */
+.app-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-accent), var(--color-student), var(--color-accent), transparent);
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 .menuBtn {
@@ -180,6 +193,7 @@
   color: var(--color-accent);
 }
 
+/* Balance chip with low-balance pulse */
 .balance-chip {
   display: flex;
   align-items: center;
@@ -222,6 +236,16 @@
   font-weight: 700;
   color: white;
   margin-left: 2px;
+}
+
+/* Low balance glow/pulse on balance chip */
+.balance-chip.is-low {
+  border-color: var(--color-warning);
+  animation: balanceLowPulse 2s ease-in-out infinite;
+}
+
+.balance-chip.is-low .balance-icon {
+  color: var(--color-warning);
 }
 
 /* Bottom Sheet */
@@ -347,13 +371,222 @@
   font-size: 15px;
 }
 
-/* Cards */
-.card {
-  background: var(--color-bg-secondary);
+/* =============================================
+   LIVE TRACKING SHEET — Premium Upgrade
+   ============================================= */
+
+/* Rider info row in live tracking sheet */
+.rider-info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+}
+
+.rider-info-row .rider-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-accent-dim);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.rider-info-row .rider-info-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.rider-info-row .rider-info-details strong {
+  display: block;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  margin-bottom: 1px;
+}
+
+.rider-info-row .rider-info-details span {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.rider-info-row .rider-vehicle-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(250, 204, 21, 0.15);
+  color: var(--color-rider);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ride-details .rider-info-row,
+.ride-details .eta-countdown {
+  grid-column: 1 / -1;
+}
+
+/* ETA Countdown */
+.eta-countdown {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+}
+
+.eta-countdown .eta-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-student);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.eta-countdown .eta-text {
+  flex: 1;
+}
+
+.eta-countdown .eta-text strong {
+  display: block;
+  font-size: 18px;
+  font-family: 'Syne', sans-serif;
+  color: var(--color-text-primary);
+}
+
+.eta-countdown .eta-text span {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.eta-countdown.is-waiting {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.18);
+}
+
+/* Animated status text for waiting/active states */
+.status-text-animated {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.status-text-animated .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: statusPulse 1.5s ease-in-out infinite;
+}
+
+/* Keke moving icon on map */
+.keke-moving-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-rider);
+  font-weight: 600;
+}
+
+.keke-moving-icon i {
+  animation: kekeBounce 0.8s ease-in-out infinite;
+}
+
+.map-keke-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(10, 10, 10, 0.78);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  color: var(--color-rider);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+/* Cards — Glassmorphic System */
+.card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
   padding: var(--space-md);
   box-shadow: var(--shadow-card);
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-card-elevated);
+}
+
+.card:active {
+  transform: scale(0.98);
+}
+
+/* Student-tinted glass card */
+.card-student {
+  background: var(--glass-student-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-student-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-md);
+  box-shadow: var(--shadow-student);
+  transition: all 0.2s ease;
+}
+
+.card-student:hover {
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.card-student:active {
+  transform: scale(0.98);
+}
+
+/* Rider-tinted glass card */
+.card-rider {
+  background: var(--glass-rider-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-rider-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-md);
+  box-shadow: var(--shadow-rider);
+  transition: all 0.2s ease;
+}
+
+.card-rider:hover {
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.card-rider:active {
+  transform: scale(0.98);
 }
 
 .card-accent {
@@ -376,11 +609,18 @@
 }
 
 .ride-form-card {
-  background: var(--color-bg-secondary);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   padding: 24px;
-  border-radius: 24px;
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-card);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--glass-border);
+  transition: all 0.2s ease;
+}
+
+.ride-form-card:hover {
+  box-shadow: var(--shadow-card-elevated);
 }
 
 .ride-form-card h3 {
@@ -1008,6 +1248,20 @@ select.input-field option {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   box-shadow: var(--shadow-bottom-nav);
+  overflow: hidden;
+}
+
+/* Animated active pill */
+.nav-active-pill {
+  position: absolute;
+  top: 4px;
+  height: calc(var(--bottom-nav-height) - 8px);
+  background: var(--color-accent-dim);
+  border-radius: var(--radius-md);
+  transition: left var(--duration-normal) var(--ease-smooth),
+              width var(--duration-normal) var(--ease-smooth);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .nav-tab, .nav-item {
@@ -1025,6 +1279,7 @@ select.input-field option {
   position: relative;
   flex: 1;
   height: 100%;
+  z-index: 1;
 }
 
 .nav-tab:active, .nav-item:active {
@@ -1050,16 +1305,32 @@ select.input-field option {
   color: var(--color-accent);
 }
 
+/* Remove old ::before active indicator (replaced by pill) */
 .nav-tab.active::before, .nav-item.active::before {
-  content: '';
+  display: none;
+}
+
+/* Notification dot on Live tab */
+.nav-tab .notif-dot,
+.nav-item .notif-dot {
   position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 2px;
-  background: var(--color-accent);
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  top: 6px;
+  right: calc(50% - 16px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-error);
+  border: 2px solid var(--color-nav-bg);
+  opacity: 0;
+  transform: scale(0);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.nav-tab .notif-dot.visible,
+.nav-item .notif-dot.visible {
+  opacity: 1;
+  transform: scale(1);
+  animation: notifDotPulse 1.5s ease-in-out infinite;
 }
 
 /* Toast */
@@ -1068,11 +1339,13 @@ select.input-field option {
   top: calc(var(--header-height) + 8px);
   left: var(--space-md);
   right: var(--space-md);
-  z-index: 1000;
+  z-index: 10000;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
   pointer-events: none;
+  max-width: 400px;
+  margin: 0 auto;
 }
 
 .toast {
@@ -1080,24 +1353,117 @@ select.input-field option {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 12px var(--space-md);
+  padding-bottom: 16px;
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  box-shadow: var(--shadow-card);
-  animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: toastSlideIn 0.4s var(--ease-spring);
   font-family: 'DM Sans', sans-serif;
   font-size: 13px;
   pointer-events: all;
   color: var(--color-text-primary);
-  opacity: 0;
-  transition: opacity 0.3s;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
-.toast.show { opacity: 1; }
-.toast.success { border-left: 3px solid var(--color-success); }
-.toast.error   { border-left: 3px solid var(--color-error); }
-.toast.warning { border-left: 3px solid var(--color-warning); }
-.toast.info    { border-left: 3px solid var(--color-info); }
+.toast:active {
+  cursor: grabbing;
+}
+
+.toast .toast-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.toast .toast-icon.success {
+  background: rgba(0, 196, 140, 0.15);
+  color: var(--color-success);
+}
+
+.toast .toast-icon.error {
+  background: rgba(255, 77, 77, 0.15);
+  color: var(--color-error);
+}
+
+.toast .toast-icon.warning {
+  background: rgba(255, 184, 0, 0.15);
+  color: var(--color-warning);
+}
+
+.toast .toast-icon.info {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--color-info);
+}
+
+.toast .toast-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.toast .toast-close-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-bg-tertiary);
+  border: none;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.toast .toast-close-btn:hover {
+  opacity: 1;
+}
+
+.toast .toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: currentColor;
+  opacity: 0.25;
+}
+
+.toast.success .toast-progress { background: var(--color-success); }
+.toast.error .toast-progress   { background: var(--color-error); }
+.toast.warning .toast-progress { background: var(--color-warning); }
+.toast.info .toast-progress    { background: var(--color-info); }
+
+.toast.dismissing {
+  opacity: 0;
+  transform: translateX(100%) scale(0.9);
+  transition: opacity 0.25s ease, transform 0.3s ease;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 
 /* Dialogs */
 .dialog-overlay {

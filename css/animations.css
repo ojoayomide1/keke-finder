@@ -1,6 +1,6 @@
 /* Fade in on page load */
 .fade-in {
-  animation: fadeInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: fadeInUp 0.4s var(--ease-spring) both;
 }
 
 @keyframes fadeInUp {
@@ -15,13 +15,245 @@
 }
 
 /* Staggered children */
-.fade-in:nth-child(1) { animation-delay: 0ms; }
-.fade-in:nth-child(2) { animation-delay: 60ms; }
-.fade-in:nth-child(3) { animation-delay: 120ms; }
-.fade-in:nth-child(4) { animation-delay: 180ms; }
-.fade-in:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 420ms; }
 
-/* Page transitions */
+/* Slide-in from below (for cards on view load) */
+.slide-in-up {
+  animation: slideInUp 0.5s var(--ease-smooth) both;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Tab content crossfade */
+.tab-fade-out {
+  animation: tabFadeOut 0.15s ease forwards;
+}
+
+.tab-fade-in {
+  animation: tabFadeIn 0.3s var(--ease-smooth) both;
+}
+
+@keyframes tabFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Active nav pill animation */
+@keyframes pillSlide {
+  from { transform: translateX(var(--pill-from)); }
+  to { transform: translateX(var(--pill-to)); }
+}
+
+/* Ripple effect */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect .ripple-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  width: 100px;
+  height: 100px;
+  transform: scale(0);
+  animation: ripple 0.5s ease-out;
+  pointer-events: none;
+}
+
+/* Toast progress bar */
+@keyframes toastProgress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  animation: toastProgress var(--toast-duration, 3s) linear forwards;
+}
+
+/* Balance counter animation */
+@keyframes balancePop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.08); }
+  60% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+.balance-animate {
+  animation: balancePop 0.4s var(--ease-spring);
+}
+
+/* Low balance pulse/glow */
+@keyframes balanceLowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 184, 0, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(255, 184, 0, 0); }
+}
+
+.balance-low-pulse {
+  animation: balanceLowPulse 2s ease-in-out infinite;
+}
+
+/* Animated gradient background for auth */
+@keyframes authGradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.auth-gradient-bg {
+  background: linear-gradient(
+    135deg,
+    #0a0a14 0%,
+    #0f0f1e 25%,
+    #0a0a18 50%,
+    #12122a 75%,
+    #0a0a14 100%
+  );
+  background-size: 400% 400%;
+  animation: authGradientShift 12s ease infinite;
+}
+
+/* Animated gradient blobs for auth screen */
+@keyframes blobDrift1 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(40px, -30px, 0) scale(1.1); }
+  66% { transform: translate3d(-20px, 20px, 0) scale(0.95); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes blobDrift2 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(-30px, 40px, 0) scale(1.15); }
+  66% { transform: translate3d(50px, -10px, 0) scale(0.9); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes blobDrift3 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(30px, 30px, 0) scale(1.05); }
+  66% { transform: translate3d(-40px, -20px, 0) scale(1.1); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* Status pulse for live tracking */
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.status-pulse-text {
+  animation: statusPulse 1.5s ease-in-out infinite;
+}
+
+/* Role select card spring animation */
+@keyframes roleCardSpring {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.role-card-spring {
+  animation: roleCardSpring 0.6s var(--ease-spring) both;
+}
+
+.role-card-spring:nth-of-type(1) { animation-delay: 0.1s; }
+.role-card-spring:nth-of-type(2) { animation-delay: 0.25s; }
+
+/* Keke moving animation */
+@keyframes kekeBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.keke-moving {
+  animation: kekeBounce 0.8s ease-in-out infinite;
+}
+
+/* Notification dot pulse */
+@keyframes notifDotPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.8; }
+}
+
+.notif-dot-active {
+  animation: notifDotPulse 1.5s ease-in-out infinite;
+}
+
+/* Pull-to-refresh spinner */
+@keyframes pullSpinner {
+  to { transform: rotate(360deg); }
+}
+
+.pull-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: pullSpinner 0.7s linear infinite;
+}
+
+
+.pull-refresh-indicator {
+  height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  transition: height 0.2s var(--ease-smooth), opacity 0.2s ease;
+  opacity: 0;
+}
+
+.pull-refresh-indicator.visible {
+  height: 44px;
+  opacity: 1;
+}/* Page transitions */
 .page {
   animation: pageIn 0.25s ease both;
 }

@@ -97,24 +97,105 @@ export function showToast(message, type = "info", duration = 3000) {
       return c;
     })();
 
-  const toast = document.createElement("div");
-  toast.className = `toast ${type}`;
-
   const icons = {
-    success: "✅", error: "❌", warning: "⚠️", info: "ℹ️"
+    success: "fa-check-circle",
+    error: "fa-exclamation-circle",
+    warning: "fa-exclamation-triangle",
+    info: "fa-info-circle"
   };
 
-  toast.innerHTML = `<span>${icons[type] || "ℹ️"}</span><span>${message}</span>`;
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.setAttribute("role", "alert");
+
+  const iconEl = document.createElement("span");
+  iconEl.className = `toast-icon ${type}`;
+  iconEl.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i>`;
+
+  const textEl = document.createElement("span");
+  textEl.className = "toast-text";
+  textEl.textContent = message;
+
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "toast-close-btn";
+  closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+  closeBtn.setAttribute("aria-label", "Dismiss");
+  closeBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dismissToast(toast);
+  });
+
+  const progressBar = document.createElement("div");
+  progressBar.className = "toast-progress";
+  progressBar.style.setProperty("--toast-duration", `${duration}ms`);
+  progressBar.style.animationDuration = `${duration}ms`;
+
+  toast.appendChild(iconEl);
+  toast.appendChild(textEl);
+  toast.appendChild(closeBtn);
+  toast.appendChild(progressBar);
   container.appendChild(toast);
 
-  // Trigger animation
-  setTimeout(() => toast.classList.add("show"), 10);
+  // Swipe to dismiss
+  let swipeStartX = 0;
+  let swiped = false;
 
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => toast.remove(), 300);
+  toast.addEventListener("pointerdown", (e) => {
+    swipeStartX = e.clientX;
+    swiped = false;
+    toast.style.transition = "none";
+  });
+
+  toast.addEventListener("pointermove", (e) => {
+    if (!swipeStartX) return;
+    const deltaX = e.clientX - swipeStartX;
+    if (Math.abs(deltaX) > 15) {
+      swiped = true;
+      toast.style.transform = `translateX(${deltaX}px)`;
+      toast.style.opacity = Math.max(0, 1 - Math.abs(deltaX) / 200);
+    }
+  });
+
+  toast.addEventListener("pointerup", (e) => {
+    const deltaX = e.clientX - swipeStartX;
+    toast.style.transition = "opacity 0.25s ease, transform 0.3s ease";
+    swipeStartX = 0;
+    if (swiped && Math.abs(deltaX) > 60) {
+      dismissToast(toast);
+    } else {
+      toast.style.transform = "";
+      toast.style.opacity = "";
+    }
+  });
+
+  toast.addEventListener("pointerleave", () => {
+    if (swipeStartX) {
+      toast.style.transition = "opacity 0.25s ease, transform 0.3s ease";
+      toast.style.transform = "";
+      toast.style.opacity = "";
+      swipeStartX = 0;
+    }
+  });
+
+  const autoDismissTimer = setTimeout(() => {
+    dismissToast(toast);
   }, duration);
+
+  toast._dismissTimer = autoDismissTimer;
+
+  function dismissToast(el) {
+    if (el._dismissed) return;
+    el._dismissed = true;
+    clearTimeout(el._dismissTimer);
+    el.classList.add("dismissing");
+    setTimeout(() => {
+      if (el.parentNode) el.remove();
+    }, 300);
+  }
 }
+
+// Attach to window for global access
+window.showToast = showToast;
 
 export function setButtonVisible(id, visible) {
   const btn = document.getElementById(id);

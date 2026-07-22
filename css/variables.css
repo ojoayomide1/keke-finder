@@ -11,6 +11,14 @@
   --color-accent-dim:     #FF5E1A26; /* orange at 15% opacity — subtle backgrounds */
   --color-accent-hover:   #FF7A3D;  /* lighter orange for hover states */
 
+  /* Role-specific brand colors */
+  --color-student:        #3B82F6;  /* blue for student UI */
+  --color-student-dim:    #3B82F620;
+  --color-student-glow:   rgba(59, 130, 246, 0.25);
+  --color-rider:          #F59E0B;  /* amber/gold for rider UI */
+  --color-rider-dim:      #F59E0B20;
+  --color-rider-glow:     rgba(245, 158, 11, 0.25);
+
   /* Text */
   --color-text-primary:   #FFFFFF;  /* headings, important content */
   --color-text-secondary: #999999;  /* labels, captions, secondary info */
@@ -28,8 +36,20 @@
 
   /* Shadows */
   --shadow-card:          0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-card-elevated: 0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-bottom-nav:    0 -4px 24px rgba(0, 0, 0, 0.6);
   --shadow-accent:        0 4px 20px rgba(255, 94, 26, 0.3);
+  --shadow-student:       0 8px 32px rgba(59, 130, 246, 0.15);
+  --shadow-rider:         0 8px 32px rgba(245, 158, 11, 0.15);
+
+  /* Glassmorphic surfaces */
+  --glass-bg:             rgba(26, 26, 26, 0.65);
+  --glass-border:         rgba(255, 255, 255, 0.08);
+  --glass-blur:           blur(16px);
+  --glass-student-bg:     linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(26, 26, 26, 0.7));
+  --glass-student-border: rgba(59, 130, 246, 0.18);
+  --glass-rider-bg:       linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(26, 26, 26, 0.7));
+  --glass-rider-border:   rgba(245, 158, 11, 0.18);
 
   /* Spacing & Layout */
   --space-xs:   4px;
@@ -42,11 +62,20 @@
   --radius-sm:  8px;
   --radius-md:  12px;
   --radius-lg:  20px;
+  --radius-xl:  24px;
   --radius-full: 9999px;
 
   --bottom-nav-height: 54px;
   --header-height:     60px;
   --safe-area-bottom:  clamp(0px, env(safe-area-inset-bottom, 0px), 20px);
+
+  /* Animation timings */
+  --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out:       cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast:  0.15s;
+  --duration-normal: 0.25s;
+  --duration-slow:  0.4s;
 
   /* Admin Additions */
   --admin-bg:        #080808;
@@ -69,8 +98,18 @@ body.light-theme {
   --color-border:         #E1E6EF;
 
   --shadow-card:          0 4px 24px rgba(17, 24, 39, 0.08);
+  --shadow-card-elevated: 0 8px 32px rgba(17, 24, 39, 0.12);
   --shadow-bottom-nav:    0 -4px 24px rgba(17, 24, 39, 0.1);
   --shadow-accent:        0 4px 20px rgba(255, 94, 26, 0.22);
+  --shadow-student:       0 8px 32px rgba(59, 130, 246, 0.1);
+  --shadow-rider:         0 8px 32px rgba(245, 158, 11, 0.1);
+
+  --glass-bg:             rgba(255, 255, 255, 0.7);
+  --glass-border:         rgba(255, 255, 255, 0.5);
+  --glass-student-bg:     linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(255, 255, 255, 0.75));
+  --glass-student-border: rgba(59, 130, 246, 0.15);
+  --glass-rider-bg:       linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(255, 255, 255, 0.75));
+  --glass-rider-border:   rgba(245, 158, 11, 0.15);
 
   --admin-bg:        #F6F7F9;
   --admin-surface:   #FFFFFF;
