@@ -21,7 +21,8 @@ let riderTransactions = [];
 let riderWithdrawals = [];
 let riderHistoryTab = "earnings";
 let displayedRiderBalance = 0;
-let riderBalanceAnimationFrame = null;`r`nlet riderPullRefreshBound = false;
+let riderBalanceAnimationFrame = null;
+let riderPullRefreshBound = false;
 
 export function listenToRiderWallet() {
   if (!state.currentUser?.uid || state.currentUser?.role !== "rider") return;

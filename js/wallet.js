@@ -26,7 +26,8 @@ let selectedTopUpAmount = 1000;
 let studentTransactions = [];
 let walletTransactionFilter = "all";
 let displayedWalletBalance = 0;
-let balanceAnimationFrame = null;`r`nlet pullRefreshBound = false;
+let balanceAnimationFrame = null;
+let pullRefreshBound = false;
 
 export function formatNaira(kobo = 0) {
   return new Intl.NumberFormat("en-NG", {
