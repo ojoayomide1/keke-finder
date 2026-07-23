@@ -930,6 +930,62 @@ async function confirmDeleteAccount() {
     showToast("Could not delete account right now", "error");
   }
 }
+
+function openHelpModal() {
+  const modal = document.getElementById("helpModal");
+  if (modal) modal.classList.remove("hidden");
+}
+
+function closeHelpModal() {
+  const modal = document.getElementById("helpModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+async function handleSupportRequestSubmit(e) {
+  e.preventDefault();
+  
+  const submitBtn = document.getElementById("submitIssueBtn");
+  const form = document.getElementById("reportIssueForm");
+  const categorySelect = document.getElementById("issueCategory");
+  const subjectInput = document.getElementById("issueSubject");
+  const descriptionInput = document.getElementById("issueDescription");
+  
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+  
+  submitBtn.classList.add("loading");
+  submitBtn.disabled = true;
+  
+  try {
+    const user = state.currentUser || {};
+    const supportRequest = {
+      userId: user.uid || (user.isGuest ? "guest" : "unknown"),
+      userName: user.displayName || user.name || (user.isGuest ? "Guest" : "Unknown"),
+      userEmail: user.email || (user.isGuest ? "guest@example.com" : "unknown"),
+      userRole: user.role || "student",
+      category: categorySelect.value,
+      subject: subjectInput.value.trim(),
+      description: descriptionInput.value.trim(),
+      createdAt: serverTimestamp(),
+      status: "open"
+    };
+    
+    await addDoc(collection(db, "support_requests"), supportRequest);
+    showToast("Support report submitted successfully!", "success");
+    
+    form.reset();
+    closeHelpModal();
+  } catch (err) {
+    console.error("Failed to submit support request:", err);
+    showToast("Failed to submit report. Please try again.", "error");
+  } finally {
+    submitBtn.classList.remove("loading");
+    submitBtn.disabled = false;
+  }
+}
+
 function bindAppGlobals() {
   window.switchTab = switchTab;
   window.toggleSidebar = toggleSidebar;
@@ -947,6 +1003,8 @@ function bindAppGlobals() {
   window.resetPathfinder = resetPathfinder;
   window.completePathfinderSession = completePathfinderSession;
   window.openLegalModal = openLegalModal;
+  window.openHelpModal = openHelpModal;
+  window.closeHelpModal = closeHelpModal;
   window.confirmDeleteAccount = confirmDeleteAccount;
   window.updateNavPill = updateNavPill;
   window.initNavPills = initNavPills;
@@ -1340,6 +1398,18 @@ window.updateRideUI = (ride) => {
 
 // ================= INIT =================
 window.addEventListener("load", () => {
+  const helpModalElement = document.getElementById("helpModal");
+  if (helpModalElement) {
+    helpModalElement.addEventListener("click", (e) => {
+      if (e.target.id === "helpModal") closeHelpModal();
+    });
+  }
+
+  const reportFormElement = document.getElementById("reportIssueForm");
+  if (reportFormElement) {
+    reportFormElement.addEventListener("submit", handleSupportRequestSubmit);
+  }
+
   initAuth({
     onUserChanged: async (user) => {
       if (user) {

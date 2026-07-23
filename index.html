@@ -538,8 +538,7 @@
           <div class="settings-item"><span class="settings-label-with-icon"><i class="fas fa-adjust settings-icon"></i><span>Dark Mode</span></span><label class="theme-switch" aria-label="Toggle dark mode"><input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)"><span></span></label></div>
           <div class="settings-item" onclick="openLegalModal('privacy')"><span class="settings-label-with-icon"><i class="fas fa-user-shield settings-icon"></i><span>Privacy Policy</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
           <div class="settings-item" onclick="openLegalModal('terms')"><span class="settings-label-with-icon"><i class="fas fa-file-contract settings-icon"></i><span>Terms of Service</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
-          <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Support"><span class="settings-label-with-icon"><i class="fas fa-envelope settings-icon"></i><span>Contact Support</span></span><strong>Email</strong></a>
-          <a class="settings-item settings-link-item" href="https://wa.me/2349070707363" target="_blank" rel="noopener"><span class="settings-label-with-icon"><i class="fab fa-whatsapp settings-icon"></i><span>WhatsApp Support</span></span><strong>09070707363</strong></a>
+          <div class="settings-item" onclick="openHelpModal()"><span class="settings-label-with-icon"><i class="fas fa-question-circle settings-icon"></i><span>Help & Support</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
           <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Feedback"><span class="settings-label-with-icon"><i class="fas fa-star settings-icon"></i><span>Rate the App</span></span><i class="fas fa-chevron-right arrow-icon"></i></a>
           <div class="settings-item hidden" id="adminLinkStudent" onclick="window.location.href='/admin.html'"><span class="settings-label-with-icon" style="color: #22c55e;"><i class="fas fa-shield-alt settings-icon"></i><strong style="font-weight: 600;">Admin Dashboard</strong></span><i class="fas fa-chevron-right arrow-icon" style="color: #22c55e;"></i></div>
           <div class="settings-item no-clickable"><span class="settings-label-with-icon"><i class="fas fa-info-circle settings-icon"></i><span>App Version</span></span><strong class="app-version-badge">1.2.1</strong></div>
@@ -773,8 +772,7 @@
         <div class="settings-list profile-settings-list">
           <div class="settings-item" onclick="openLegalModal('privacy')"><span class="settings-label-with-icon"><i class="fas fa-user-shield settings-icon"></i><span>Privacy Policy</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
           <div class="settings-item" onclick="openLegalModal('terms')"><span class="settings-label-with-icon"><i class="fas fa-file-contract settings-icon"></i><span>Terms of Service</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
-          <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Support"><span class="settings-label-with-icon"><i class="fas fa-envelope settings-icon"></i><span>Contact Support</span></span><strong>Email</strong></a>
-          <a class="settings-item settings-link-item" href="https://wa.me/2349070707363" target="_blank" rel="noopener"><span class="settings-label-with-icon"><i class="fab fa-whatsapp settings-icon"></i><span>WhatsApp Support</span></span><strong>09070707363</strong></a>
+          <div class="settings-item" onclick="openHelpModal()"><span class="settings-label-with-icon"><i class="fas fa-question-circle settings-icon"></i><span>Help & Support</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
           <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Feedback"><span class="settings-label-with-icon"><i class="fas fa-star settings-icon"></i><span>Rate the App</span></span><i class="fas fa-chevron-right arrow-icon"></i></a>
           <div class="settings-item hidden" id="adminLinkRider" onclick="window.location.href='/admin.html'"><span class="settings-label-with-icon" style="color: #22c55e;"><i class="fas fa-shield-alt settings-icon"></i><strong style="font-weight: 600;">Admin Dashboard</strong></span><i class="fas fa-chevron-right arrow-icon" style="color: #22c55e;"></i></div>
           <div class="settings-item no-clickable"><span class="settings-label-with-icon"><i class="fas fa-info-circle settings-icon"></i><span>App Version</span></span><strong class="app-version-badge">1.2.1</strong></div>
@@ -808,6 +806,91 @@
         <span>Profile</span>
       </button>
       </nav>
+  </div>
+
+  <!-- Help & Support Modal -->
+  <div id="helpModal" class="dialog-overlay hidden" style="z-index: 4000;">
+    <div class="dialog-sheet help-sheet">
+      <div class="dialog-handle"></div>
+      <div class="help-modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+        <h3 class="dialog-title" style="margin-bottom: 0;">Help & Support</h3>
+        <button class="iconBtn" onclick="closeHelpModal()" style="border: none; background: transparent; font-size: 1.2rem; cursor: pointer; color: var(--color-text-secondary); padding: var(--space-xs); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-height: unset;"><i class="fas fa-times"></i></button>
+      </div>
+
+      <div class="help-modal-body" style="flex: 1; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column;">
+        <!-- FAQ Accordion -->
+        <h4 style="font-family: 'Syne', sans-serif; font-size: 16px; margin: 0 0 var(--space-sm) 0; color: var(--color-text-primary);">Frequently Asked Questions</h4>
+        <div class="faq-accordion">
+          <details class="faq-item">
+            <summary class="faq-summary">How does pricing work?</summary>
+            <div class="faq-content">
+              Flat rate pricing is determined by the route and distance between campus landmarks. You will see the exact fare before requesting a ride, and it will be deducted from your wallet balance.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">What if my keke doesn't show?</summary>
+            <div class="faq-content">
+              If a rider is assigned but doesn't arrive within a reasonable time, you can cancel the ride and request another. If your wallet is charged incorrectly, please report it via the form below or contact support.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">How do I fund my wallet?</summary>
+            <div class="faq-content">
+              Go to the "Wallet" tab from your profile and click "Top Up". You can securely fund your wallet using Paystack with your card, bank transfer, or USSD.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">Can I cancel a ride?</summary>
+            <div class="faq-content">
+              Yes, you can cancel a ride before it starts. There are no cancellation fees, but we request that you cancel as early as possible so riders can pick up other passengers.
+            </div>
+          </details>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid var(--color-border); margin: var(--space-lg) 0;" />
+
+        <!-- Report an Issue Form -->
+        <h4 style="font-family: 'Syne', sans-serif; font-size: 16px; margin: 0 0 var(--space-sm) 0; color: var(--color-text-primary);">Report an Issue</h4>
+        <form id="reportIssueForm" style="display: flex; flex-direction: column; gap: var(--space-sm);">
+          <div class="input-group">
+            <label for="issueCategory" style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px; display: block;">Category</label>
+            <select id="issueCategory" class="input-field" required style="background-image: none;">
+              <option value="" disabled selected>Select category</option>
+              <option value="ride_issue">Ride Issue</option>
+              <option value="payment_wallet">Payment & Wallet</option>
+              <option value="app_bug">App Bug / Technical</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label for="issueSubject" style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px; display: block;">Subject</label>
+            <input type="text" id="issueSubject" class="input-field" placeholder="Brief summary of the issue" required autocomplete="off" />
+          </div>
+          <div class="input-group">
+            <label for="issueDescription" style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px; display: block;">Description</label>
+            <textarea id="issueDescription" class="input-field" rows="4" placeholder="Please describe the issue in detail" required style="resize: vertical; min-height: 80px;"></textarea>
+          </div>
+          <button type="submit" id="submitIssueBtn" class="btn btn-primary" style="margin-top: var(--space-sm); min-height: 48px;">
+            <span>Submit Report</span>
+          </button>
+        </form>
+
+        <hr style="border: 0; border-top: 1px solid var(--color-border); margin: var(--space-lg) 0;" />
+
+        <!-- Contact Support Links -->
+        <h4 style="font-family: 'Syne', sans-serif; font-size: 16px; margin: 0 0 var(--space-sm) 0; color: var(--color-text-primary);">Still need help?</h4>
+        <div style="display: flex; flex-direction: column; gap: var(--space-sm); margin-bottom: var(--space-md);">
+          <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Support" style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-md); background: var(--color-bg-tertiary); border: 1px solid var(--color-border); border-radius: var(--radius-md); text-decoration: none; color: var(--color-text-primary); transition: all var(--duration-fast);">
+            <span class="settings-label-with-icon" style="display: flex; align-items: center; gap: var(--space-sm);"><i class="fas fa-envelope settings-icon" style="color: var(--color-accent);"></i><span>Email Support</span></span>
+            <strong style="color: var(--color-text-secondary); font-weight: 500; font-size: 14px;">ojopraise423@gmail.com</strong>
+          </a>
+          <a class="settings-item settings-link-item" href="https://wa.me/2349070707363" target="_blank" rel="noopener" style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-md); background: var(--color-bg-tertiary); border: 1px solid var(--color-border); border-radius: var(--radius-md); text-decoration: none; color: var(--color-text-primary); transition: all var(--duration-fast);">
+            <span class="settings-label-with-icon" style="display: flex; align-items: center; gap: var(--space-sm);"><i class="fab fa-whatsapp settings-icon" style="color: #25D366;"></i><span>WhatsApp Support</span></span>
+            <strong style="color: var(--color-text-secondary); font-weight: 500; font-size: 14px;">09070707363</strong>
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>

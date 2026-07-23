@@ -212,6 +212,22 @@ service cloud.firestore {
         );
     }
 
+    function validSupportRequestCreate() {
+      return request.resource.data.keys().hasOnly(["userId", "userName", "userEmail", "userRole", "category", "subject", "description", "createdAt", "status"])
+        && (
+          (request.auth != null && request.resource.data.userId == request.auth.uid) ||
+          (request.auth == null && request.resource.data.userId == "guest")
+        )
+        && validShortString(request.resource.data.userName, 100)
+        && validShortString(request.resource.data.userEmail, 100)
+        && request.resource.data.userRole in ["student", "rider"]
+        && request.resource.data.category in ["ride_issue", "payment_wallet", "app_bug", "other"]
+        && validShortString(request.resource.data.subject, 200)
+        && validShortString(request.resource.data.description, 2000)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.status == "open";
+    }
+
     function validAdminWalletUpdate() {
       return isRider()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["balance", "totalEarned", "lastUpdated"])
@@ -566,6 +582,12 @@ service cloud.firestore {
     match /topUpRequests/{requestId} {
       allow get, list: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
       allow write: if false;
+    }
+
+    match /support_requests/{requestId} {
+      allow create: if validSupportRequestCreate();
+      allow get, list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
   }
 }
