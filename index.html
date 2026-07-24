@@ -189,11 +189,6 @@
     <!-- Home / VeriRide Section -->
     <div id="studentDashboard" class="dashboard-container tab-view">
       <main class="dashboard-body fade-in">
-        <div class="welcome-section">
-          <p class="welcome-greeting">Good morning ☀️</p>
-          <h1 class="welcome-name" id="welcome-name-student">Student<span>.</span></h1>
-        </div>
-
         <!-- Active Ride Banner (Hidden by default) -->
         <div id="activeRideBanner" class="active-ride-banner ride-pulse hidden" onclick="switchTab('live')">
           <div class="active-ride-banner-left">
@@ -272,10 +267,6 @@
           <div>
             <span>This week</span>
             <strong id="walletWeeklySpend">You spent &#8358;0 on 0 rides</strong>
-          </div>
-          <div>
-            <span>Average ride</span>
-            <strong id="walletAverageRide">&#8358;0</strong>
           </div>
         </div>
         <div id="walletTransactionsHeader" class="wallet-transactions-header">
@@ -487,9 +478,9 @@
       <div class="profile-content">
         <div class="profile-card premium-profile-card">
           <div class="profile-avatar profile-avatar-gradient" id="profileAvatar">ST</div>
+          <span class="role-badge role-badge-student">Student</span>
           <div class="profile-title-row">
             <h3 id="profileName">Student Name</h3>
-            <span class="role-badge role-badge-student">Student</span>
           </div>
           <p id="profileEmail">email@example.com</p>
         </div>
@@ -609,11 +600,6 @@
     <!-- Home Section -->
     <div id="riderDashboard" class="dashboard-container tab-view">
       <main class="dashboard-body fade-in">
-        <div class="welcome-section">
-          <p class="welcome-greeting">Good evening 🌙</p>
-          <h1 class="welcome-name" id="welcome-name-rider">Rider<span>.</span></h1>
-        </div>
-
         <div class="earnings-progress-card">
           <div class="earnings-progress-label">Today's Earnings</div>
           <div class="earnings-progress-value" id="riderDashEarnings">₦0</div>
@@ -685,14 +671,6 @@
             <span>Rides Completed</span>
             <strong id="riderWeeklyRides">0</strong>
           </div>
-          <div>
-            <span>Passengers Served</span>
-            <strong id="riderWeeklyPassengers">0</strong>
-          </div>
-          <div>
-            <span>Average Per Ride</span>
-            <strong id="riderAverageEarning">&#8358;0</strong>
-          </div>
         </div>
         <div class="wallet-transactions-header">
           <h3 class="section-title" id="riderEarningsSectionTitle">Earnings History</h3>
@@ -732,9 +710,9 @@
       <div class="profile-content">
         <div class="profile-card premium-profile-card">
           <div class="profile-avatar profile-avatar-gradient" id="riderProfileAvatar">RD</div>
+          <span class="role-badge role-badge-rider">Rider</span>
           <div class="profile-title-row">
             <h3 id="riderProfileName">Rider Name</h3>
-            <span class="role-badge role-badge-rider">Rider</span>
           </div>
           <p id="riderProfileEmail">email@example.com</p>
         </div>
@@ -750,9 +728,8 @@
 
         <div class="profile-info-card">
           <div class="profile-section-heading">Rider Stats</div>
-          <div class="profile-stats-grid profile-stats-grid-three">
+          <div class="profile-stats-grid">
             <div class="profile-stat"><span>Rides completed</span><strong id="riderProfileTotalRides">0</strong></div>
-            <div class="profile-stat"><span>Passengers served</span><strong id="riderProfilePassengers">0</strong></div>
             <div class="profile-stat"><span>All-time earned</span><strong id="riderProfileTotalEarned">&#8358;0</strong></div>
           </div>
         </div>
@@ -820,11 +797,11 @@
       <div class="help-modal-body" style="flex: 1; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column;">
         <!-- FAQ Accordion -->
         <h4 style="font-family: 'Syne', sans-serif; font-size: 16px; margin: 0 0 var(--space-sm) 0; color: var(--color-text-primary);">Frequently Asked Questions</h4>
-        <div class="faq-accordion">
+        <div class="faq-accordion" id="studentFaqAccordion">
           <details class="faq-item">
             <summary class="faq-summary">How does pricing work?</summary>
             <div class="faq-content">
-              Flat rate pricing is determined by the route and distance between campus landmarks. You will see the exact fare before requesting a ride, and it will be deducted from your wallet balance.
+              Rides are a flat rate of <strong>₦150 per trip</strong> when paying with your OpRides wallet. The exact fare will always be shown before you confirm your request. Other payment options will be added soon.
             </div>
           </details>
           <details class="faq-item">
@@ -836,13 +813,57 @@
           <details class="faq-item">
             <summary class="faq-summary">How do I fund my wallet?</summary>
             <div class="faq-content">
-              Go to the "Wallet" tab from your profile and click "Top Up". You can securely fund your wallet using Paystack with your card, bank transfer, or USSD.
+              Go to the "Wallet" tab and tap "Top Up". You can securely fund your wallet via bank transfer using Paystack. For the fastest top-up, select <strong>Bank Transfer</strong> when prompted.
             </div>
           </details>
           <details class="faq-item">
             <summary class="faq-summary">Can I cancel a ride?</summary>
             <div class="faq-content">
-              Yes, you can cancel a ride before it starts. There are no cancellation fees, but we request that you cancel as early as possible so riders can pick up other passengers.
+              Yes, you can cancel a ride before it starts from the Live tab. There are no cancellation fees, but please cancel as early as possible so riders can pick up other passengers.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">What is the waiting queue?</summary>
+            <div class="faq-content">
+              If no keke is immediately available, you're placed in a queue. You'll be automatically matched to the next available rider. Your position is shown on the Live tab.
+            </div>
+          </details>
+        </div>
+        <div class="faq-accordion" id="riderFaqAccordion" style="display: none;">
+          <details class="faq-item">
+            <summary class="faq-summary">How do I start receiving ride requests?</summary>
+            <div class="faq-content">
+              Go to your Home tab and tap <strong>Go Online</strong>. Once you're online, the system will automatically match you with students requesting rides near your location.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">How much do I earn per ride?</summary>
+            <div class="faq-content">
+              You earn <strong>₦100 per passenger</strong> on each trip. The fare is ₦150 per student — ₦100 goes to you and ₦50 goes to OpRides as a platform fee.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">When do earnings reflect in my wallet?</summary>
+            <div class="faq-content">
+              Your earnings are credited instantly when a stop is marked complete. You can view your full earnings history in the Earnings tab.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">How do I withdraw my earnings?</summary>
+            <div class="faq-content">
+              Tap the <strong>Request Withdrawal</strong> button in your Earnings tab. Enter the amount, your bank name, account number, and account name. Withdrawals are processed within 24 hours.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">What happens if a student cancels?</summary>
+            <div class="faq-content">
+              If a student cancels before you arrive, the request is removed and you'll be matched with the next available student. There is no penalty on your end.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">Can I go offline mid-ride?</summary>
+            <div class="faq-content">
+              Please complete any active ride before going offline. Going offline with passengers on board may affect your standing on the platform.
             </div>
           </details>
         </div>

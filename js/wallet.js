@@ -222,8 +222,7 @@ function getFilteredStudentTransactions() {
 
 function renderSpendingSummary(transactions) {
   const weeklySpendEl = document.getElementById("walletWeeklySpend");
-  const averageRideEl = document.getElementById("walletAverageRide");
-  if (!weeklySpendEl && !averageRideEl) return;
+  if (!weeklySpendEl) return;
 
   const weekStart = new Date();
   weekStart.setHours(0, 0, 0, 0);
@@ -235,11 +234,8 @@ function renderSpendingSummary(transactions) {
     return date && date >= weekStart;
   });
   const weeklySpend = weeklyRides.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-  const totalRideSpend = rideTransactions.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-  const averageRide = rideTransactions.length ? Math.round(totalRideSpend / rideTransactions.length) : 0;
 
-  if (weeklySpendEl) weeklySpendEl.innerText = `You spent ${formatNaira(weeklySpend)} on ${weeklyRides.length} ride${weeklyRides.length === 1 ? "" : "s"}`;
-  if (averageRideEl) averageRideEl.innerText = formatNaira(averageRide);
+  weeklySpendEl.innerText = `You spent ${formatNaira(weeklySpend)} on ${weeklyRides.length} ride${weeklyRides.length === 1 ? "" : "s"}`;
 }
 
 function renderTransactionFilters() {

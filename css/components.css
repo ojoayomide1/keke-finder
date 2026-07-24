@@ -1177,6 +1177,23 @@ select.input-field option {
   -webkit-backdrop-filter: blur(18px);
 }
 
+/* Force readable text inside the dark glassmorphic earnings panel on both themes */
+.rider-earnings-panel span {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.rider-earnings-panel strong {
+  color: #ffffff !important;
+}
+
+.rider-earnings-panel b {
+  color: #ffffff !important;
+}
+
+.rider-earnings-panel button {
+  margin-top: 4px;
+}
+
 .rider-earnings-totals {
   display: grid;
   grid-template-columns: 1fr 1fr;

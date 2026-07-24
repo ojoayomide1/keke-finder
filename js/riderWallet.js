@@ -194,18 +194,12 @@ function getRideCount(transactions) {
 function renderRiderEarningsSummary() {
   const weeklyEarnedEl = document.getElementById("riderWeeklyEarned");
   const ridesEl = document.getElementById("riderWeeklyRides");
-  const passengersEl = document.getElementById("riderWeeklyPassengers");
-  const averageEl = document.getElementById("riderAverageEarning");
   const weeklyTransactions = getWeeklyEarningTransactions();
   const weeklyEarned = weeklyTransactions.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
   const ridesCompleted = getRideCount(weeklyTransactions);
-  const passengersServed = weeklyTransactions.length;
-  const average = ridesCompleted ? Math.round(weeklyEarned / ridesCompleted) : 0;
 
   if (weeklyEarnedEl) weeklyEarnedEl.innerText = formatNaira(weeklyEarned);
   if (ridesEl) ridesEl.innerText = String(ridesCompleted);
-  if (passengersEl) passengersEl.innerText = String(passengersServed);
-  if (averageEl) averageEl.innerText = formatNaira(average);
 }
 
 function renderRiderHistoryTabs() {
@@ -282,12 +276,9 @@ function renderRiderEarnings(transactions) {
         <b class="wallet-transaction-amount credit">+${formatNaira(tx.amount)}</b>
       </div>
       <div class="wallet-transaction-detail">
-        <div><span>Type</span><strong>Earning</strong></div>
+        <div><span>Amount</span><strong>+${formatNaira(tx.amount)}</strong></div>
         <div><span>Date</span><strong>${escapeHtml(formatFullTime(tx.createdAt))}</strong></div>
-        <div><span>Ride</span><strong>${escapeHtml(tx.rideId || "Not linked")}</strong></div>
-        <div><span>Status</span><strong>${escapeHtml(tx.status || "completed")}</strong></div>
-        <div><span>Balance before</span><strong>${formatNaira(tx.balanceBefore)}</strong></div>
-        <div><span>Balance after</span><strong>${formatNaira(tx.balanceAfter)}</strong></div>
+        <div><span>New balance</span><strong>${formatNaira(tx.balanceAfter)}</strong></div>
       </div>
     </button>
   `).join("");

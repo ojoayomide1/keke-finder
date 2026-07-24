@@ -30,7 +30,6 @@ import {
   setButtonVisible,
   showLoginScreen,
   initSplashScreen,
-  getGreeting,
   showConfirmDialog
 } from "./modules/ui.js";
 
@@ -590,16 +589,13 @@ async function renderRiderProfileStats() {
       where("riderId", "==", state.currentUser.uid)
     ));
     const rides = ridesSnap.docs.map(docSnap => docSnap.data()).filter(ride => ride.status === "completed");
-    const passengers = rides.reduce((sum, ride) => sum + Object.keys(ride.passengers || {}).length, 0);
     const earned = state.currentUser.earnings?.totalEarned || 0;
 
     setProfileText("riderProfileTotalRides", String(rides.length));
-    setProfileText("riderProfilePassengers", String(passengers));
     setProfileText("riderProfileTotalEarned", formatNaira(earned));
   } catch (err) {
     console.warn("Rider profile stats unavailable:", err.code || err.message);
     setProfileText("riderProfileTotalRides", "--");
-    setProfileText("riderProfilePassengers", "--");
   }
 }
 
@@ -933,7 +929,14 @@ async function confirmDeleteAccount() {
 
 function openHelpModal() {
   const modal = document.getElementById("helpModal");
-  if (modal) modal.classList.remove("hidden");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  // Show the correct FAQ for the current role
+  const isRider = state.currentRole === "rider";
+  const studentFaq = document.getElementById("studentFaqAccordion");
+  const riderFaq = document.getElementById("riderFaqAccordion");
+  if (studentFaq) studentFaq.style.display = isRider ? "none" : "";
+  if (riderFaq) riderFaq.style.display = isRider ? "" : "none";
 }
 
 function closeHelpModal() {
@@ -1210,9 +1213,6 @@ async function transitionToDashboard(user) {
     studentUI.classList.add("hidden");
     riderUI.classList.add("hidden");
 
-    const firstName = (user.displayName || "User").split(" ")[0];
-    const greeting = getGreeting();
-
     if (user.role === "student") {
       console.log("Setting role to student and showing studentUI");
       state.currentRole = "student";
@@ -1220,12 +1220,6 @@ async function transitionToDashboard(user) {
       studentUI.classList.remove("hidden");
       studentUI.classList.add("screen-fade-in");
       setTimeout(() => studentUI.classList.remove("screen-fade-in"), 600);
-
-      // Update welcome section
-      const welcomeName = document.getElementById("welcome-name-student");
-      const welcomeGreet = document.querySelector("#studentDashboard .welcome-greeting");
-      if (welcomeName) welcomeName.innerHTML = `${firstName}<span>.</span>`;
-      if (welcomeGreet) welcomeGreet.textContent = greeting;
 
       startScheduledRidesProcessor();
       populateLocations();
@@ -1248,12 +1242,6 @@ async function transitionToDashboard(user) {
       riderUI.classList.remove("hidden");
       riderUI.classList.add("screen-fade-in");
       setTimeout(() => riderUI.classList.remove("screen-fade-in"), 600);
-
-      // Update welcome section
-      const welcomeName = document.getElementById("welcome-name-rider");
-      const welcomeGreet = document.querySelector("#riderDashboard .welcome-greeting");
-      if (welcomeName) welcomeName.innerHTML = `${firstName}<span>.</span>`;
-      if (welcomeGreet) welcomeGreet.textContent = greeting;
 
       updateRiderDashboardUI();
       listenToRiderWallet();
