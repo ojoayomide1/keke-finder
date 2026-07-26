@@ -1,11 +1,11 @@
 import { state } from "./state.js";
 import { renderCampusMapData } from "../campus-map.js";
 
-// Location Stabilizer State
+// location smoother state
 const stabilizer = {
   lastLat: null,
   lastLng: null,
-  smoothingFactor: 0.3 // Adjust (0 to 1): Lower is smoother but has more lag
+  smoothingFactor: 0.3 // tweak this (0-1): lower = smoother but more lag
 };
 
 /**
@@ -19,7 +19,7 @@ export function stabilizeLocation(lat, lng) {
     return { lat, lng };
   }
 
-  // EMA Formula: NewValue = (RawValue * Factor) + (OldValue * (1 - Factor))
+  // EMA: newVal = (raw * factor) + (old * (1 - factor))
   const smoothLat = (lat * stabilizer.smoothingFactor) + (stabilizer.lastLat * (1 - stabilizer.smoothingFactor));
   const smoothLng = (lng * stabilizer.smoothingFactor) + (stabilizer.lastLng * (1 - stabilizer.smoothingFactor));
 
@@ -40,7 +40,7 @@ export function animateMarker(marker, targetLat, targetLng, duration = 1200) {
   const startLng = marker.getLatLng().lng;
   const startTime = performance.now();
 
-  // Easing function for a "gliding" feel
+  // smooth easing so the marker glides instead of snapping
   function easeOutCubic(t) {
     return 1 - Math.pow(1 - t, 3);
   }
@@ -106,8 +106,7 @@ export function initMap(mapId) {
   if (!mapElement) return;
   if (mapElement.offsetParent === null) return;
 
-  // If the map already exists and is bound to this same container, just resize it
-  // instead of tearing down and rebuilding — saves ~100-300ms on every Live tab visit
+  // if same container, just resize — faster than rebuilding the whole map
   if (state.map && state.mapId === mapId) {
     try {
       state.map.invalidateSize();
@@ -117,7 +116,7 @@ export function initMap(mapId) {
     return;
   }
 
-  // Tear down any existing map bound to a different container
+  // different container — tear down the old one first
   if (state.map) {
     try {
       state.map.remove();
@@ -145,7 +144,7 @@ export function initMap(mapId) {
   setTimeout(() => state.map && state.map.invalidateSize(), 300);
 }
 
-// Custom icons for the new design
+// map icons — made these myself
 export const kekeIcon = L.divIcon({
   html: `<div style="
     width: 36px;

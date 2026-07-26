@@ -33,24 +33,24 @@ const ASSETS_TO_CACHE = [
   'https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap'
 ];
 
-// Install Event
+// install — precache all the assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Pre-caching offline assets');
+      console.log('[SW] caching offline assets');
       return cache.addAll(ASSETS_TO_CACHE);
     }).then(() => self.skipWaiting())
   );
 });
 
-// Activate Event
+// activate — clear out old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('[Service Worker] Removing old cache:', cacheName);
+            console.log('[SW] removing old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -59,11 +59,11 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event (Stale-While-Revalidate Strategy)
+// fetch — stale-while-revalidate strategy
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
 
-  // Bypass caching for Firestore, authentication endpoints, or Paystack APIs
+  // skip firestore, auth, paystack — those should always be fresh from network
   if (
     event.request.method !== 'GET' ||
     requestUrl.hostname.includes('firestore.googleapis.com') ||
@@ -72,30 +72,30 @@ self.addEventListener('fetch', (event) => {
     requestUrl.hostname.includes('workers.dev') ||
     requestUrl.hostname.includes('paystack.com')
   ) {
-    return; // Fallback to default browser network fetching
+    return; // let the browser handle it normally
   }
 
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.match(event.request).then((cachedResponse) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {
-          // Cache the updated network response for next time if request was successful
+          // update the cache with the latest version
           if (networkResponse.status === 200) {
             cache.put(event.request, networkResponse.clone());
           }
           return networkResponse;
         }).catch((err) => {
-          console.warn('[Service Worker] Network request failed; serving from cache fallback if available:', err);
+          console.warn('[SW] network failed, falling back to cache:', err);
         });
 
-        // Return cached response instantly if available, else wait for network
+        // serve cache immediately, fetch in background
         return cachedResponse || fetchPromise;
       });
     })
   );
 });
 
-// Push Notifications Event (Service Worker listener)
+// push notifications
 self.addEventListener('push', (event) => {
   let data = { title: 'OpRides', body: 'New update on your ride!' };
   
@@ -120,7 +120,7 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Notification Click Event
+// when user taps the notification
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   

@@ -11,7 +11,7 @@ const MAX_DETOUR_ACTIVE = 300; // metres
 const MAX_DETOUR_IDLE = 800; // metres
 
 export async function runMatching(requestId, request) {
-  // Try active keke first
+  // check active kekes first before idle ones
   const activeSnap = await getDocs(
     query(collection(db, "rides"), where("status", "==", "active"))
   );
@@ -21,7 +21,7 @@ export async function runMatching(requestId, request) {
 
   activeSnap.forEach((docSnap) => {
     const data = docSnap.data();
-    if (data.seats.available <= 0) return; // Client-side filter
+    if (data.seats.available <= 0) return; // extra check on client side just in case
 
     const ride = { id: docSnap.id, ...data };
     const score = calculateDetourScore(ride, request);
@@ -43,7 +43,7 @@ export async function runMatching(requestId, request) {
 
   idleSnap.forEach((docSnap) => {
     const data = docSnap.data();
-    if (data.seats.available <= 0) return; // Client-side filter
+    if (data.seats.available <= 0) return; // extra check on client side just in case
 
     const ride = { id: docSnap.id, ...data };
     const score = getDistance(ride.currentLocation, request.pickup);
@@ -58,7 +58,7 @@ export async function runMatching(requestId, request) {
     return;
   }
 
-  // No keke available — add to waiting queue
+  // no keke found, throw them into the waiting queue
   const queueRef = await addDoc(collection(db, "waitingQueue"), {
     studentId: request.studentId,
     studentName: request.studentName,
@@ -92,7 +92,7 @@ async function claimSeat(rideId, requestId, request) {
       const ride = rideSnap.data();
       console.log("Current ride state:", ride);
 
-      // Re-check inside transaction — seats may have filled since we queried
+      // re-check seats inside the transaction, someone else might have taken it
       if (ride.seats.available <= 0) {
         console.warn("Seat gone during transaction for ride:", rideId);
         throw new Error("SEAT_GONE");
@@ -239,7 +239,7 @@ export async function fetchRideHistory() {
   const list = document.getElementById("activityList");
   if (!list || !state.currentUser || state.currentUser.isGuest) return;
 
-  // Insert animated skeleton loaders while fetching real-time data
+  // show skeleton cards while the real data is loading
   list.innerHTML = Array(3).fill(`
     <div class="activity-item-skeleton" style="padding: 16px 20px; border-bottom: 1px solid var(--color-border);">
       <div class="skeleton" style="height: 16px; width: 60%; border-radius: 4px; margin-bottom: 8px;"></div>
@@ -261,7 +261,7 @@ export async function fetchRideHistory() {
   const history = [];
   snapshot.forEach(doc => {
     const data = doc.data();
-    // Only show if not deleted by student
+    // skip ones the student soft-deleted from their history
     if (data.studentId === state.currentUser.uid && !data.deletedByStudent) {
       history.push({ id: doc.id, ...data });
     }
@@ -297,7 +297,7 @@ export async function fetchRideHistory() {
     list.innerHTML = '<p class="empty-state">Ride history is unavailable right now</p>';
   });}
 
-// These will be bound to window in app.js
+// these functions get bound to window from app.js
 export async function requestKeke() {
   if (state.currentRideId) return showToast("You already have an active request", "error");
   const btn = document.getElementById("requestBtn");
@@ -350,10 +350,10 @@ export async function requestKeke() {
     const ref = await addDoc(collection(db, "rideRequests"), requestData);
     state.currentRequestId = ref.id;
     
-    // Switch to Live Tab via app.js global
+    // jump to the live tab immediately
     if (window.switchTab) window.switchTab('live');
     
-    // IMMEDIATELY SHOW THE SHEET AND INITIAL STATE
+    // show the bottom sheet right away so user knows something is happening
     const studentSheet = document.getElementById("studentSheet");
     if (studentSheet) {
       studentSheet.classList.remove("hidden", "expanded");
@@ -369,7 +369,7 @@ export async function requestKeke() {
 
     listenToRequest(ref.id);
     
-    // Client-only matching: create the request first, then claim a seat transactionally.
+    // matching happens client-side — create request first then claim a seat
     await runMatching(ref.id, requestData);
     
     showToast("Looking for your keke...");
@@ -435,7 +435,7 @@ export function listenToRide(matchedRideId, currentUserId) {
 
     if (ride.status === "completed") {
       const myInfo = ride.passengers[currentUserId];
-      // If I was a passenger and it's completed, it means I've arrived
+      // if i was on this ride and it's done, means i've arrived
       if (myInfo) {
         showToast("You have arrived at your destination!", "success");
         if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
@@ -463,7 +463,7 @@ export function listenToRide(matchedRideId, currentUserId) {
 
     const myInfo = ride.passengers[currentUserId];
 
-    // Proximity arriving notification
+    // send a notification when the keke is within 50m of the student
     if (myInfo?.pickupStatus !== "completed" && ride.currentLocation && myPickup?.location) {
       const dist = getDistance(ride.currentLocation.lat, ride.currentLocation.lng, myPickup.location.lat, myPickup.location.lng);
       if (dist <= 50) {
@@ -492,7 +492,7 @@ export function listenToRide(matchedRideId, currentUserId) {
       myInfo?.pickupStatus === "completed" ? `Heading to ${(ride.stopQueue || []).find(s => s.passengerId === currentUserId && s.type === "dropoff")?.locationLabel || 'Destination'}` : `${stopsAway} stops away`
     );
 
-    // Dynamic Pay Now / Cancel Request button logic
+    // swap between Pay Now and Cancel button depending on ride state
     const studentControls = document.getElementById("studentControls");
     if (studentControls) {
       if (myInfo?.pickupStatus === "completed") {
@@ -518,7 +518,7 @@ export function listenToRide(matchedRideId, currentUserId) {
       }
     }
     
-    // Update map etc. (could be handled in app.js or here)
+    // update the map from here or from app.js
     if (window.updateRideUI) window.updateRideUI(ride);
   }, (err) => console.warn("Student ride listener unavailable:", err.code || err.message));
 }
@@ -605,7 +605,7 @@ export async function deleteRideRecord(requestId) {
   
   try {
     await updateDoc(doc(db, "rideRequests", requestId), {
-      deletedByStudent: true // Soft delete so rider keeps record, or use deleteDoc if preferred
+      deletedByStudent: true // soft delete — rider still sees it on their end
     });
     showToast("Record removed");
   } catch (err) {
@@ -614,7 +614,7 @@ export async function deleteRideRecord(requestId) {
   }
 }
 
-// Bind to window for HTML access
+// bind so HTML can call it directly
 window.deleteRideRecord = deleteRideRecord;
 
 export async function payForActiveRide() {
@@ -650,14 +650,14 @@ export async function payForActiveRide() {
         throw new Error("INSUFFICIENT_BALANCE");
       }
 
-      // 1. Deduct from student
+      // deduct from student wallet
       const studentNewBalance = currentBalance - fare;
       transaction.update(studentRef, {
         "wallet.balance": studentNewBalance,
         "wallet.lastDeduction": serverTimestamp()
       });
 
-      // 2. Add to rider
+      // rider gets their cut
       const riderRef = doc(db, "users", ride.riderId);
       const riderSnap = await transaction.get(riderRef);
       if (riderSnap.exists()) {
@@ -671,19 +671,19 @@ export async function payForActiveRide() {
         addWalletTransaction(transaction, ride.riderId, "earning", riderShare, riderBalance, riderBalance + riderShare, "Ride fare received (prepaid)", rideId);
       }
 
-      // 3. Add to admin commission
+      // admin commission goes here
       const adminSnap = await transaction.get(adminRef);
       const admin = adminSnap.exists() ? adminSnap.data() : { balance: 0, totalEarned: 0 };
       const adminBalance = admin.balance || admin.wallet?.balance || 0;
       const adminTotalEarned = admin.totalEarned || admin.wallet?.totalEarned || 0;
       writeAdminWalletTotals(transaction, adminRef, adminBalance + adminShare, adminTotalEarned + adminShare);
 
-      // 4. Mark paid in ride doc
+      // mark the student as paid on the ride doc
       transaction.update(rideRef, {
         [`passengers.${studentId}.paid`]: true
       });
 
-      // 5. Add transactions
+      // log everything in wallet transactions
       addWalletTransaction(transaction, studentId, "deduction", fare, currentBalance, studentNewBalance, "Ride fare (prepaid)", rideId);
       addWalletTransaction(transaction, "admin", "commission", adminShare, adminBalance, adminBalance + adminShare, "Commission from ride (prepaid)", rideId);
     });

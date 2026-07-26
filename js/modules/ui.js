@@ -16,10 +16,10 @@ export function updateRideDetails(target, details) {
   `).join("");
 }
 
-// ================= BOTTOM SHEET DRAGGING =================
+// ===== BOTTOM SHEET DRAGGING =====
 let startY = 0;
 let currentY = 0;
-let isDragging = false;  // only true once the gesture has started moving
+let isDragging = false;  // only becomes true once user actually starts moving
 let draggingSheet = null;
 
 export function startDrag(e, sheetId) {
@@ -31,7 +31,7 @@ export function startDrag(e, sheetId) {
   draggingSheet.style.transition = 'none';
 
   document.addEventListener('mousemove', handleDrag, { passive: true });
-  // passive: false only so we can preventDefault when we confirm a drag gesture
+  // passive: false so we can call preventDefault when it's a real drag
   document.addEventListener('touchmove', handleDrag, { passive: false });
   document.addEventListener('mouseup', endDrag);
   document.addEventListener('touchend', endDrag);
@@ -45,17 +45,17 @@ function handleDrag(e) {
 
   const isMinimized = draggingSheet.classList.contains('minimized');
 
-  // Ignore directions that make no sense for the current sheet state
-  if (isMinimized && deltaY > 0) return;  // already minimized, can't go further down
-  if (!isMinimized && deltaY < 0) return; // already expanded, can't go further up
+  // skip swipe directions that don't make sense
+  if (isMinimized && deltaY > 0) return;  // already at the bottom, nowhere to go
+  if (!isMinimized && deltaY < 0) return; // already expanded
 
-  // Only block native scroll once we have a real vertical drag gesture (>6px)
+  // wait until we have a proper drag (> 6px) before blocking scroll
   if (!isDragging) {
     if (Math.abs(deltaY) < 6) return;
     isDragging = true;
   }
 
-  // Now we know this is a sheet drag — safe to cancel native scroll
+  // confirmed drag — prevent native scroll from firing
   if (e.cancelable) e.preventDefault();
 
   draggingSheet.style.transform = `translateY(${deltaY}px)`;
@@ -90,7 +90,7 @@ function endDrag() {
   document.removeEventListener('touchend', endDrag);
 }
 
-// Bind to window for HTML access
+// expose to html
 window.startDrag = startDrag;
 
 export function toggleControls(show, target = "student") {
@@ -98,7 +98,7 @@ export function toggleControls(show, target = "student") {
   if (el) el.style.display = show ? "flex" : "none";
 }
 
-// New Styled Toast System
+// custom toast notifications
 export function showToast(message, type = "info", duration = 3000) {
   const container = document.querySelector(".toast-container") ||
     (() => {
@@ -147,7 +147,7 @@ export function showToast(message, type = "info", duration = 3000) {
   toast.appendChild(progressBar);
   container.appendChild(toast);
 
-  // Swipe to dismiss
+  // swipe the toast away
   let swipeStartX = 0;
   let swiped = false;
 
@@ -205,7 +205,7 @@ export function showToast(message, type = "info", duration = 3000) {
   }
 }
 
-// Attach to window for global access
+// put showToast on window so anyone can call it
 window.showToast = showToast;
 
 export function setButtonVisible(id, visible) {
@@ -219,7 +219,7 @@ export function showLoginScreen() {
   document.getElementById("riderUI").classList.add("hidden");
 }
 
-// Confirmation Dialogs (supports both callback and Promise await style)
+// confirm dialogs — works with both callbacks and async/await
 export function showConfirmDialog({ title, message, confirmText, cancelText, onConfirm, danger = false }) {
   return new Promise((resolve) => {
     const overlay = document.createElement("div");
@@ -258,7 +258,7 @@ export function showConfirmDialog({ title, message, confirmText, cancelText, onC
   });
 }
 
-// Prompt Dialogs (Promise-based)
+// prompt dialogs that return a promise
 export function showPromptDialog({ title, message, placeholder = "", inputType = "text", confirmText = "Submit", cancelText = "Cancel" }) {
   return new Promise((resolve) => {
     const overlay = document.createElement("div");
@@ -303,11 +303,11 @@ export function showPromptDialog({ title, message, placeholder = "", inputType =
   });
 }
 
-// Bind to window for HTML access
+// make these globally accessible
 window.showConfirmDialog = showConfirmDialog;
 window.showPromptDialog = showPromptDialog;
 
-// Balance Animation
+// quick balance number flip animation
 export function animateBalance(elementId, newValue) {
   const element = document.getElementById(elementId);
   if (!element) return;
@@ -321,7 +321,7 @@ export function animateBalance(elementId, newValue) {
   }, 150);
 }
 
-// Dynamic Greetings
+// greeting based on time of day
 export function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning ☀️";
@@ -329,10 +329,10 @@ export function getGreeting() {
   return "Good evening 🌙";
 }
 
-// Splash Screen Lifecycle
+// splash screen logic
 let _splashDismissed = false;
-let _splashReady = false; // true once the minimum display time has elapsed
-let _authReady = false;   // true once auth state has resolved
+let _splashReady = false; // flips true after minimum show time
+let _authReady = false;   // flips true after auth resolves
 
 function _tryDismissSplash() {
   if (_splashDismissed || !_splashReady || !_authReady) return;
@@ -345,31 +345,31 @@ function _tryDismissSplash() {
   }
 }
 
-// Call once when auth state first resolves (login check done)
+// call this once auth finishes checking login state
 export function dismissSplash() {
   _authReady = true;
   _tryDismissSplash();
 }
 
 export function initSplashScreen() {
-  // 1 second minimum — enough to show the logo without frustrating a returning user
+  // minimum 1 second so the splash doesn't just flash
   setTimeout(() => {
     _splashReady = true;
     _tryDismissSplash();
   }, 1000);
 }
 
-// Custom dropdown dialog/picker selection functionality
+// custom select/dropdown that opens as a bottom sheet
 export function makeCustomSelect(selectId, title) {
   const select = document.getElementById(selectId);
   if (!select) return;
   if (select.dataset.customSelectInitialized) return;
   select.dataset.customSelectInitialized = "true";
 
-  // Hide the original select
+  // hide the native select, we're replacing it
   select.style.setProperty("display", "none", "important");
 
-  // Create the trigger button
+  // the visible trigger button
   const trigger = document.createElement("div");
   trigger.className = "input-field custom-select-trigger";
   trigger.id = `${selectId}-trigger`;
@@ -388,10 +388,10 @@ export function makeCustomSelect(selectId, title) {
   caret.style.transition = "transform 0.2s ease";
   trigger.appendChild(caret);
 
-  // Insert trigger right after select
+  // put trigger right after the hidden select
   select.parentNode.insertBefore(trigger, select.nextSibling);
 
-  // Function to update trigger text based on selected option
+  // keep trigger text in sync with selected option
   function updateTriggerText() {
     const selectedOpt = select.options[select.selectedIndex];
     textSpan.innerText = selectedOpt ? selectedOpt.text : (title || "Select location");
@@ -402,7 +402,7 @@ export function makeCustomSelect(selectId, title) {
     }
   }
 
-  // Intercept value property descriptor to track programmatic changes
+  // intercept .value setter so trigger text updates when JS sets it programmatically
   const originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
   if (originalValueDescriptor) {
     Object.defineProperty(select, 'value', {
@@ -417,16 +417,16 @@ export function makeCustomSelect(selectId, title) {
     });
   }
 
-  // Watch for option list changes
+  // also watch for option list changes (e.g. when locations load)
   const observer = new MutationObserver(() => {
     updateTriggerText();
   });
   observer.observe(select, { childList: true, subtree: true });
 
-  // Initial update
+  // run once on init
   updateTriggerText();
 
-  // On click: Open bottom sheet overlay selection dialog
+  // clicking opens the sheet picker
   trigger.addEventListener("click", () => {
     openCustomSelectModal(select, title, updateTriggerText, caret);
   });
@@ -438,14 +438,14 @@ function openCustomSelectModal(select, title, onSelected, caret) {
   const overlay = document.createElement("div");
   overlay.className = "custom-select-overlay";
   
-  // Build option list
+  // build the options html
   let optionsHtml = "";
   
   const children = Array.from(select.children);
   const hasGroups = children.some(child => child.tagName === "OPTGROUP");
   
   const buildOptionRow = (option) => {
-    if (!option.value) return ""; // Skip empty placeholders
+    if (!option.value) return ""; // skip the blank placeholder option
     const isSelected = option.selected ? "selected" : "";
     return `
       <div class="custom-select-option ${isSelected}" data-value="${option.value}">
@@ -562,7 +562,7 @@ export function initCustomSelects() {
   makeCustomSelect("pathfinderSelect", "Select Landmark");
 }
 
-// Auto-initialize when content loads
+// init the dropdowns once the DOM is ready
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initCustomSelects);
 } else {

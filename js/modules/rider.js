@@ -18,14 +18,14 @@ export function updateRiderDashboardUI() {
 }
 
 export function updateAvailableRidesList(rides) {
-  // This might be repurposed for "Upcoming Stops" or similar if needed on dashboard
+  // might use this for "Upcoming Stops" on dashboard later
   const list = document.getElementById("availableRidesList");
   if (!list) return;
   if (rides.length === 0) {
     list.innerHTML = '<p class="empty-state">No active passengers. Stay tuned!</p>';
     return;
   }
-  // List current passengers in the keke
+  // show who's currently in the keke
   list.innerHTML = rides.map(r => `
     <div class="ride-item">
       <div class="ride-info">
@@ -50,7 +50,7 @@ export function updateRiderControls(ride) {
   const label = nextStop.type === "pickup" ? `Pick up ${nextStop.passengerName}` : `Drop off ${nextStop.passengerName}`;
   const btnClass = nextStop.type === "pickup" ? "yellow" : "green";
 
-  // Update the sheet title and sub with next stop info for minimized state
+  // update the minimized sheet header with next stop info
   const sheet = document.getElementById("riderSheet");
   if (sheet) {
     const titleEl = document.getElementById("riderSheetTitle");
@@ -58,7 +58,7 @@ export function updateRiderControls(ride) {
     if (titleEl) titleEl.innerText = label;
     if (subEl) subEl.innerText = nextStop.locationLabel;
     
-    // Auto-expand if a new stop appears and we were on dashboard
+    // pop the sheet open if it was hidden
     if (sheet.classList.contains("hidden")) {
       sheet.classList.remove("hidden", "expanded");
       sheet.classList.add("minimized");
@@ -225,15 +225,15 @@ export function listenToActiveRide(rideId) {
     if (ride.status === "completed") {
         showToast("All stops completed!");
         state.currentRideId = null;
-        state.riderDocId = null; // Clear so a new ride doc is created next time they go live
+        state.riderDocId = null; // reset so next time they go live a fresh doc is created
         document.getElementById("riderSheet").classList.add("hidden");
         if (window.hideRiderMap) window.hideRiderMap();
         
-        // Reset Dashboard Stats
+        // wipe the ride details panel
         const detailsContainer = document.getElementById("riderRideDetails");
         if (detailsContainer) detailsContainer.innerHTML = "";
         
-        // Check if going offline gracefully
+        // handle graceful offline if rider asked to go offline mid-trip
         if (ride.isGoingOffline) {
           await toggleOnlineStatus();
           previousStatus = "completed";
@@ -243,7 +243,7 @@ export function listenToActiveRide(rideId) {
         document.getElementById("riderTitle").innerText = "Online & Ready";
         document.getElementById("riderSub").innerText = "All passengers dropped off. Waiting for new requests.";
         
-        // In the client-only flow, riders trigger nearby queue notifications.
+        // rider triggers queue notifications after dropping off — no cloud function needed
         if (previousStatus !== "completed") {
           await notifyQueuedStudentsNearby(ride.currentLocation);
         }
@@ -251,7 +251,7 @@ export function listenToActiveRide(rideId) {
         return;
     }
 
-    // AUTO-TRANSITION TO LIVE VIEW ONLY IF THERE ARE PENDING STOPS
+    // auto-switch to live view when there are pending stops
     const hasPendingStops = ride.stopQueue.some(s => s.status === "pending");
     const isLiveViewHidden = document.getElementById("riderLiveView")?.classList.contains("hidden");
 
@@ -263,7 +263,7 @@ export function listenToActiveRide(rideId) {
         riderSheet?.classList.add("minimized");
       }
     } else if (!hasPendingStops) {
-      // If no stops, stay on/return to dashboard but show online status
+      // no stops left, go back to dashboard and just wait
       if (!isLiveViewHidden) {
         if (window.switchTab) window.switchTab('home');
       }
@@ -285,7 +285,7 @@ export function listenToActiveRide(rideId) {
       );
     }
 
-    // Construct passenger status list
+    // build the passenger cards with paid/unpaid status
     let passengersListHtml = "";
     Object.entries(ride.passengers || {}).forEach(([pId, p]) => {
       const isPaid = p.paid === true;
@@ -307,7 +307,7 @@ export function listenToActiveRide(rideId) {
       `;
     });
 
-    // Update stats on dashboard or sheet
+    // show seat and passenger stats
     const statsHtml = `
       <div style="display:flex; justify-content:space-around; padding:15px; background:var(--color-bg-secondary); border-radius:12px; margin:10px 0; border: 1px solid var(--color-border);">
         <div style="text-align:center;">
@@ -332,7 +332,7 @@ export function listenToActiveRide(rideId) {
     const detailsContainer = document.getElementById("riderRideDetails");
     if (detailsContainer) detailsContainer.innerHTML = statsHtml;
 
-    // Also update sheet details if visible
+    // also push stats into the bottom sheet
     const sheetDetails = document.getElementById("riderSheetDetails");
     if (sheetDetails) sheetDetails.innerHTML = statsHtml;
 
@@ -355,9 +355,9 @@ async function notifyQueuedStudentsNearby(completedLocation) {
     const student = docSnap.data();
     const distance = getDistance(completedLocation, student.pickup);
     if (distance < 500) {
-      // Update their queue doc so their onSnapshot fires and shows the message
+      // poke their queue doc so the onSnapshot fires and they see the update
       await updateDoc(docSnap.ref, { notified: true });
-      break; // Only notify the first eligible student (FIFO)
+      break; // FIFO — only tell the first eligible student
     }
   }
 }
@@ -437,7 +437,7 @@ export async function drainWaitingQueueForRide(rideId) {
 }
 
 export async function completeRide() {
-  // Manual override to complete ride if needed
+  // emergency manual complete in case something gets stuck
   if (!state.currentRideId) return;
   await updateDoc(doc(db, "rides", state.currentRideId), { status: "completed" });
   state.currentRideId = null;
@@ -451,7 +451,7 @@ export async function toggleOnlineStatus() {
   const isOnline = btn.innerText === "Go Offline" || btn.innerText === "Completing Trips...";
   
   if (isOnline) {
-    // Go Offline Logic
+    // going offline
     if (state.currentRideId && btn.innerText !== "Completing Trips...") {
       try {
         const rideSnap = await getDoc(doc(db, "rides", state.currentRideId));
@@ -460,7 +460,7 @@ export async function toggleOnlineStatus() {
           const hasPendingStops = (ride.stopQueue || []).some(s => s.status === "pending");
           
           if (hasPendingStops) {
-            // Initiate Graceful Offline
+            // still have passengers — do graceful offline instead
             await updateDoc(doc(db, "rides", state.currentRideId), {
               isGoingOffline: true,
               acceptingNewPassengers: false
@@ -469,7 +469,7 @@ export async function toggleOnlineStatus() {
             btn.className = "btn btn-primary yellow";
             document.getElementById("riderSub").innerText = "Finishing current trips (Going offline)";
             showToast("Going offline after dropping off passengers", "info");
-            return; // Exit, keeping GPS reporting online
+            return; // stay online for GPS until trips done
           }
         }
       } catch (err) {
@@ -477,7 +477,7 @@ export async function toggleOnlineStatus() {
       }
     }
 
-    // Force Offline or Normal Offline
+    // force or normal offline
     if (state.currentRideId) {
       await updateDoc(doc(db, "rides", state.currentRideId), { status: "completed" });
       state.currentRideId = null;
@@ -493,14 +493,14 @@ export async function toggleOnlineStatus() {
     document.getElementById("riderSub").innerText = "Go live to start receiving requests";
     showToast("You are now offline", "info");
   } else {
-    // Go Online Logic
+    // going online
     window.becomeAvailable();
     btn.innerText = "Go Offline";
     btn.className = "btn btn-primary green";
-    // UI update handled by becomeAvailable
+    // becomeAvailable handles the rest of the UI
   }
 }
 
-// Global binding for the markStopComplete called from HTML
+// bind these so HTML can call them
 window.markStopComplete = markStopComplete;
 window.toggleOnlineStatus = toggleOnlineStatus;

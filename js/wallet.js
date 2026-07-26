@@ -115,7 +115,7 @@ function animateWalletBalance(targetBalance) {
 
   if (balanceAnimationFrame) cancelAnimationFrame(balanceAnimationFrame);
 
-  // Add pop animation
+  // pop animation on the balance text
   if (balanceEl) balanceEl.classList.add("balance-animate");
 
   const tick = (now) => {
@@ -131,7 +131,7 @@ function animateWalletBalance(targetBalance) {
       displayedWalletBalance = endBalance;
       balanceAnimationFrame = null;
       if (balanceEl) balanceEl.classList.remove("balance-animate");
-      // Update balance chip glow
+      // trigger the balance glow too
       window.updateBalanceChipGlow?.("student");
     }
   };
@@ -375,17 +375,17 @@ export async function continueTopUp() {
   }
 }
 
-const PAYSTACK_PUBLIC_KEY = "pk_live_cd5305502fcec15b34ded0dcfc9d56f84b85482a"; // Replace with your real key
+const PAYSTACK_PUBLIC_KEY = "pk_live_cd5305502fcec15b34ded0dcfc9d56f84b85482a"; // live key, dont touch
 
 export async function initiateTopUp(studentId, amountNaira) {
   if (!studentId || state.currentUser?.isGuest) throw new Error("Login required to top up");
   if (amountNaira < MIN_TOPUP_NAIRA) throw new Error(`Minimum top-up is ${formatNaira(MIN_TOPUP_NAIRA * 100)}`);
 
-  // Initialize Paystack Checkout
+  // open paystack checkout popup
   const paystack = new PaystackPop();
   paystack.newTransaction({
     key: PAYSTACK_PUBLIC_KEY,
-    amount: amountNaira * 100, // Amount in kobo
+    amount: amountNaira * 100, // paystack wants kobo not naira
     email: state.currentUser.email,
     currency: "NGN",
     metadata: {
@@ -398,7 +398,7 @@ export async function initiateTopUp(studentId, amountNaira) {
     },
     onSuccess: (transaction) => {
       showToast("Payment successful! Updating wallet...", "success");
-      // The webhook will handle the final wallet update
+      // webhook handles the actual wallet credit, we just wait
     },
     onCancel: () => {
       showToast("Payment cancelled", "info");

@@ -33,7 +33,7 @@ import {
   showConfirmDialog
 } from "./modules/ui.js";
 
-// Initialize splash screen on app start
+// start the splash first before anything else loads
 initSplashScreen();
 import { 
   initMap, 
@@ -76,7 +76,7 @@ const pathfinderStudentIcon = L.divIcon({
   popupAnchor: [0, -18]
 });
 
-// Custom Leaflet DivIcons for Premium Map styling
+// Custom Leaflet DivIcons — made these look nice for the map
 const pickupPinIcon = L.divIcon({
   html: '<div class="custom-pin pin-pickup"><i class="fas fa-arrow-down-long"></i></div>',
   className: 'custom-leaflet-pin',
@@ -131,7 +131,7 @@ function toggleAppTheme(checked) {
 
 initTheme();
 
-// ================= GLOBAL BINDINGS =================
+// ===== GLOBALS =====
 function toggleSidebar() {
   const sidebar = document.getElementById("studentSidebar");
   const overlay = document.getElementById("sidebarOverlay");
@@ -217,7 +217,7 @@ function startCampusActivityListeners() {
     }
   );
 
-  // Students cannot list waitingQueue directly, so use queued ride requests as the public queue count.
+  // students don't have access to waitingQueue directly so i'm using queued ride requests instead
   state.campusActivityUnsubscribeQueue = onSnapshot(
     query(collection(db, "rideRequests"), where("status", "==", "queued")),
     (snapshot) => {
@@ -258,7 +258,7 @@ function switchTab(tab) {
     stopPathfinderWatch();
   }
 
-  // Fade out current view
+  // fade out the current tab before showing the new one
   const currentViewIds = [...Object.values(studentViews), ...Object.values(riderViews)];
   const visibleView = currentViewIds.map(vId => document.getElementById(vId)).find(el => el && !el.classList.contains("hidden"));
   if (visibleView && visibleView.id !== views[tab]) {
@@ -267,7 +267,7 @@ function switchTab(tab) {
       visibleView.classList.add("hidden");
       visibleView.classList.remove("tab-fade-out");
     }, 150);
-    // Hide all others
+    // hide every other view too
     currentViewIds.forEach(vId => {
       const el = document.getElementById(vId);
       if (el && el !== visibleView) el.classList.add("hidden");
@@ -313,7 +313,7 @@ function switchTab(tab) {
     }
   }
 
-  // Show selected view with fade-in
+  // show the new tab with a fade in
   const targetView = views[tab];
   if (targetView) {
     const targetEl = document.getElementById(targetView);
@@ -324,7 +324,7 @@ function switchTab(tab) {
 
   closeSidebar();
 
-  // Update bottom nav active state + animated pill
+  // update the active tab highlight + move the pill
   const pillId = role === "student" ? "studentNavPill" : "riderNavPill";
   const activeTabEl = document.querySelector(`#${role === "student" ? "studentUI" : "riderUI"} .nav-tab[onclick*="${tab}"]`);
   const navSelector = role === "student" ? "#studentUI .nav-tab" : "#riderUI .nav-tab";
@@ -334,10 +334,10 @@ function switchTab(tab) {
   });
   updateNavPill(pillId, activeTabEl);
 
-  // Update notification dot on Live tab
+  // show or hide the dot on the live tab
   updateLiveNotifDot(role);
 
-  // Update balance chip glow state
+  // also update the balance glow thing
   updateBalanceChipGlow(role);
 }
 
@@ -360,7 +360,7 @@ function getNameGradient(name) {
   return `linear-gradient(135deg, hsl(${hue}, 72%, 46%), hsl(${(hue + 52) % 360}, 78%, 58%))`;
 }
 
-// ================= NAV PILL ANIMATION =================
+// ===== NAV PILL ANIMATION =====
 function updateNavPill(pillId, activeTabEl) {
   const pill = document.getElementById(pillId);
   if (!pill || !activeTabEl) return;
@@ -378,7 +378,7 @@ function updateNavPill(pillId, activeTabEl) {
   pill.style.width = `${width}px`;
 }
 
-// Initialize nav pill on load
+// set the pill position on page load
 function initNavPills() {
   const role = state.currentRole || "student";
   const pillId = role === "student" ? "studentNavPill" : "riderNavPill";
@@ -389,12 +389,12 @@ function initNavPills() {
   }
 }
 
-// Handle window resize to update pill position
+// if screen size changes, reposition the pill
 window.addEventListener("resize", () => {
   initNavPills();
 });
 
-// ================= NOTIFICATION DOT =================
+// ===== NOTIFICATION DOT =====
 function updateLiveNotifDot(role) {
   const dotId = role === "student" ? "studentLiveNotifDot" : "riderLiveNotifDot";
   const dot = document.getElementById(dotId);
@@ -404,7 +404,7 @@ function updateLiveNotifDot(role) {
   dot.classList.toggle("visible", hasActiveRide);
 }
 
-// ================= BALANCE CHIP GLOW =================
+// ===== BALANCE CHIP GLOW =====
 function updateBalanceChipGlow(role) {
   const chipSelector = role === "student"
     ? "#studentUI .balance-chip"
@@ -418,7 +418,7 @@ function updateBalanceChipGlow(role) {
   const balanceText = balanceEl.textContent.replace(/[^\d]/g, "");
   const balance = parseInt(balanceText, 10) || 0;
 
-  // Low balance threshold: < ₦500
+  // glow red if below 500 naira
   chip.classList.toggle("is-low", balance < 500);
 }
 
@@ -486,7 +486,7 @@ function renderLiveSheetEnhancements(ride) {
   details.querySelectorAll(".rider-info-row, .eta-countdown").forEach(el => el.remove());
   details.insertAdjacentHTML("afterbegin", premiumHtml);
 }
-// ================= RIPPLE EFFECT =================
+// ===== RIPPLE EFFECT =====
 function initRippleEffect() {
   document.addEventListener("click", (e) => {
     const rippleTarget = e.target.closest(
@@ -494,7 +494,7 @@ function initRippleEffect() {
     );
     if (!rippleTarget) return;
 
-    // Don't double-ripple
+    // don't add another ripple if one is already going
     if (rippleTarget.querySelector(".ripple-circle")) return;
 
     rippleTarget.classList.add("ripple-effect");
@@ -512,7 +512,7 @@ function initRippleEffect() {
   });
 }
 
-// ================= BALANCE COUNTER ANIMATION =================
+// ===== BALANCE COUNTER ANIMATION =====
 function animateBalanceCounter(elementId, targetValue) {
   const el = document.getElementById(elementId);
   if (!el) return;
@@ -530,7 +530,7 @@ function animateBalanceCounter(elementId, targetValue) {
   function step(now) {
     const elapsed = now - start;
     const progress = Math.min(elapsed / duration, 1);
-    // Ease out cubic
+    // ease out so it slows down nicely at the end
     const eased = 1 - Math.pow(1 - progress, 3);
     const value = Math.round(current + (target - current) * eased);
 
@@ -550,10 +550,10 @@ function animateBalanceCounter(elementId, targetValue) {
   requestAnimationFrame(step);
 }
 
-// Call initRippleEffect on startup
+// kick off ripple on startup
 initRippleEffect();
 
-// ================= ROLE SELECT =================
+// ===== ROLE SELECT =====
 function selectRole(role) {
   state.currentRole = role;
   const roleSelect = document.getElementById("roleSelect");
@@ -569,7 +569,7 @@ function selectRole(role) {
   } else {
     document.getElementById("riderUI")?.classList.remove("hidden");
   }
-  // Initialize nav pill for selected role
+  // position the pill for whichever role was picked
   setTimeout(() => initNavPills(), 50);
 }
 window.selectRole = selectRole;
@@ -931,7 +931,7 @@ function openHelpModal() {
   const modal = document.getElementById("helpModal");
   if (!modal) return;
   modal.classList.remove("hidden");
-  // Show the correct FAQ for the current role
+  // show the faq for whoever is logged in (student or rider)
   const isRider = state.currentRole === "rider";
   const studentFaq = document.getElementById("studentFaqAccordion");
   const riderFaq = document.getElementById("riderFaqAccordion");
@@ -1088,7 +1088,7 @@ window.becomeAvailable = () => {
   setButtonVisible("goLiveBtn", false);
   document.getElementById("riderTitle").innerText = "Online";
   document.getElementById("riderSub").innerText = "Activating GPS...";
-  // document.getElementById("availableRidesSection").classList.remove("hidden"); // We'll show current passengers instead
+  // document.getElementById("availableRidesSection").classList.remove("hidden"); // showing passengers now instead
   showToast("Activating GPS...", "info");
   initMap("riderMap");
   
@@ -1118,7 +1118,7 @@ window.becomeAvailable = () => {
     
     if (!state.riderDocId) {
       state.riderDocId = "creating...";
-      // Check one more time if a ride was found by checkForActiveRide during this same session
+      // double-check in case checkForActiveRide already found a ride before we even got here
       if (state.currentRideId && state.currentRideId !== "creating...") {
         state.riderDocId = state.currentRideId;
         return;
@@ -1164,14 +1164,14 @@ window.becomeAvailable = () => {
 };
 
 window.setArriving = async () => {
-  // Logic handled via markStopComplete in rider.js
+  // this is handled inside markStopComplete in rider.js now
 };
 
 window.startRide = async () => {
-  // Logic handled via markStopComplete in rider.js
+  // also handled in rider.js via markStopComplete
 };
 
-// ================= ORCHESTRATION =================
+// ===== ORCHESTRATION =====
 
 async function transitionToDashboard(user) {
   console.log("Transitioning to dashboard for user:", user);
@@ -1187,7 +1187,7 @@ async function transitionToDashboard(user) {
   const riderUI = document.getElementById("riderUI");
 
   if (!loginScreen || !studentUI || !riderUI) {
-    // Fallback if DOM elements aren't ready
+    // just in case dom isn't ready yet
     document.getElementById("loginScreen")?.classList.add("hidden");
     if (user.role === "student") {
       document.getElementById("studentUI")?.classList.remove("hidden");
@@ -1197,19 +1197,19 @@ async function transitionToDashboard(user) {
     return;
   }
 
-  // Request local notification permissions on login
+  // ask for notification permission when they log in
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission().catch(err => console.warn("Notification permission request rejected:", err));
   }
 
-  // Trigger fade-out animation on login screen
+  // fade out the login screen smoothly
   loginScreen.classList.add("screen-fade-out");
 
   setTimeout(async () => {
     loginScreen.classList.add("hidden");
     loginScreen.classList.remove("screen-fade-out");
 
-    // Hide all UIs first
+    // hide both before deciding which to show
     studentUI.classList.add("hidden");
     riderUI.classList.add("hidden");
 
@@ -1227,13 +1227,13 @@ async function transitionToDashboard(user) {
       listenToStudentWallet();
       startCampusActivityListeners();
       
-      // Explicitly make the wallet tab visible in case it was hidden
+      // force wallet tab visible just in case it got hidden somehow
       const walletTab = document.getElementById("tab-wallet");
       if (walletTab) walletTab.classList.remove("hidden");
       
       if (window.switchStudentView) window.switchStudentView('dashboard');
       await checkForActiveRide("student");
-      // Initialize nav pill + balance glow
+      // init pill and glow after the ui is visible
       setTimeout(() => { initNavPills(); updateBalanceChipGlow("student"); }, 100);
     } else if (user.role === "rider") {
       console.log("Setting role to rider and showing riderUI");
@@ -1247,7 +1247,7 @@ async function transitionToDashboard(user) {
       listenToRiderWallet();
       switchTab('home');
       await checkForActiveRide("rider");
-      // Initialize nav pill + balance glow
+      // same thing for rider side
       setTimeout(() => { initNavPills(); updateBalanceChipGlow("rider"); }, 100);
     } else {
       console.error("Unknown user role:", user.role);
@@ -1277,7 +1277,7 @@ async function checkForActiveRide(role) {
     );
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
-      // Use the most recent active ride
+      // sort and pick the latest one in case there are multiple
       const sortedDocs = querySnapshot.docs.sort((a, b) => 
         (b.data().updatedAt?.seconds || 0) - (a.data().updatedAt?.seconds || 0)
       );
@@ -1294,7 +1294,7 @@ async function checkForActiveRide(role) {
       listenForQueuedStudents(activeRide.id);
       await drainWaitingQueueForRide(activeRide.id);
 
-      // Clean up any other "stale" active sessions for this rider
+      // kill off any old stale rides from before — only one should be active
       for (let i = 1; i < sortedDocs.length; i++) {
         await updateDoc(doc(db, "rides", sortedDocs[i].id), { 
           status: "completed", 
@@ -1306,7 +1306,7 @@ async function checkForActiveRide(role) {
 }
 
 function startListeners() {
-  // Old startListeners removed as we use per-ride/per-request listeners now
+  // this function is empty now, we switched to per-ride listeners
 }
 
 function listenForQueuedStudents(rideId) {
@@ -1350,7 +1350,7 @@ window.updateRideUI = (ride) => {
     }
   }
 
-  // Draw route to next stop
+  // draw the route line to the next stop on map
   const pendingStops = ride.stopQueue.filter(s => s.status === "pending");
   if (pendingStops.length > 0 && currentLocation) {
     const nextStop = pendingStops[0];
@@ -1364,7 +1364,7 @@ window.updateRideUI = (ride) => {
       dashArray: route.routed ? null : "8, 10"
     });
 
-    // Add markers for stops
+    // put pins on all the pending stops
     if (state.map) {
       state.requestMarkers.forEach(m => {
         if (m && state.map.hasLayer(m)) state.map.removeLayer(m);
@@ -1384,7 +1384,7 @@ window.updateRideUI = (ride) => {
   }
 };
 
-// ================= INIT =================
+// ===== INIT =====
 window.addEventListener("load", () => {
   const helpModalElement = document.getElementById("helpModal");
   if (helpModalElement) {
@@ -1409,7 +1409,7 @@ window.addEventListener("load", () => {
         await cleanupRiderSession(previousUser);
         state.currentUser = null;
 
-        // Clear all state on logout
+        // wipe everything when they log out
         if (state.unsubscribeRequests) state.unsubscribeRequests();
         if (state.unsubscribeQueueListener) state.unsubscribeQueueListener();
         stopCampusActivityListeners();

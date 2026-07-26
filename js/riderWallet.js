@@ -150,7 +150,7 @@ function animateRiderBalance(targetBalance) {
 
   if (riderBalanceAnimationFrame) cancelAnimationFrame(riderBalanceAnimationFrame);
 
-  // Add pop animation
+  // pop animation when balance changes
   if (balanceEl) balanceEl.classList.add("balance-animate");
 
   const tick = (now) => {
@@ -166,7 +166,7 @@ function animateRiderBalance(targetBalance) {
       displayedRiderBalance = endBalance;
       riderBalanceAnimationFrame = null;
       if (balanceEl) balanceEl.classList.remove("balance-animate");
-      // Update balance chip glow
+      // also refresh the balance chip glow
       window.updateBalanceChipGlow?.("rider");
     }
   };
