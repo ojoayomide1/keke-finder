@@ -19,6 +19,7 @@ export function updateRideDetails(target, details) {
 // ================= BOTTOM SHEET DRAGGING =================
 let startY = 0;
 let currentY = 0;
+let isDragging = false;  // only true once the gesture has started moving
 let draggingSheet = null;
 
 export function startDrag(e, sheetId) {
@@ -26,9 +27,11 @@ export function startDrag(e, sheetId) {
   if (!draggingSheet) return;
 
   startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+  isDragging = false;
   draggingSheet.style.transition = 'none';
 
-  document.addEventListener('mousemove', handleDrag);
+  document.addEventListener('mousemove', handleDrag, { passive: true });
+  // passive: false only so we can preventDefault when we confirm a drag gesture
   document.addEventListener('touchmove', handleDrag, { passive: false });
   document.addEventListener('mouseup', endDrag);
   document.addEventListener('touchend', endDrag);
@@ -36,16 +39,24 @@ export function startDrag(e, sheetId) {
 
 function handleDrag(e) {
   if (!draggingSheet) return;
-  if (e.type === 'touchmove') e.preventDefault();
 
   const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
   const deltaY = clientY - startY;
 
-  // Only allow dragging down if expanded, or up if minimized
   const isMinimized = draggingSheet.classList.contains('minimized');
-  
-  if (isMinimized && deltaY > 0) return; // Can't drag further down if minimized
-  if (!isMinimized && deltaY < 0) return; // Can't drag further up if expanded
+
+  // Ignore directions that make no sense for the current sheet state
+  if (isMinimized && deltaY > 0) return;  // already minimized, can't go further down
+  if (!isMinimized && deltaY < 0) return; // already expanded, can't go further up
+
+  // Only block native scroll once we have a real vertical drag gesture (>6px)
+  if (!isDragging) {
+    if (Math.abs(deltaY) < 6) return;
+    isDragging = true;
+  }
+
+  // Now we know this is a sheet drag — safe to cancel native scroll
+  if (e.cancelable) e.preventDefault();
 
   draggingSheet.style.transform = `translateY(${deltaY}px)`;
   currentY = deltaY;
@@ -58,7 +69,6 @@ function endDrag() {
   const threshold = 80;
 
   if (Math.abs(currentY) > threshold) {
-    // Snap to new state
     const isMinimized = draggingSheet.classList.contains('minimized');
     if (isMinimized && currentY < -threshold) {
       draggingSheet.classList.remove('minimized');
@@ -72,6 +82,7 @@ function endDrag() {
   draggingSheet.style.transform = '';
   draggingSheet = null;
   currentY = 0;
+  isDragging = false;
 
   document.removeEventListener('mousemove', handleDrag);
   document.removeEventListener('touchmove', handleDrag);
@@ -319,15 +330,33 @@ export function getGreeting() {
 }
 
 // Splash Screen Lifecycle
+let _splashDismissed = false;
+let _splashReady = false; // true once the minimum display time has elapsed
+let _authReady = false;   // true once auth state has resolved
+
+function _tryDismissSplash() {
+  if (_splashDismissed || !_splashReady || !_authReady) return;
+  _splashDismissed = true;
+  const splash = document.getElementById("splash");
+  if (splash) {
+    splash.style.opacity = "0";
+    splash.style.pointerEvents = "none";
+    setTimeout(() => splash.remove(), 400);
+  }
+}
+
+// Call once when auth state first resolves (login check done)
+export function dismissSplash() {
+  _authReady = true;
+  _tryDismissSplash();
+}
+
 export function initSplashScreen() {
+  // 1 second minimum — enough to show the logo without frustrating a returning user
   setTimeout(() => {
-    const splash = document.getElementById("splash");
-    if (splash) {
-      splash.style.opacity = "0";
-      splash.style.pointerEvents = "none";
-      setTimeout(() => splash.remove(), 500);
-    }
-  }, 2500);
+    _splashReady = true;
+    _tryDismissSplash();
+  }, 1000);
 }
 
 // Custom dropdown dialog/picker selection functionality

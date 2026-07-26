@@ -45,16 +45,13 @@ body:has(#loginScreen:not(.hidden)) {
   width: min(60vw, 280px);
   height: min(60vw, 280px);
   border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.1;
+  /* Use a radial gradient instead of filter:blur — no GPU layer needed */
+  background: radial-gradient(circle, rgba(255, 94, 26, 0.18) 0%, transparent 70%);
   z-index: 0;
   pointer-events: none;
-  will-change: transform;
-  transform: translate3d(0,0,0);
-  background: var(--color-accent);
   top: -60px;
   left: -60px;
-  animation: blobDrift1 18s infinite alternate ease-in-out;
+  /* Static position — subtle enough without animation */
 }
 
 /* Wrapper to isolate content from background effects */
@@ -75,15 +72,12 @@ body:has(#loginScreen:not(.hidden)) {
   width: min(50vw, 240px);
   height: min(50vw, 240px);
   border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.08;
+  /* Radial gradient replaces filter:blur — same visual, zero GPU overhead */
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.14) 0%, transparent 70%);
   z-index: 0;
   pointer-events: none;
-  will-change: transform;
-  background: #3b82f6;
   bottom: -40px;
   right: -40px;
-  animation: blobDrift2 20s infinite alternate ease-in-out;
 }
 
 .auth-wrapper::after {
@@ -92,16 +86,12 @@ body:has(#loginScreen:not(.hidden)) {
   width: min(40vw, 200px);
   height: min(40vw, 200px);
   border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.06;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.10) 0%, transparent 70%);
   z-index: 0;
   pointer-events: none;
-  will-change: transform;
-  background: #8b5cf6;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  animation: blobDrift3 22s infinite alternate ease-in-out;
 }
 
 .auth-brand {

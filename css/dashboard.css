@@ -66,15 +66,16 @@
   padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 20px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* Sidebar Styles (Legacy, can be kept for now or removed if fully using bottom nav) */
 .sidebar-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0,0,0,0.72);
   z-index: 3000;
-  backdrop-filter: blur(3px);
+  /* No backdrop-filter here — blur costs a full GPU compositing pass on mobile */
   transition: opacity 0.3s;
 }
 
@@ -268,6 +269,8 @@
   content: '';
   position: absolute;
   inset: 0;
+  /* Static gradient instead of animated — the shift was imperceptible on mobile
+     but kept a continuous CPU/GPU paint cycle running */
   background: linear-gradient(
     135deg,
     #0a0a14 0%,
@@ -276,8 +279,6 @@
     #12122a 75%,
     #0a0a14 100%
   );
-  background-size: 400% 400%;
-  animation: authGradientShift 12s ease infinite;
   z-index: 0;
   pointer-events: none;
 }
@@ -288,14 +289,12 @@
   width: min(70vw, 300px);
   height: min(70vw, 300px);
   border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.08;
+  /* Radial gradient replaces filter:blur(120px) — saves an entire GPU compositing layer */
+  background: radial-gradient(circle, rgba(255, 94, 26, 0.14) 0%, transparent 70%);
   z-index: 0;
   pointer-events: none;
-  background: var(--color-accent);
   top: -80px;
   right: -80px;
-  animation: blobDrift1 18s infinite alternate ease-in-out;
 }
 
 #roleSelect > * {
@@ -332,8 +331,8 @@
   padding: 28px 24px;
   border-radius: var(--radius-xl);
   background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  /* backdrop-filter removed — the dark semi-transparent bg is visually identical
+     without costing a GPU compositing layer per card */
   border: 1px solid var(--glass-border);
   cursor: pointer;
   transition: all 0.25s var(--ease-smooth);

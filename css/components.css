@@ -157,8 +157,8 @@
   justify-content: space-between;
   padding: 0 var(--space-md);
   z-index: 100;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  /* Using solid header-bg instead of backdrop-filter: solid is composited once,
+     backdrop-filter forces a separate GPU layer and repaints on every scroll */
   background: var(--color-header-bg);
 }
 
@@ -530,8 +530,8 @@
 /* Cards — Glassmorphic System */
 .card {
   background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  /* backdrop-filter removed — on mobile it triggers a full GPU compositing layer
+     per element. The semi-transparent bg gives the glass look without the cost. */
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
   padding: var(--space-md);
@@ -550,8 +550,7 @@
 /* Student-tinted glass card */
 .card-student {
   background: var(--glass-student-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  /* backdrop-filter removed for mobile performance */
   border: 1px solid var(--glass-student-border);
   border-radius: var(--radius-xl);
   padding: var(--space-md);
@@ -757,7 +756,7 @@ select.input-field option {
 }
 
 /* Activity & Profile Items */
-.activity-list { padding: 20px; flex: 1; overflow-y: auto; }
+.activity-list { padding: 20px; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
 .activity-item {
   background: var(--color-bg-secondary);
   padding: 16px;
@@ -769,7 +768,7 @@ select.input-field option {
   border: 1px solid var(--color-border);
 }
 
-.profile-content { padding: 24px 20px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.profile-content { padding: 24px 20px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 .profile-card {
   background: var(--color-bg-secondary);
   padding: 30px;
@@ -1262,10 +1261,12 @@ select.input-field option {
   justify-content: space-around;
   padding-bottom: var(--safe-area-bottom);
   z-index: 100;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  /* Solid background, no blur — avoids compositor overhead while scrolling */
   box-shadow: var(--shadow-bottom-nav);
   overflow: hidden;
+  /* Promote to own GPU layer so it never triggers a repaint when content scrolls */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 /* Animated active pill */
@@ -1279,6 +1280,9 @@ select.input-field option {
               width var(--duration-normal) var(--ease-smooth);
   pointer-events: none;
   z-index: 0;
+  /* Promote pill to own layer so tab switching doesn't cause a layout repaint */
+  will-change: left, width;
+  transform: translateZ(0);
 }
 
 .nav-tab, .nav-item {

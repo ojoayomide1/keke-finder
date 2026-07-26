@@ -102,6 +102,22 @@ export function refreshMapTheme() {
 }
 
 export function initMap(mapId) {
+  const mapElement = document.getElementById(mapId);
+  if (!mapElement) return;
+  if (mapElement.offsetParent === null) return;
+
+  // If the map already exists and is bound to this same container, just resize it
+  // instead of tearing down and rebuilding — saves ~100-300ms on every Live tab visit
+  if (state.map && state.mapId === mapId) {
+    try {
+      state.map.invalidateSize();
+    } catch (e) {
+      console.warn("Map resize warning:", e);
+    }
+    return;
+  }
+
+  // Tear down any existing map bound to a different container
   if (state.map) {
     try {
       state.map.remove();
@@ -110,6 +126,8 @@ export function initMap(mapId) {
     }
     state.map = null;
   }
+
+  state.mapId = mapId;
   state.riderMarker = null;
   state.userMarker = null;
   state.routeLayer = null;
@@ -117,10 +135,6 @@ export function initMap(mapId) {
   state.requestMarkers = [];
   state.activeMarkerAnimations.forEach(id => cancelAnimationFrame(id));
   state.activeMarkerAnimations.clear();
-  
-  const mapElement = document.getElementById(mapId);
-  if (!mapElement) return;
-  if (mapElement.offsetParent === null) return;
 
   state.map = L.map(mapId, { tap: false, zoomControl: false }).setView([9.2880, 7.4130], 16);
   
@@ -128,7 +142,7 @@ export function initMap(mapId) {
   state.tileLayer = L.tileLayer(url, options).addTo(state.map);
   
   renderCampusMapData(state.map);
-  setTimeout(() => state.map && state.map.invalidateSize(), 500);
+  setTimeout(() => state.map && state.map.invalidateSize(), 300);
 }
 
 // Custom icons for the new design

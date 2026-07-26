@@ -12,7 +12,7 @@ import {
   getDoc
 } from "./firebase.js";
 import { state } from "./modules/state.js";
-import { showPromptDialog } from "./modules/ui.js";
+import { showPromptDialog, dismissSplash } from "./modules/ui.js";
 import {
   isBiometricsSupported,
   registerBiometrics,
@@ -470,9 +470,11 @@ export function initAuth(options) {
         // We'll call onUserChanged anyway, but app.js should handle the missing role.
         onUserChanged(user);
       }
+      dismissSplash();
       updateBiometricsUI();
     } else {
       onUserChanged(null);
+      dismissSplash();
       updateBiometricsUI();
     }
   });
