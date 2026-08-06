@@ -278,11 +278,6 @@ function handleAuthSubmit() {
     signIn();
   }
 }
-
-function continueAsGuest() {
-  onUserChanged({ isGuest: true, role: 'student', displayName: 'Guest' });
-}
-
 async function logout() {
   if (window.cleanupRiderSession) {
     await window.cleanupRiderSession();
@@ -395,7 +390,6 @@ export function bindAuthGlobals() {
   window.setAuthMode = setAuthMode;
   window.setSignupRole = setSignupRole;
   window.handleAuthSubmit = handleAuthSubmit;
-  window.continueAsGuest = continueAsGuest;
   window.logout = logout;
   window.toggleBiometrics = toggleBiometrics;
   window.handleBiometricLogin = handleBiometricLogin;
@@ -424,7 +418,7 @@ export function initAuth(options) {
         finalUser = { ...user, ...data };
         onUserChanged(finalUser);
       } else {
-        // If still no doc, it might be a guest or a brand new user whose doc is still being created.
+        // If still no doc, it might be a brand new user whose doc is still being created.
         // We'll call onUserChanged anyway, but app.js should handle the missing role.
         onUserChanged(user);
       }

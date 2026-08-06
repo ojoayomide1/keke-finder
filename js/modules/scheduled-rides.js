@@ -5,13 +5,13 @@ import { state } from "./state.js";
 let scheduledRideTimer = null;
 
 export function startScheduledRidesProcessor() {
-  if (scheduledRideTimer || !state.currentUser || state.currentUser.isGuest) return;
+  if (scheduledRideTimer || !state.currentUser) return;
   processScheduledRides();
   scheduledRideTimer = setInterval(processScheduledRides, 10 * 60 * 1000);
 }
 
 export async function processScheduledRides() {
-  if (!state.currentUser || state.currentUser.isGuest) return;
+  if (!state.currentUser) return;
 
   const now = new Date();
   const in30Mins = new Date(now.getTime() + 30 * 60 * 1000);

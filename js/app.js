@@ -128,7 +128,7 @@ function renderSidebarMenu() {
   const role = state.currentRole || "student";
   const nameEl = document.getElementById("sidebarName");
   const emailEl = document.getElementById("sidebarEmail");
-  if (nameEl) nameEl.innerText = state.currentUser?.displayName || state.currentUser?.name || "Guest";
+  if (nameEl) nameEl.innerText = state.currentUser?.displayName || state.currentUser?.name || "User";
   if (emailEl) emailEl.innerText = state.currentUser?.email || (role === "rider" ? "Rider account" : "Student account");
   const items = role === "rider"
     ? [
@@ -202,7 +202,7 @@ function switchTab(tab) {
   // Handle specific tab logic
   if (role === "student") {
     if (tab === "activity") {
-      if (state.currentUser?.isGuest) return showToast("Signup to view activity", "error");
+      if (!state.currentUser?.uid) return showToast("Login required to view activity", "error");
       fetchRideHistory();
     } else if (tab === "wallet") {
       renderStudentWallet();

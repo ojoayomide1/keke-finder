@@ -149,7 +149,7 @@ function getWallet() {
 }
 
 export function listenToStudentWallet() {
-  if (!state.currentUser?.uid || state.currentUser?.isGuest || state.currentUser?.role !== "student") return;
+  if (!state.currentUser?.uid || state.currentUser?.role !== "student") return;
   if (walletUnsubscribe) walletUnsubscribe();
   if (transactionUnsubscribe) transactionUnsubscribe();
 
@@ -378,7 +378,7 @@ export async function continueTopUp() {
 const PAYSTACK_PUBLIC_KEY = "pk_live_cd5305502fcec15b34ded0dcfc9d56f84b85482a"; // live key, dont touch
 
 export async function initiateTopUp(studentId, amountNaira) {
-  if (!studentId || state.currentUser?.isGuest) throw new Error("Login required to top up");
+  if (!studentId) throw new Error("Login required to top up");
   if (amountNaira < MIN_TOPUP_NAIRA) throw new Error(`Minimum top-up is ${formatNaira(MIN_TOPUP_NAIRA * 100)}`);
 
   // open paystack checkout popup

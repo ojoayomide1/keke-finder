@@ -148,8 +148,8 @@ export function populateLocations() {
 
 export function updateStudentProfileUI() {
   if (!state.currentUser) return;
-  const name = state.currentUser.displayName || "Guest Student";
-  const email = state.currentUser.email || "Guest User";
+  const name = state.currentUser.displayName || "Student";
+  const email = state.currentUser.email || "Student account";
   const dashName = document.getElementById("studentDashName");
   const sideName = document.getElementById("sidebarName");
   const sideEmail = document.getElementById("sidebarEmail");
@@ -171,7 +171,7 @@ export function updateStudentProfileUI() {
 
 export async function fetchRideHistory() {
   const list = document.getElementById("activityList");
-  if (!list || !state.currentUser || state.currentUser.isGuest) return;
+  if (!list || !state.currentUser) return;
   const q = query(
     collection(db, "rideRequests"),
     where("studentId", "==", state.currentUser.uid),
@@ -224,7 +224,7 @@ export async function requestKeke() {
   btn.disabled = true;
   btn.innerText = "Checking...";
   try {
-    if (state.currentUser?.isGuest) {
+    if (!state.currentUser?.uid) {
       showToast("Login required to request rides", "error");
       return;
     }
@@ -249,8 +249,8 @@ export async function requestKeke() {
     btn.innerText = "Looking for your keke...";
 
     const requestData = {
-      studentId: state.currentUser?.uid || (state.currentUser?.isGuest ? "guest" : "unknown"),
-      studentName: state.currentUser?.displayName || "Guest",
+      studentId: state.currentUser.uid,
+      studentName: state.currentUser?.displayName || "Student",
       pickup: {
         lat: pickupLoc.lat,
         lng: pickupLoc.lng,
