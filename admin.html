@@ -2,11 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>OpRides Admin</title>
   <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="css/admin.css">
+  <link rel="stylesheet" href="css/map-editor.css">
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 </head>
 <body class="admin-page">
@@ -39,6 +42,10 @@
         <div class="admin-nav-item" data-section="campus">
           <span class="admin-nav-icon">M</span>
           Campus Data
+        </div>
+        <div class="admin-nav-item" data-section="map-editor">
+          <span class="admin-nav-icon">🗺️</span>
+          Map Editor
         </div>
       </nav>
 
@@ -154,7 +161,10 @@
             <h2 class="admin-section-title" style="margin-bottom: 0;">Campus Data</h2>
             <p>Manage map markers, keke stops, building shapes, and hidden indoor records.</p>
           </div>
-          <button type="button" class="btn btn-primary" id="saveCampusDataBtn">Save campus data</button>
+          <div style="display: flex; gap: var(--space-sm);">
+            <button type="button" class="btn btn-secondary" onclick="document.querySelector('.admin-nav-item[data-section=\'map-editor\']').click()">🗺️ Open Map Editor</button>
+            <button type="button" class="btn btn-primary" id="saveCampusDataBtn">Save campus data</button>
+          </div>
         </div>
 
         <div class="admin-panel">
@@ -174,17 +184,312 @@
               <div id="campusSectionList" class="campus-section-list"></div>
             </section>
           </div>
-          <p class="admin-help">Use valid JSON. Campus markers and ride stops have separate coordinates because keke stops can be away from the actual building. Indoor records are stored here but are not shown on the map.</p>
-          <textarea id="campusDataEditor" class="admin-json-editor" spellcheck="false"></textarea>
-          <div class="admin-actions">
-            <button type="button" class="green" id="reloadCampusDataBtn">Reload</button>
-            <button type="button" class="yellow" id="formatCampusDataBtn">Format JSON</button>
+          <details class="admin-advanced-json">
+            <summary>Advanced — Raw JSON Editor</summary>
+            <p class="admin-help">Use valid JSON. Campus markers and ride stops have separate coordinates because keke stops can be away from the actual building. Indoor records are stored here but are not shown on the map.</p>
+            <textarea id="campusDataEditor" class="admin-json-editor" spellcheck="false"></textarea>
+            <div class="admin-actions">
+              <button type="button" class="green" id="reloadCampusDataBtn">Reload</button>
+              <button type="button" class="yellow" id="formatCampusDataBtn">Format JSON</button>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- MAP EDITOR SECTION                                 -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <section id="section-map-editor" class="admin-section map-editor-section hidden">
+
+        <!-- ── Top bar ── -->
+        <div class="me-topbar">
+          <button type="button" class="me-topbar__menu" onclick="openAdminMenu()" aria-label="Menu">
+            <i class="fas fa-bars"></i>
+          </button>
+          <span class="me-topbar__title">Map Editor</span>
+          <div class="me-topbar__actions">
+            <button type="button" class="me-icon-btn" id="meUndoBtn" title="Undo last action">
+              <i class="fas fa-rotate-left"></i>
+            </button>
+            <button type="button" class="me-icon-btn" id="meRedoBtn" title="Redo action">
+              <i class="fas fa-rotate-right"></i>
+            </button>
+            <button type="button" class="me-icon-btn me-icon-btn--save" id="meSaveBtn" title="Save to cloud">
+              <i class="fas fa-cloud-arrow-up"></i>
+            </button>
           </div>
         </div>
+
+        <!-- ── Map container ── -->
+        <div class="me-map-wrap">
+          <div id="meMap" class="me-map"></div>
+
+          <!-- Crosshair (always centered) -->
+          <div class="me-crosshair" aria-hidden="true">
+            <div class="me-crosshair__h"></div>
+            <div class="me-crosshair__v"></div>
+            <div class="me-crosshair__dot"></div>
+          </div>
+
+          <!-- Map floating buttons -->
+          <div class="me-map-fab-group">
+            <button type="button" class="me-fab" id="meLocateBtn" title="Go to my location">
+              <i class="fas fa-location-crosshairs"></i>
+            </button>
+            <button type="button" class="me-fab me-fab--satellite" id="meTileBtn" title="Toggle satellite">
+              <i class="fas fa-satellite"></i>
+            </button>
+          </div>
+
+          <!-- Zoom + accuracy status pill -->
+          <div class="me-map-status" id="meMapStatus">Zoom in for accuracy</div>
+        </div>
+
+        <!-- ── Bottom sheet ── -->
+        <div class="me-sheet" id="meSheet">
+
+          <!-- Sheet handle (swipe to resize) -->
+          <div class="me-sheet__handle-wrap" id="meSheetHandle">
+            <div class="me-sheet__handle"></div>
+          </div>
+
+          <!-- Tool tab bar -->
+          <div class="me-tabs" role="tablist">
+            <button type="button" class="me-tab active" data-tab="seed" role="tab" aria-selected="true">
+              <i class="fas fa-list-check"></i>
+              <span>Seed</span>
+            </button>
+            <button type="button" class="me-tab" data-tab="pin" role="tab" aria-selected="false">
+              <i class="fas fa-location-dot"></i>
+              <span>Pin</span>
+            </button>
+            <button type="button" class="me-tab" data-tab="stop" role="tab" aria-selected="false">
+              <i class="fas fa-bus-simple"></i>
+              <span>Stop</span>
+            </button>
+            <button type="button" class="me-tab" data-tab="road" role="tab" aria-selected="false">
+              <i class="fas fa-road"></i>
+              <span>Road</span>
+            </button>
+            <button type="button" class="me-tab" data-tab="tools" role="tab" aria-selected="false">
+              <i class="fas fa-screwdriver-wrench"></i>
+              <span>Tools</span>
+            </button>
+          </div>
+
+          <!-- ── Seed tab ── -->
+          <div class="me-panel active" id="me-panel-seed">
+            <div class="me-panel__header">
+              <div>
+                <p class="me-panel__title">Location Seeder</p>
+                <p class="me-panel__sub">Tap a location, walk to it, then drop a pin.</p>
+              </div>
+              <div class="me-progress" id="meSeedProgress">
+                <span id="meSeedCount">0</span> / <span id="meSeedTotal">0</span>
+              </div>
+            </div>
+            <!-- Search Filter Bar -->
+            <div style="padding: 0 16px 8px;">
+              <input type="text" id="meSeedSearch" class="me-input" placeholder="🔍 Search locations..." style="min-height: 40px; padding: 8px 12px; font-size: 14px;">
+            </div>
+            <div class="me-seed-list" id="meSeedList">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- ── Pin tab ── -->
+          <div class="me-panel" id="me-panel-pin">
+            <div class="me-panel__header">
+              <p class="me-panel__title">Drop Campus Marker</p>
+              <p class="me-panel__sub">Pan map so ✛ is on the spot, then tap Place Pin.</p>
+            </div>
+            <div class="me-form">
+              <label class="me-label">
+                Name
+                <input type="text" id="mePinName" class="me-input" placeholder="e.g. Block A" autocomplete="off">
+              </label>
+              <label class="me-label">
+                Category
+                <select id="mePinCategory" class="me-input me-select"></select>
+              </label>
+              <label class="me-label">
+                ID (auto)
+                <input type="text" id="mePinId" class="me-input" placeholder="block_a" autocomplete="off">
+              </label>
+              <div class="me-coords-row">
+                <label class="me-label">
+                  Latitude
+                  <input type="number" id="mePinLat" class="me-input" step="0.000001" placeholder="9.287...">
+                </label>
+                <label class="me-label">
+                  Longitude
+                  <input type="number" id="mePinLng" class="me-input" step="0.000001" placeholder="7.415...">
+                </label>
+              </div>
+              <p class="me-validation-msg" id="mePinValidation"></p>
+            </div>
+            <div class="me-panel__actions">
+              <button type="button" class="me-btn me-btn--ghost" id="mePinGpsBtn">
+                <i class="fas fa-location-dot"></i> Use GPS
+              </button>
+              <button type="button" class="me-btn me-btn--primary" id="mePlacePinBtn">
+                <i class="fas fa-thumbtack"></i> Place Pin
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Stop tab ── -->
+          <div class="me-panel" id="me-panel-stop">
+            <div class="me-panel__header">
+              <p class="me-panel__title">Drop Ride Stop</p>
+              <p class="me-panel__sub">Pan map so ✛ is on the keke stop, then tap Place Stop.</p>
+            </div>
+            <div class="me-form">
+              <label class="me-label">
+                Stop Name
+                <input type="text" id="meStopName" class="me-input" placeholder="e.g. Boys Hostel Gate Stop" autocomplete="off">
+              </label>
+              <label class="me-label">
+                Serves (select all that apply)
+                <div class="me-checklist" id="meStopServesList">
+                  <!-- Populated by JS -->
+                </div>
+              </label>
+              <div class="me-coords-row">
+                <label class="me-label">
+                  Latitude
+                  <input type="number" id="meStopLat" class="me-input" step="0.000001" placeholder="9.287...">
+                </label>
+                <label class="me-label">
+                  Longitude
+                  <input type="number" id="meStopLng" class="me-input" step="0.000001" placeholder="7.415...">
+                </label>
+              </div>
+              <p class="me-validation-msg" id="meStopValidation"></p>
+            </div>
+            <div class="me-panel__actions">
+              <button type="button" class="me-btn me-btn--ghost" id="meStopGpsBtn">
+                <i class="fas fa-location-dot"></i> Use GPS
+              </button>
+              <button type="button" class="me-btn me-btn--primary" id="mePlaceStopBtn">
+                <i class="fas fa-thumbtack"></i> Place Stop
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Road tab ── -->
+          <div class="me-panel" id="me-panel-road">
+            <div class="me-panel__header">
+              <p class="me-panel__title">Draw Road / Path</p>
+              <p class="me-panel__sub">Walk the road. Tap "Add Point" at each bend or junction.</p>
+            </div>
+            <div class="me-form">
+              <label class="me-label">
+                Road Name
+                <input type="text" id="meRoadName" class="me-input" placeholder="e.g. Main Campus Road" autocomplete="off">
+              </label>
+              <div class="me-road-status" id="meRoadStatus">No points yet. Start walking and tap Add Point.</div>
+            </div>
+            <div class="me-panel__actions me-road-actions">
+              <button type="button" class="me-btn me-btn--ghost" id="meRoadUndoBtn">
+                <i class="fas fa-rotate-left"></i> Undo
+              </button>
+              <button type="button" class="me-btn me-btn--accent" id="meRoadAddBtn">
+                <i class="fas fa-plus"></i> Add Point
+              </button>
+              <button type="button" class="me-btn me-btn--primary" id="meRoadSaveBtn">
+                <i class="fas fa-check"></i> Save Road
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Tools tab ── -->
+          <div class="me-panel" id="me-panel-tools">
+            <div class="me-panel__header">
+              <p class="me-panel__title">Tools & Settings</p>
+            </div>
+            <div class="me-tools-grid">
+              <button type="button" class="me-tool-btn" id="meLayerToggleBtn">
+                <i class="fas fa-layer-group"></i>
+                <span>Layers</span>
+              </button>
+              <button type="button" class="me-tool-btn" id="meMeasureBtn" title="Measure distance on map">
+                <i class="fas fa-ruler-combined"></i>
+                <span>Measure</span>
+              </button>
+              <button type="button" class="me-tool-btn" id="meExportBtn">
+                <i class="fas fa-file-export"></i>
+                <span>Export JSON</span>
+              </button>
+              <button type="button" class="me-tool-btn" id="meReloadBtn">
+                <i class="fas fa-rotate"></i>
+                <span>Reload Cloud</span>
+              </button>
+              <button type="button" class="me-tool-btn me-tool-btn--danger" id="meClearDraftBtn" style="grid-column: 1 / -1;">
+                <i class="fas fa-trash"></i>
+                <span>Clear Draft</span>
+              </button>
+            </div>
+            <!-- Layer toggles (hidden by default, shown when Layers tapped) -->
+            <div class="me-layers hidden" id="meLayers">
+              <label class="me-layer-toggle">
+                <input type="checkbox" id="meLayerLocations" checked>
+                <span>Campus Markers</span>
+              </label>
+              <label class="me-layer-toggle">
+                <input type="checkbox" id="meLayerStops" checked>
+                <span>Ride Stops</span>
+              </label>
+              <label class="me-layer-toggle">
+                <input type="checkbox" id="meLayerRoads" checked>
+                <span>Roads / Paths</span>
+              </label>
+              <label class="me-layer-toggle">
+                <input type="checkbox" id="meLayerBuildings" checked>
+                <span>Buildings</span>
+              </label>
+            </div>
+            <!-- Graph status -->
+            <div class="me-graph-status" id="meGraphStatus"></div>
+            <!-- Advanced JSON toggle -->
+            <details class="me-advanced">
+              <summary>Advanced — Raw JSON Editor</summary>
+              <textarea id="meJsonEditor" class="me-json-textarea" spellcheck="false"></textarea>
+              <div class="me-panel__actions" style="margin-top:8px">
+                <button type="button" class="me-btn me-btn--ghost" id="meJsonFormatBtn">Format</button>
+                <button type="button" class="me-btn me-btn--primary" id="meJsonSaveBtn">Push to Cloud</button>
+              </div>
+            </details>
+          </div>
+
+        </div>
+        <!-- /me-sheet -->
+
+        <!-- Seeder pin mode overlay (full-screen prompt) -->
+        <div class="me-seeder-overlay hidden" id="meSeederOverlay">
+          <div class="me-seeder-card">
+            <p class="me-seeder-card__label">Walk to this location:</p>
+            <h2 class="me-seeder-card__name" id="meSeederName">—</h2>
+            <p class="me-seeder-card__hint" id="meSeederHint">Pan the map so the ✛ crosshair is exactly on the spot, then tap the button below.</p>
+            <button type="button" class="me-btn me-btn--primary me-btn--lg" id="meSeederDropBtn">
+              <i class="fas fa-thumbtack"></i>
+              I'm Here — Drop Pin
+            </button>
+            <button type="button" class="me-btn me-btn--ghost" id="meSeederGpsBtn">
+              <i class="fas fa-location-dot"></i>
+              Use GPS Instead
+            </button>
+            <button type="button" class="me-seeder-cancel" id="meSeederCancelBtn">
+              <i class="fas fa-xmark"></i> Cancel
+            </button>
+          </div>
+        </div>
+
       </section>
     </main>
   </div>
 
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script type="module" src="js/admin.js"></script>
 </body>
 </html>

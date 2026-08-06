@@ -7,6 +7,9 @@ import {
   setDoc
 } from "./firebase.js";
 
+// Toggle this off before production if the in-app coordinate editor should be hidden.
+export const CAMPUS_EDITOR_MODE = false;
+
 export const CAMPUS_CATEGORY_META = {
   boys_hostel: { label: "Boys Hostels", icon: "fa-bed", color: "#2563eb" },
   girls_hostel: { label: "Girls Hostels", icon: "fa-person-dress", color: "#db2777" },
@@ -125,7 +128,7 @@ function normalizePoint(point) {
 }
 
 function normalizeShape(shape) {
-  return {
+  const normalized = {
     ...shape,
     points: Array.isArray(shape?.points)
       ? shape.points
@@ -133,6 +136,14 @@ function normalizeShape(shape) {
           .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng))
       : []
   };
+
+  if (Array.isArray(shape?.corridorPoints)) {
+    normalized.corridorPoints = shape.corridorPoints
+      .map(normalizePoint)
+      .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng));
+  }
+
+  return normalized;
 }
 
 function serializePoint(point) {
@@ -141,7 +152,7 @@ function serializePoint(point) {
 }
 
 function serializeShape(shape) {
-  return {
+  const serialized = {
     ...shape,
     points: Array.isArray(shape?.points)
       ? shape.points
@@ -149,6 +160,14 @@ function serializeShape(shape) {
           .filter(point => Number.isFinite(point.lat) && Number.isFinite(point.lng))
       : []
   };
+
+  if (Array.isArray(shape?.corridorPoints)) {
+    serialized.corridorPoints = shape.corridorPoints
+      .map(serializePoint)
+      .filter(point => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+  }
+
+  return serialized;
 }
 
 function serializeCampusDataForFirestore(data) {

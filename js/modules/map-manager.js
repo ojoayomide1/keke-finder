@@ -1,11 +1,11 @@
 import { state } from "./state.js";
-import { renderCampusMapData } from "../campus-map.js";
+import { initCampusMapTools } from "../campus-map.js";
 
-// location smoother state
+// Location Stabilizer State
 const stabilizer = {
   lastLat: null,
   lastLng: null,
-  smoothingFactor: 0.3 // tweak this (0-1): lower = smoother but more lag
+  smoothingFactor: 0.3 // Adjust (0 to 1): Lower is smoother but has more lag
 };
 
 /**
@@ -19,7 +19,7 @@ export function stabilizeLocation(lat, lng) {
     return { lat, lng };
   }
 
-  // EMA: newVal = (raw * factor) + (old * (1 - factor))
+  // EMA Formula: NewValue = (RawValue * Factor) + (OldValue * (1 - Factor))
   const smoothLat = (lat * stabilizer.smoothingFactor) + (stabilizer.lastLat * (1 - stabilizer.smoothingFactor));
   const smoothLng = (lng * stabilizer.smoothingFactor) + (stabilizer.lastLng * (1 - stabilizer.smoothingFactor));
 
@@ -40,7 +40,7 @@ export function animateMarker(marker, targetLat, targetLng, duration = 1200) {
   const startLng = marker.getLatLng().lng;
   const startTime = performance.now();
 
-  // smooth easing so the marker glides instead of snapping
+  // Easing function for a "gliding" feel
   function easeOutCubic(t) {
     return 1 - Math.pow(1 - t, 3);
   }
@@ -102,21 +102,6 @@ export function refreshMapTheme() {
 }
 
 export function initMap(mapId) {
-  const mapElement = document.getElementById(mapId);
-  if (!mapElement) return;
-  if (mapElement.offsetParent === null) return;
-
-  // if same container, just resize — faster than rebuilding the whole map
-  if (state.map && state.mapId === mapId) {
-    try {
-      state.map.invalidateSize();
-    } catch (e) {
-      console.warn("Map resize warning:", e);
-    }
-    return;
-  }
-
-  // different container — tear down the old one first
   if (state.map) {
     try {
       state.map.remove();
@@ -125,8 +110,6 @@ export function initMap(mapId) {
     }
     state.map = null;
   }
-
-  state.mapId = mapId;
   state.riderMarker = null;
   state.userMarker = null;
   state.routeLayer = null;
@@ -134,17 +117,21 @@ export function initMap(mapId) {
   state.requestMarkers = [];
   state.activeMarkerAnimations.forEach(id => cancelAnimationFrame(id));
   state.activeMarkerAnimations.clear();
+  
+  const mapElement = document.getElementById(mapId);
+  if (!mapElement) return;
+  if (mapElement.offsetParent === null) return;
 
   state.map = L.map(mapId, { tap: false, zoomControl: false }).setView([9.2880, 7.4130], 16);
   
   const { url, options } = getTileLayerConfig();
   state.tileLayer = L.tileLayer(url, options).addTo(state.map);
   
-  renderCampusMapData(state.map);
-  setTimeout(() => state.map && state.map.invalidateSize(), 300);
+  initCampusMapTools(state.map, mapId);
+  setTimeout(() => state.map && state.map.invalidateSize(), 500);
 }
 
-// map icons — made these myself
+// Custom icons for the new design
 export const kekeIcon = L.divIcon({
   html: `<div style="
     width: 36px;

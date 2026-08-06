@@ -9,10 +9,8 @@ import {
   getDocs,
   where,
   db,
-  auth,
   addDoc,
-  serverTimestamp,
-  deleteUser
+  serverTimestamp
 } from "./firebase.js";
 import { initAuth } from "./auth.js";
 import "./seeding.js";
@@ -22,6 +20,7 @@ import {
   getCampusDestinationLocations,
   loadCampusDataFromFirestore
 } from "./campus-data.js";
+import { stopCampusEditorLocationWatch } from "./campus-editor.js";
 import { 
   showToast, 
   updateBottomSheet, 
@@ -30,10 +29,10 @@ import {
   setButtonVisible,
   showLoginScreen,
   initSplashScreen,
-  showConfirmDialog
+  getGreeting
 } from "./modules/ui.js";
 
-// start the splash first before anything else loads
+// Initialize splash screen on app start
 initSplashScreen();
 import { 
   initMap, 
@@ -59,7 +58,7 @@ import {
   completeRide as _completeRide
 } from "./modules/rider.js";
 import { startScheduledRidesProcessor } from "./modules/scheduled-rides.js";
-import { listenToStudentWallet, renderStudentWallet, formatNaira } from "./wallet.js";
+import { listenToStudentWallet, renderStudentWallet } from "./wallet.js";
 import { listenToRiderWallet, renderRiderWallet } from "./riderWallet.js";
 
 const THEME_STORAGE_KEY = "oprTheme";
@@ -73,31 +72,6 @@ const pathfinderStudentIcon = L.divIcon({
   className: "",
   iconSize: [38, 38],
   iconAnchor: [19, 19],
-  popupAnchor: [0, -18]
-});
-
-// Custom Leaflet DivIcons — made these look nice for the map
-const pickupPinIcon = L.divIcon({
-  html: '<div class="custom-pin pin-pickup"><i class="fas fa-arrow-down-long"></i></div>',
-  className: 'custom-leaflet-pin',
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-  popupAnchor: [0, -30]
-});
-
-const dropoffPinIcon = L.divIcon({
-  html: '<div class="custom-pin pin-dropoff"><i class="fas fa-flag"></i></div>',
-  className: 'custom-leaflet-pin',
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-  popupAnchor: [0, -30]
-});
-
-const riderKekeIcon = L.divIcon({
-  html: '<div class="custom-pin pin-keke"><i class="fas fa-motorcycle"></i></div>',
-  className: 'custom-leaflet-pin pin-keke-container',
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
   popupAnchor: [0, -18]
 });
 
@@ -131,7 +105,7 @@ function toggleAppTheme(checked) {
 
 initTheme();
 
-// ===== GLOBALS =====
+// ================= GLOBAL BINDINGS =================
 function toggleSidebar() {
   const sidebar = document.getElementById("studentSidebar");
   const overlay = document.getElementById("sidebarOverlay");
@@ -189,49 +163,9 @@ function renderSidebarMenu() {
   `;
 }
 
-function setCampusActivityValue(elementId, value) {
-  const el = document.getElementById(elementId);
-  if (el) el.textContent = value;
-}
-
-function stopCampusActivityListeners() {
-  if (state.campusActivityUnsubscribeRides) state.campusActivityUnsubscribeRides();
-  if (state.campusActivityUnsubscribeQueue) state.campusActivityUnsubscribeQueue();
-  state.campusActivityUnsubscribeRides = null;
-  state.campusActivityUnsubscribeQueue = null;
-}
-
-function startCampusActivityListeners() {
-  stopCampusActivityListeners();
-  setCampusActivityValue("onlineKekesCount", "...");
-  setCampusActivityValue("waitingStudentsCount", "...");
-
-  state.campusActivityUnsubscribeRides = onSnapshot(
-    query(collection(db, "rides"), where("status", "in", ["waiting", "active"])),
-    (snapshot) => {
-      setCampusActivityValue("onlineKekesCount", snapshot.size);
-    },
-    (err) => {
-      console.warn("Campus online rider count unavailable:", err.code || err.message);
-      setCampusActivityValue("onlineKekesCount", "--");
-    }
-  );
-
-  // students don't have access to waitingQueue directly so i'm using queued ride requests instead
-  state.campusActivityUnsubscribeQueue = onSnapshot(
-    query(collection(db, "rideRequests"), where("status", "==", "queued")),
-    (snapshot) => {
-      setCampusActivityValue("waitingStudentsCount", snapshot.size);
-    },
-    (err) => {
-      console.warn("Campus waiting student count unavailable:", err.code || err.message);
-      setCampusActivityValue("waitingStudentsCount", "--");
-    }
-  );
-}
 function switchTab(tab) {
   const role = state.currentRole || "student";
-
+  
   const studentViews = {
     home: "studentDashboard",
     wallet: "walletView",
@@ -256,28 +190,14 @@ function switchTab(tab) {
 
   if (role === "student" && tab !== "map") {
     stopPathfinderWatch();
+    stopCampusEditorLocationWatch();
   }
 
-  // fade out the current tab before showing the new one
-  const currentViewIds = [...Object.values(studentViews), ...Object.values(riderViews)];
-  const visibleView = currentViewIds.map(vId => document.getElementById(vId)).find(el => el && !el.classList.contains("hidden"));
-  if (visibleView && visibleView.id !== views[tab]) {
-    visibleView.classList.add("tab-fade-out");
-    setTimeout(() => {
-      visibleView.classList.add("hidden");
-      visibleView.classList.remove("tab-fade-out");
-    }, 150);
-    // hide every other view too
-    currentViewIds.forEach(vId => {
-      const el = document.getElementById(vId);
-      if (el && el !== visibleView) el.classList.add("hidden");
-    });
-  } else {
-    currentViewIds.forEach(vId => {
-      const el = document.getElementById(vId);
-      if (el) el.classList.add("hidden");
-    });
-  }
+  // Hide all views for both roles to be safe
+  [...Object.values(studentViews), ...Object.values(riderViews)].forEach(vId => {
+    const el = document.getElementById(vId);
+    if (el) el.classList.add("hidden");
+  });
 
   // Handle specific tab logic
   if (role === "student") {
@@ -313,312 +233,32 @@ function switchTab(tab) {
     }
   }
 
-  // show the new tab with a fade in
+  // Show selected view
   const targetView = views[tab];
   if (targetView) {
-    const targetEl = document.getElementById(targetView);
-    targetEl.classList.remove("hidden");
-    targetEl.classList.add("tab-fade-in");
-    setTimeout(() => targetEl.classList.remove("tab-fade-in"), 300);
+    document.getElementById(targetView).classList.remove("hidden");
   }
 
   closeSidebar();
 
-  // update the active tab highlight + move the pill
-  const pillId = role === "student" ? "studentNavPill" : "riderNavPill";
-  const activeTabEl = document.querySelector(`#${role === "student" ? "studentUI" : "riderUI"} .nav-tab[onclick*="${tab}"]`);
+  // Update bottom nav active state
   const navSelector = role === "student" ? "#studentUI .nav-tab" : "#riderUI .nav-tab";
   document.querySelectorAll(navSelector).forEach(t => {
     const tId = t.id.replace("tab-", "").replace("rider-", "");
     t.classList.toggle("active", tId === tab);
   });
-  updateNavPill(pillId, activeTabEl);
-
-  // show or hide the dot on the live tab
-  updateLiveNotifDot(role);
-
-  // also update the balance glow thing
-  updateBalanceChipGlow(role);
-}
-
-function setProfileText(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.innerText = value;
-}
-
-function getProfileInitials(name, fallback = "OP") {
-  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return fallback;
-  return parts.slice(0, 2).map(part => part.charAt(0).toUpperCase()).join("");
-}
-
-function getNameGradient(name) {
-  const source = String(name || "OpRides");
-  let hash = 0;
-  for (let i = 0; i < source.length; i++) hash = source.charCodeAt(i) + ((hash << 5) - hash);
-  const hue = Math.abs(hash) % 360;
-  return `linear-gradient(135deg, hsl(${hue}, 72%, 46%), hsl(${(hue + 52) % 360}, 78%, 58%))`;
-}
-
-// ===== NAV PILL ANIMATION =====
-function updateNavPill(pillId, activeTabEl) {
-  const pill = document.getElementById(pillId);
-  if (!pill || !activeTabEl) return;
-
-  const nav = pill.parentElement;
-  if (!nav) return;
-
-  const navRect = nav.getBoundingClientRect();
-  const tabRect = activeTabEl.getBoundingClientRect();
-
-  const left = tabRect.left - navRect.left;
-  const width = tabRect.width;
-
-  pill.style.left = `${left}px`;
-  pill.style.width = `${width}px`;
-}
-
-// set the pill position on page load
-function initNavPills() {
-  const role = state.currentRole || "student";
-  const pillId = role === "student" ? "studentNavPill" : "riderNavPill";
-  const navSelector = role === "student" ? "#studentUI .nav-tab.active" : "#riderUI .nav-tab.active";
-  const activeTab = document.querySelector(navSelector);
-  if (activeTab) {
-    updateNavPill(pillId, activeTab);
-  }
-}
-
-// if screen size changes, reposition the pill
-window.addEventListener("resize", () => {
-  initNavPills();
-});
-
-// ===== NOTIFICATION DOT =====
-function updateLiveNotifDot(role) {
-  const dotId = role === "student" ? "studentLiveNotifDot" : "riderLiveNotifDot";
-  const dot = document.getElementById(dotId);
-  if (!dot) return;
-
-  const hasActiveRide = !!state.currentRideId;
-  dot.classList.toggle("visible", hasActiveRide);
-}
-
-// ===== BALANCE CHIP GLOW =====
-function updateBalanceChipGlow(role) {
-  const chipSelector = role === "student"
-    ? "#studentUI .balance-chip"
-    : "#riderUI .balance-chip";
-  const chip = document.querySelector(chipSelector);
-  if (!chip) return;
-
-  const balanceEl = chip.querySelector(".balance-amount");
-  if (!balanceEl) return;
-
-  const balanceText = balanceEl.textContent.replace(/[^\d]/g, "");
-  const balance = parseInt(balanceText, 10) || 0;
-
-  // glow red if below 500 naira
-  chip.classList.toggle("is-low", balance < 500);
-}
-
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  }[char]));
-}
-
-function estimateRideEtaMinutes(ride) {
-  const pendingStops = (ride.stopQueue || []).filter(stop => stop.status === "pending");
-  const currentLocation = ride.currentLocation;
-  if (!currentLocation || !pendingStops.length) return null;
-  const nextStop = pendingStops[0];
-  if (!nextStop?.location) return null;
-  const distance = getDistance(currentLocation.lat, currentLocation.lng, nextStop.location.lat, nextStop.location.lng);
-  return Math.max(1, Math.round(distance / 80));
-}
-
-function renderLiveSheetEnhancements(ride) {
-  const role = state.currentRole || "student";
-  const target = role === "rider" ? "riderSheetDetails" : "studentRideDetails";
-  const details = document.getElementById(target);
-  if (!details || !ride) return;
-
-  const pendingStops = (ride.stopQueue || []).filter(stop => stop.status === "pending");
-  const nextStop = pendingStops[0];
-  const etaMinutes = estimateRideEtaMinutes(ride);
-  const riderName = ride.riderName || state.currentUser?.displayName || "Campus rider";
-  const plate = ride.plateNo || state.currentUser?.plateNo || "Campus plate";
-  const vehicle = formatVehicleType(ride.vehicleType || state.currentUser?.vehicleType || "keke");
-  const statusLabel = ride.status === "waiting"
-    ? "Waiting for students"
-    : role === "student"
-      ? "Rider en route"
-      : nextStop ? `Next ${nextStop.type === "pickup" ? "pickup" : "drop-off"}` : "Route clear";
-
-  const etaLabel = etaMinutes == null
-    ? (ride.status === "waiting" ? "Waiting" : "Calculating")
-    : `${etaMinutes} min`;
-
-  const premiumHtml = `
-    <div class="rider-info-row">
-      <div class="rider-avatar">${escapeHtml(getProfileInitials(riderName, "OP"))}</div>
-      <div class="rider-info-details">
-        <strong>${escapeHtml(riderName)}</strong>
-        <span>${escapeHtml(plate)} · ${escapeHtml(vehicle)}</span>
-      </div>
-      <div class="rider-vehicle-badge"><i class="fas fa-motorcycle"></i>${escapeHtml(vehicle)}</div>
-    </div>
-    <div class="eta-countdown ${ride.status === "waiting" ? "is-waiting" : ""}">
-      <div class="eta-icon"><i class="fas fa-clock"></i></div>
-      <div class="eta-text">
-        <strong>${escapeHtml(etaLabel)}</strong>
-        <span>${escapeHtml(nextStop?.locationLabel || statusLabel)}</span>
-      </div>
-      <div class="status-text-animated"><span class="status-dot"></span>${escapeHtml(statusLabel)}</div>
-    </div>
-  `;
-
-  details.querySelectorAll(".rider-info-row, .eta-countdown").forEach(el => el.remove());
-  details.insertAdjacentHTML("afterbegin", premiumHtml);
-}
-// ===== RIPPLE EFFECT =====
-function initRippleEffect() {
-  document.addEventListener("click", (e) => {
-    const rippleTarget = e.target.closest(
-      "button:not(.iconBtn):not(.nav-tab):not(.toast-close-btn), .card-tappable, .card-student, .card-rider, .role-select-card"
-    );
-    if (!rippleTarget) return;
-
-    // don't add another ripple if one is already going
-    if (rippleTarget.querySelector(".ripple-circle")) return;
-
-    rippleTarget.classList.add("ripple-effect");
-    const ripple = document.createElement("span");
-    ripple.className = "ripple-circle";
-
-    const rect = rippleTarget.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height) * 2;
-    ripple.style.width = ripple.style.height = `${size}px`;
-    ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
-    ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
-
-    rippleTarget.appendChild(ripple);
-    ripple.addEventListener("animationend", () => ripple.remove());
-  });
-}
-
-// ===== BALANCE COUNTER ANIMATION =====
-function animateBalanceCounter(elementId, targetValue) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-
-  const currentText = el.textContent.replace(/[^\d]/g, "");
-  const current = parseInt(currentText, 10) || 0;
-  const target = parseInt(targetValue, 10) || 0;
-  if (current === target) return;
-
-  const duration = 600;
-  const start = performance.now();
-
-  el.classList.add("balance-animate");
-
-  function step(now) {
-    const elapsed = now - start;
-    const progress = Math.min(elapsed / duration, 1);
-    // ease out so it slows down nicely at the end
-    const eased = 1 - Math.pow(1 - progress, 3);
-    const value = Math.round(current + (target - current) * eased);
-
-    if (el.id.startsWith("header-balance")) {
-      el.textContent = value;
-    } else {
-      el.textContent = formatNaira(value);
-    }
-
-    if (progress < 1) {
-      requestAnimationFrame(step);
-    } else {
-      el.classList.remove("balance-animate");
-    }
-  }
-
-  requestAnimationFrame(step);
-}
-
-// kick off ripple on startup
-initRippleEffect();
-
-// ===== ROLE SELECT =====
-function selectRole(role) {
-  state.currentRole = role;
-  const roleSelect = document.getElementById("roleSelect");
-  if (roleSelect) {
-    roleSelect.classList.add("screen-fade-out");
-    setTimeout(() => {
-      roleSelect.classList.add("hidden");
-      roleSelect.classList.remove("screen-fade-out");
-    }, 400);
-  }
-  if (role === "student") {
-    document.getElementById("studentUI")?.classList.remove("hidden");
-  } else {
-    document.getElementById("riderUI")?.classList.remove("hidden");
-  }
-  // position the pill for whichever role was picked
-  setTimeout(() => initNavPills(), 50);
-}
-window.selectRole = selectRole;
-
-function formatVehicleType(type) {
-  const normalized = String(type || "keke").toLowerCase();
-  if (normalized === "shuttle") return "Shuttle";
-  if (normalized === "bike") return "Bike";
-  return "Keke";
-}
-
-async function renderRiderProfileStats() {
-  if (!state.currentUser?.uid) return;
-  try {
-    const ridesSnap = await getDocs(query(
-      collection(db, "rides"),
-      where("riderId", "==", state.currentUser.uid)
-    ));
-    const rides = ridesSnap.docs.map(docSnap => docSnap.data()).filter(ride => ride.status === "completed");
-    const earned = state.currentUser.earnings?.totalEarned || 0;
-
-    setProfileText("riderProfileTotalRides", String(rides.length));
-    setProfileText("riderProfileTotalEarned", formatNaira(earned));
-  } catch (err) {
-    console.warn("Rider profile stats unavailable:", err.code || err.message);
-    setProfileText("riderProfileTotalRides", "--");
-  }
 }
 
 function updateRiderProfileUI() {
   if (!state.currentUser) return;
   const user = state.currentUser;
-  const name = user.displayName || user.name || "Rider";
-  const email = user.email || "No email";
-  const avatar = document.getElementById("riderProfileAvatar");
-  const statusEl = document.getElementById("riderProfileStatus");
-  const isOnline = Boolean(state.currentRideId || state.riderDocId || state.riderWatchId);
-
-  setProfileText("riderProfileName", name);
-  setProfileText("riderProfileEmail", email);
-  setProfileText("riderProfilePlate", user.plateNo || "No Plate");
-  setProfileText("riderProfileVehicle", formatVehicleType(user.vehicleType));
-  setProfileText("riderProfileStatus", isOnline ? "Online" : "Offline");
-  if (statusEl) statusEl.classList.toggle("online", isOnline);
-  if (avatar) {
-    avatar.innerText = getProfileInitials(name, "RD");
-    avatar.style.background = getNameGradient(name);
-  }
-  renderRiderProfileStats();
+  const nameEl = document.getElementById("riderProfileName");
+  const emailEl = document.getElementById("riderProfileEmail");
+  const plateEl = document.getElementById("riderProfilePlate");
+  
+  if (nameEl) nameEl.innerText = user.displayName || "Rider";
+  if (emailEl) emailEl.innerText = user.email || "No email";
+  if (plateEl) plateEl.innerText = user.plateNo || "No Plate";
 
   const adminLink = document.getElementById("adminLinkRider");
   if (adminLink) {
@@ -659,13 +299,11 @@ async function requestKeke() {
 async function cancelRide() {
   await _cancelRide();
   state.currentRideId = null;
-  updateLiveNotifDot(state.currentRole);
 }
 
 async function completeRide() {
   await _completeRide();
   state.currentRideId = null;
-  updateLiveNotifDot(state.currentRole);
 }
 
 async function cleanupRiderSession(previousUser = state.currentUser) {
@@ -833,6 +471,7 @@ function updatePathfinderSheet(landmark, distance, etaMinutes, status) {
 
 function resetPathfinder() {
   stopPathfinderWatch();
+  stopCampusEditorLocationWatch();
   document.getElementById("pathfinderMapPanel")?.classList.add("hidden");
   document.getElementById("pathfinderSheet")?.classList.add("hidden");
   document.getElementById("pathfinderSelectPanel")?.classList.remove("hidden");
@@ -851,6 +490,7 @@ function completePathfinderSession() {
   resetPathfinder();
   showToast("Walking session completed", "success");
 }
+
 
 function populateCampusMapLandmarks() {
   const select = document.getElementById("pathfinderSelect");
@@ -883,112 +523,6 @@ function populateCampusMapLandmarks() {
   select.innerHTML = `<option value="">Select Landmark</option>` + options;
 }
 
-function openLegalModal(type) {
-  const isPrivacy = type === "privacy";
-  showConfirmDialog({
-    title: isPrivacy ? "Privacy Policy" : "Terms of Service",
-    message: isPrivacy
-      ? "OpRides uses your account, ride, wallet, and location data only to operate campus transport features and support your account. Full hosted policy page will be added before public release."
-      : "By using OpRides, you agree to use the service responsibly, keep account details accurate, and follow campus transport rules. Full hosted terms page will be added before public release.",
-    confirmText: "Close",
-    cancelText: "Dismiss"
-  });
-}
-
-async function confirmDeleteAccount() {
-  if (state.currentUser?.isGuest) {
-    logout();
-    return;
-  }
-
-  const confirmed = await showConfirmDialog({
-    title: "Delete Account",
-    message: "This signs out and permanently deletes your login account. You may need to sign in again first if this session is old.",
-    confirmText: "Delete Account",
-    cancelText: "Keep Account",
-    danger: true
-  });
-  if (!confirmed) return;
-
-  try {
-    const activeUser = auth.currentUser;
-    if (!activeUser) throw new Error("No active authenticated user");
-    await deleteUser(activeUser);
-    showToast("Account deleted", "success");
-    showLoginScreen();
-  } catch (err) {
-    console.warn("Delete account failed:", err.code || err.message);
-    if (err.code === "auth/requires-recent-login") {
-      showToast("Please log in again before deleting your account", "error", 5000);
-      await logout();
-      return;
-    }
-    showToast("Could not delete account right now", "error");
-  }
-}
-
-function openHelpModal() {
-  const modal = document.getElementById("helpModal");
-  if (!modal) return;
-  modal.classList.remove("hidden");
-  // show the faq for whoever is logged in (student or rider)
-  const isRider = state.currentRole === "rider";
-  const studentFaq = document.getElementById("studentFaqAccordion");
-  const riderFaq = document.getElementById("riderFaqAccordion");
-  if (studentFaq) studentFaq.style.display = isRider ? "none" : "";
-  if (riderFaq) riderFaq.style.display = isRider ? "" : "none";
-}
-
-function closeHelpModal() {
-  const modal = document.getElementById("helpModal");
-  if (modal) modal.classList.add("hidden");
-}
-
-async function handleSupportRequestSubmit(e) {
-  e.preventDefault();
-  
-  const submitBtn = document.getElementById("submitIssueBtn");
-  const form = document.getElementById("reportIssueForm");
-  const categorySelect = document.getElementById("issueCategory");
-  const subjectInput = document.getElementById("issueSubject");
-  const descriptionInput = document.getElementById("issueDescription");
-  
-  if (!form.checkValidity()) {
-    form.reportValidity();
-    return;
-  }
-  
-  submitBtn.classList.add("loading");
-  submitBtn.disabled = true;
-  
-  try {
-    const user = state.currentUser || {};
-    const supportRequest = {
-      userId: user.uid || (user.isGuest ? "guest" : "unknown"),
-      userName: user.displayName || user.name || (user.isGuest ? "Guest" : "Unknown"),
-      userEmail: user.email || (user.isGuest ? "guest@example.com" : "unknown"),
-      userRole: user.role || "student",
-      category: categorySelect.value,
-      subject: subjectInput.value.trim(),
-      description: descriptionInput.value.trim(),
-      createdAt: serverTimestamp(),
-      status: "open"
-    };
-    
-    await addDoc(collection(db, "support_requests"), supportRequest);
-    showToast("Support report submitted successfully!", "success");
-    
-    form.reset();
-    closeHelpModal();
-  } catch (err) {
-    console.error("Failed to submit support request:", err);
-    showToast("Failed to submit report. Please try again.", "error");
-  } finally {
-    submitBtn.classList.remove("loading");
-    submitBtn.disabled = false;
-  }
-}
-
 function bindAppGlobals() {
   window.switchTab = switchTab;
   window.toggleSidebar = toggleSidebar;
@@ -1005,15 +539,6 @@ function bindAppGlobals() {
   window.navigateToLandmark = navigateToLandmark;
   window.resetPathfinder = resetPathfinder;
   window.completePathfinderSession = completePathfinderSession;
-  window.openLegalModal = openLegalModal;
-  window.openHelpModal = openHelpModal;
-  window.closeHelpModal = closeHelpModal;
-  window.confirmDeleteAccount = confirmDeleteAccount;
-  window.updateNavPill = updateNavPill;
-  window.initNavPills = initNavPills;
-  window.updateLiveNotifDot = updateLiveNotifDot;
-  window.updateBalanceChipGlow = updateBalanceChipGlow;
-  window.animateBalanceCounter = animateBalanceCounter;
 }
 
 bindAppGlobals();
@@ -1088,7 +613,7 @@ window.becomeAvailable = () => {
   setButtonVisible("goLiveBtn", false);
   document.getElementById("riderTitle").innerText = "Online";
   document.getElementById("riderSub").innerText = "Activating GPS...";
-  // document.getElementById("availableRidesSection").classList.remove("hidden"); // showing passengers now instead
+  // document.getElementById("availableRidesSection").classList.remove("hidden"); // We'll show current passengers instead
   showToast("Activating GPS...", "info");
   initMap("riderMap");
   
@@ -1109,7 +634,7 @@ window.becomeAvailable = () => {
     
     if (state.map && !state.currentRideId) {
       if (!state.riderMarker) {
-        state.riderMarker = L.marker([latitude, longitude], { icon: riderKekeIcon }).addTo(state.map);
+        state.riderMarker = L.circleMarker([latitude, longitude], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(state.map);
       } else {
         animateMarker(state.riderMarker, latitude, longitude, 800);
       }
@@ -1118,7 +643,7 @@ window.becomeAvailable = () => {
     
     if (!state.riderDocId) {
       state.riderDocId = "creating...";
-      // double-check in case checkForActiveRide already found a ride before we even got here
+      // Check one more time if a ride was found by checkForActiveRide during this same session
       if (state.currentRideId && state.currentRideId !== "creating...") {
         state.riderDocId = state.currentRideId;
         return;
@@ -1143,7 +668,6 @@ window.becomeAvailable = () => {
       });
       state.riderDocId = ref.id;
       state.currentRideId = ref.id;
-      updateLiveNotifDot("rider");
       listenToActiveRide(ref.id);
       listenForQueuedStudents(ref.id);
       await drainWaitingQueueForRide(ref.id);
@@ -1164,14 +688,14 @@ window.becomeAvailable = () => {
 };
 
 window.setArriving = async () => {
-  // this is handled inside markStopComplete in rider.js now
+  // Logic handled via markStopComplete in rider.js
 };
 
 window.startRide = async () => {
-  // also handled in rider.js via markStopComplete
+  // Logic handled via markStopComplete in rider.js
 };
 
-// ===== ORCHESTRATION =====
+// ================= ORCHESTRATION =================
 
 async function transitionToDashboard(user) {
   console.log("Transitioning to dashboard for user:", user);
@@ -1182,78 +706,57 @@ async function transitionToDashboard(user) {
     else return;
   }
 
-  const loginScreen = document.getElementById("loginScreen");
-  const studentUI = document.getElementById("studentUI");
-  const riderUI = document.getElementById("riderUI");
+  document.getElementById("loginScreen").classList.add("hidden");
+  
+  // Hide all role UIs first to ensure a clean state
+  document.getElementById("studentUI").classList.add("hidden");
+  document.getElementById("riderUI").classList.add("hidden");
 
-  if (!loginScreen || !studentUI || !riderUI) {
-    // just in case dom isn't ready yet
-    document.getElementById("loginScreen")?.classList.add("hidden");
-    if (user.role === "student") {
-      document.getElementById("studentUI")?.classList.remove("hidden");
-    } else {
-      document.getElementById("riderUI")?.classList.remove("hidden");
-    }
-    return;
+  // Global welcome name and greeting
+  const firstName = (user.displayName || "User").split(" ")[0];
+  const greeting = getGreeting();
+
+  if (user.role === "student") {
+    console.log("Setting role to student and showing studentUI");
+    state.currentRole = "student";
+    document.getElementById("studentUI").classList.remove("hidden");
+
+    // Update welcome section
+    const welcomeName = document.getElementById("welcome-name-student");
+    const welcomeGreet = document.querySelector("#studentDashboard .welcome-greeting");
+    if (welcomeName) welcomeName.innerHTML = `${firstName}<span>.</span>`;
+    if (welcomeGreet) welcomeGreet.textContent = greeting;
+
+    startScheduledRidesProcessor();
+    populateLocations();
+    updateStudentProfileUI();
+    listenToStudentWallet();
+    
+    // Explicitly make the wallet tab visible in case it was hidden
+    const walletTab = document.getElementById("tab-wallet");
+    if (walletTab) walletTab.classList.remove("hidden");
+    
+    if (window.switchStudentView) window.switchStudentView('dashboard');
+    await checkForActiveRide("student");
+  } else if (user.role === "rider") {
+    console.log("Setting role to rider and showing riderUI");
+    state.currentRole = "rider";
+    document.getElementById("riderUI").classList.remove("hidden");
+
+    // Update welcome section
+    const welcomeName = document.getElementById("welcome-name-rider");
+    const welcomeGreet = document.querySelector("#riderDashboard .welcome-greeting");
+    if (welcomeName) welcomeName.innerHTML = `${firstName}<span>.</span>`;
+    if (welcomeGreet) welcomeGreet.textContent = greeting;
+
+    updateRiderDashboardUI();
+    listenToRiderWallet();
+    switchTab('home');
+    await checkForActiveRide("rider");
+  } else {
+    console.error("Unknown user role:", user.role);
+    showLoginScreen();
   }
-
-  // ask for notification permission when they log in
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission().catch(err => console.warn("Notification permission request rejected:", err));
-  }
-
-  // fade out the login screen smoothly
-  loginScreen.classList.add("screen-fade-out");
-
-  setTimeout(async () => {
-    loginScreen.classList.add("hidden");
-    loginScreen.classList.remove("screen-fade-out");
-
-    // hide both before deciding which to show
-    studentUI.classList.add("hidden");
-    riderUI.classList.add("hidden");
-
-    if (user.role === "student") {
-      console.log("Setting role to student and showing studentUI");
-      state.currentRole = "student";
-      
-      studentUI.classList.remove("hidden");
-      studentUI.classList.add("screen-fade-in");
-      setTimeout(() => studentUI.classList.remove("screen-fade-in"), 600);
-
-      startScheduledRidesProcessor();
-      populateLocations();
-      updateStudentProfileUI();
-      listenToStudentWallet();
-      startCampusActivityListeners();
-      
-      // force wallet tab visible just in case it got hidden somehow
-      const walletTab = document.getElementById("tab-wallet");
-      if (walletTab) walletTab.classList.remove("hidden");
-      
-      if (window.switchStudentView) window.switchStudentView('dashboard');
-      await checkForActiveRide("student");
-      // init pill and glow after the ui is visible
-      setTimeout(() => { initNavPills(); updateBalanceChipGlow("student"); }, 100);
-    } else if (user.role === "rider") {
-      console.log("Setting role to rider and showing riderUI");
-      state.currentRole = "rider";
-      
-      riderUI.classList.remove("hidden");
-      riderUI.classList.add("screen-fade-in");
-      setTimeout(() => riderUI.classList.remove("screen-fade-in"), 600);
-
-      updateRiderDashboardUI();
-      listenToRiderWallet();
-      switchTab('home');
-      await checkForActiveRide("rider");
-      // same thing for rider side
-      setTimeout(() => { initNavPills(); updateBalanceChipGlow("rider"); }, 100);
-    } else {
-      console.error("Unknown user role:", user.role);
-      showLoginScreen();
-    }
-  }, 450); // match screen-fade-out duration (0.45s)
 }
 
 async function checkForActiveRide(role) {
@@ -1277,7 +780,7 @@ async function checkForActiveRide(role) {
     );
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
-      // sort and pick the latest one in case there are multiple
+      // Use the most recent active ride
       const sortedDocs = querySnapshot.docs.sort((a, b) => 
         (b.data().updatedAt?.seconds || 0) - (a.data().updatedAt?.seconds || 0)
       );
@@ -1285,7 +788,6 @@ async function checkForActiveRide(role) {
       const activeRide = sortedDocs[0];
       state.riderDocId = activeRide.id;
       state.currentRideId = activeRide.id;
-      updateLiveNotifDot("rider");
       const activeRideSection = document.getElementById("riderActiveRideSection");
       const activeRideSub = document.getElementById("riderActiveRideSub");
       activeRideSection?.classList.remove("hidden");
@@ -1294,7 +796,7 @@ async function checkForActiveRide(role) {
       listenForQueuedStudents(activeRide.id);
       await drainWaitingQueueForRide(activeRide.id);
 
-      // kill off any old stale rides from before — only one should be active
+      // Clean up any other "stale" active sessions for this rider
       for (let i = 1; i < sortedDocs.length; i++) {
         await updateDoc(doc(db, "rides", sortedDocs[i].id), { 
           status: "completed", 
@@ -1306,7 +808,7 @@ async function checkForActiveRide(role) {
 }
 
 function startListeners() {
-  // this function is empty now, we switched to per-ride listeners
+  // Old startListeners removed as we use per-ride/per-request listeners now
 }
 
 function listenForQueuedStudents(rideId) {
@@ -1332,25 +834,18 @@ function listenForQueuedStudents(rideId) {
 
 window.updateRideUI = (ride) => {
   state.latestRide = ride;
-  renderLiveSheetEnhancements(ride);
   if (!state.map) return;
   
   const currentLocation = ride.currentLocation;
   if (currentLocation) {
     if (!state.riderMarker) {
-      state.riderMarker = L.marker([currentLocation.lat, currentLocation.lng], { icon: riderKekeIcon }).addTo(state.map);
-      state.riderMarker.bindTooltip('<span class="map-keke-label"><i class="fas fa-motorcycle keke-moving"></i> Keke</span>', {
-        permanent: true,
-        direction: "top",
-        offset: [0, -18],
-        className: "map-keke-tooltip"
-      });
+      state.riderMarker = L.circleMarker([currentLocation.lat, currentLocation.lng], { radius: 8, color: '#22c55e', fillOpacity: 1 }).addTo(state.map);
     } else {
       animateMarker(state.riderMarker, currentLocation.lat, currentLocation.lng, 1000);
     }
   }
 
-  // draw the route line to the next stop on map
+  // Draw route to next stop
   const pendingStops = ride.stopQueue.filter(s => s.status === "pending");
   if (pendingStops.length > 0 && currentLocation) {
     const nextStop = pendingStops[0];
@@ -1364,7 +859,7 @@ window.updateRideUI = (ride) => {
       dashArray: route.routed ? null : "8, 10"
     });
 
-    // put pins on all the pending stops
+    // Add markers for stops
     if (state.map) {
       state.requestMarkers.forEach(m => {
         if (m && state.map.hasLayer(m)) state.map.removeLayer(m);
@@ -1373,31 +868,21 @@ window.updateRideUI = (ride) => {
     state.requestMarkers = [];
     pendingStops.forEach(stop => {
        if (!state.map) return;
-       const marker = L.marker([stop.location.lat, stop.location.lng], { 
-         icon: stop.type === 'pickup' ? pickupPinIcon : dropoffPinIcon
+       const marker = L.circleMarker([stop.location.lat, stop.location.lng], { 
+         radius: 6, 
+         color: stop.type === 'pickup' ? '#3b82f6' : '#ef4444', 
+         fillOpacity: 1 
        }).addTo(state.map);
        marker.bindPopup(`${stop.type === 'pickup' ? 'Pick up' : 'Drop off'}: ${stop.passengerName}<br>${stop.locationLabel}`);
        state.requestMarkers.push(marker);
-     });
+    });
   } else {
     clearRouteLayer();
   }
 };
 
-// ===== INIT =====
+// ================= INIT =================
 window.addEventListener("load", () => {
-  const helpModalElement = document.getElementById("helpModal");
-  if (helpModalElement) {
-    helpModalElement.addEventListener("click", (e) => {
-      if (e.target.id === "helpModal") closeHelpModal();
-    });
-  }
-
-  const reportFormElement = document.getElementById("reportIssueForm");
-  if (reportFormElement) {
-    reportFormElement.addEventListener("submit", handleSupportRequestSubmit);
-  }
-
   initAuth({
     onUserChanged: async (user) => {
       if (user) {
@@ -1409,10 +894,9 @@ window.addEventListener("load", () => {
         await cleanupRiderSession(previousUser);
         state.currentUser = null;
 
-        // wipe everything when they log out
+        // Clear all state on logout
         if (state.unsubscribeRequests) state.unsubscribeRequests();
         if (state.unsubscribeQueueListener) state.unsubscribeQueueListener();
-        stopCampusActivityListeners();
         if (state.map) state.map.remove();
         if (state.riderWatchId) navigator.geolocation.clearWatch(state.riderWatchId);
         stopPathfinderWatch();

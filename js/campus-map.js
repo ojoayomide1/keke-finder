@@ -4,6 +4,7 @@ import {
   getCampusMapData,
   getRideStops
 } from "./campus-data.js";
+import { initCampusEditor } from "./campus-editor.js";
 
 function getCategoryMeta(category) {
   return getCampusCategoryMeta(category);
@@ -49,10 +50,19 @@ export function renderCampusMapData(map) {
 
   data.paths.forEach(path => {
     if (!Array.isArray(path.points) || path.points.length < 2) return;
+    if (Array.isArray(path.corridorPoints) && path.corridorPoints.length >= 3) {
+      L.polygon(path.corridorPoints, {
+        color: "#94a3b8",
+        fillColor: "#e2e8f0",
+        fillOpacity: 0.42,
+        weight: 1,
+        interactive: false
+      }).addTo(map);
+    }
     L.polyline(path.points, {
-      color: "#64748b",
-      weight: 4,
-      opacity: 0.6,
+      color: "#9ca3af",
+      weight: 2,
+      opacity: 0.72,
       lineCap: "round",
       lineJoin: "round"
     }).addTo(map).bindPopup(path.name);
@@ -75,6 +85,7 @@ export function renderCampusMapData(map) {
   });
 }
 
-export function initCampusMapTools(map) {
+export function initCampusMapTools(map, mapId) {
   renderCampusMapData(map);
+  initCampusEditor(map, { enabled: mapId === "pathfinderMap" });
 }

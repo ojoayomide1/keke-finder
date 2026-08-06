@@ -18,6 +18,7 @@
 }
 
 .green,
+.blue,
 .yellow,
 .danger,
 .auth-primary,
@@ -53,6 +54,7 @@
 }
 
 .green:disabled,
+.blue:disabled,
 .yellow:disabled,
 .danger:disabled,
 .auth-primary:disabled,
@@ -79,6 +81,16 @@
 
 .btn-primary:hover, button.green:hover {
   background: var(--color-accent-hover);
+}
+
+button.blue {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
+}
+
+button.blue:hover {
+  background: #1d4ed8;
 }
 
 .btn-secondary, button.yellow {
