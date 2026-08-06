@@ -270,6 +270,34 @@
   font-size: 14px;
 }
 
+/* Advanced JSON Section Details */
+.admin-advanced-json {
+  margin-top: var(--space-lg);
+  border-top: 1px solid var(--admin-border);
+  padding-top: var(--space-md);
+}
+
+.admin-advanced-json summary {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  transition: color 0.2s ease;
+  outline: none;
+}
+
+.admin-advanced-json summary:hover {
+  color: var(--color-text-primary);
+}
+
+.admin-advanced-json[open] summary {
+  margin-bottom: var(--space-md);
+}
+
 .admin-help {
   color: var(--color-text-secondary);
   font-size: 13px;

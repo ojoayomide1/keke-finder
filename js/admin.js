@@ -26,6 +26,7 @@ import {
 } from "./campus-data.js";
 import { getDistanceMeters } from "./modules/campus-router.js";
 import { formatNaira } from "./wallet.js";
+import { initAdminMapEditor, stopAdminMapEditor } from "./admin-editor.js";
 
 let transactionUnsubscribe = null;
 let campusRenderTimer = null;
@@ -91,6 +92,7 @@ function listenToOverview() {
   listenToAuthorizedRiders();
   initSidebarNav();
 }
+let meMapInstance = null;
 
 function initSidebarNav() {
   const navItems = document.querySelectorAll(".admin-nav-item");
@@ -111,8 +113,42 @@ function initSidebarNav() {
         }
       });
       closeAdminMenu();
+
+      if (targetSection === "map-editor") {
+        initAdminMap();
+      } else {
+        stopAdminMapTracking();
+      }
     });
   });
+}
+
+function initAdminMap() {
+  if (meMapInstance) {
+    setTimeout(() => meMapInstance.invalidateSize(), 100);
+    return;
+  }
+
+  const mapElement = document.getElementById("meMap");
+  if (!mapElement) return;
+
+  // Initialize map centered at Veritas University coordinates
+  meMapInstance = L.map("meMap", { tap: false, zoomControl: true }).setView([9.2880, 7.4130], 16);
+  
+  // Use standard CartoDB dark tile layer
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+    maxZoom: 20
+  }).addTo(meMapInstance);
+
+  // Initialize the admin-editor module controls
+  initAdminMapEditor(meMapInstance);
+
+  setTimeout(() => meMapInstance.invalidateSize(), 150);
+}
+
+function stopAdminMapTracking() {
+  stopAdminMapEditor();
 }
 
 function openAdminMenu() {

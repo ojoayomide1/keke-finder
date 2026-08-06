@@ -8,7 +8,7 @@ import {
 } from "./firebase.js";
 
 // Toggle this off before production if the in-app coordinate editor should be hidden.
-export const CAMPUS_EDITOR_MODE = true;
+export const CAMPUS_EDITOR_MODE = false;
 
 export const CAMPUS_CATEGORY_META = {
   boys_hostel: { label: "Boys Hostels", icon: "fa-bed", color: "#2563eb" },

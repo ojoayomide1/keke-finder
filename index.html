@@ -330,81 +330,10 @@
             <select id="pathfinderSelect" class="input-field" onchange="navigateToLandmark(this.value)">
               <option value="">Select Landmark</option>
             </select>
-          </div>
-          <button type="button" id="campusEditorOpenBtn" class="yellow hidden" onclick="openCampusEditor()">
-            <i class="fas fa-map-pin"></i>
-            Open map editor
-          </button>
         </div>
       </div>
       <div id="pathfinderMapPanel" class="pathfinder-map-panel hidden">
         <div id="pathfinderMap" class="map map-screen"></div>
-        <div id="campusEditor" class="campus-editor hidden">
-          <div class="campus-editor__header">
-            <div>
-              <strong>Campus Editor</strong>
-              <span id="campusEditorHint">Click the map to capture coordinates.</span>
-            </div>
-            <div class="campus-editor__header-actions">
-              <button type="button" id="locateCampusEditorBtn" class="iconBtn" aria-label="Show my location">
-                <i class="fas fa-location-crosshairs"></i>
-              </button>
-              <button type="button" id="minimizeCampusEditorBtn" class="iconBtn" aria-label="Minimize editor">
-                <i class="fas fa-minus"></i>
-              </button>
-              <button type="button" id="undoCampusDraftBtn" class="iconBtn" aria-label="Undo last draft item">
-                <i class="fas fa-rotate-left"></i>
-              </button>
-              <button type="button" id="clearCampusDraftBtn" class="iconBtn" aria-label="Clear draft">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
-          </div>
-
-          <div class="campus-editor__grid">
-            <label for="campusPointName">
-              Name
-              <input type="text" id="campusPointName" class="input-field" placeholder="New pickup spot" autocomplete="off">
-            </label>
-            <label for="campusPointType">
-              Mode
-              <select id="campusPointType" class="input-field">
-                <option value="location">Campus marker</option>
-                <option value="rideStop">Pickup / drop-off stop</option>
-                <option value="path">Road / path</option>
-                <option value="roadArea">Road area</option>
-                <option value="building">Building shape</option>
-                <option value="buildingEdit">Edit building</option>
-                <option value="routePreview">Route preview</option>
-              </select>
-            </label>
-            <label for="campusPointCategory">
-              Category
-              <select id="campusPointCategory" class="input-field"></select>
-            </label>
-          </div>
-
-          <div id="campusGraphStatus" class="campus-editor__status"></div>
-          <textarea id="campusEditorOutput" readonly spellcheck="false"></textarea>
-          <div class="campus-editor__actions">
-            <button type="button" id="saveCampusShapeBtn" class="yellow">
-              <i class="fas fa-draw-polygon"></i>
-              Save shape
-            </button>
-            <button type="button" id="clearCampusPreviewBtn" class="yellow">
-              <i class="fas fa-route"></i>
-              Clear route
-            </button>
-            <button type="button" id="saveCampusCloudBtn" class="blue">
-              <i class="fas fa-cloud-arrow-up"></i>
-              Save map
-            </button>
-            <button type="button" id="copyCampusJsonBtn" class="green">
-              <i class="fas fa-copy"></i>
-              Copy JSON
-            </button>
-          </div>
-        </div>
         <button type="button" id="pathfinderBackBtn" class="backBtn" onclick="resetPathfinder()" aria-label="Back to pathfinder"></button>
         <div class="bottomSheet hidden" id="pathfinderSheet" style="position: absolute;">
           <div class="dragZone" onmousedown="startDrag(event, 'pathfinderSheet')" ontouchstart="startDrag(event, 'pathfinderSheet')">
