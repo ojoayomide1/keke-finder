@@ -40,6 +40,13 @@
   display: flex;
   flex-direction: column;
   z-index: 200;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  box-shadow: 18px 0 40px rgba(0, 0, 0, 0.3);
+}
+
+.admin-sidebar.open {
+  transform: translateX(0);
 }
 
 .admin-sidebar-logo {
@@ -48,6 +55,27 @@
   margin-bottom: var(--space-md);
   display: flex;
   align-items: center;
+}
+
+/* Close button — hidden by default on desktop, shown when sidebar is opened via hamburger */
+.admin-sidebar-close {
+  display: none;
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #94a3b8;
+  font-size: 15px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.admin-sidebar.open .admin-sidebar-close {
+  display: flex;
 }
 
 .logo-text {
@@ -513,16 +541,6 @@
 @media (max-width: 768px) {
   .admin-layout {
     grid-template-columns: 1fr;
-  }
-
-  .admin-sidebar {
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    box-shadow: 18px 0 40px rgba(0, 0, 0, 0.3);
-  }
-
-  .admin-sidebar.open {
-    transform: translateX(0);
   }
 
   .admin-mobile-header {

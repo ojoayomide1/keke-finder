@@ -91,6 +91,13 @@ function listenToOverview() {
 
   listenToAuthorizedRiders();
   initSidebarNav();
+
+  // On desktop, sidebar starts open and is marked persistent (no overlay, no close)
+  // On mobile it stays closed until the hamburger is tapped.
+  if (window.innerWidth > 768) {
+    const sidebar = document.querySelector(".admin-sidebar");
+    sidebar?.classList.add("open", "persistent");
+  }
 }
 let meMapInstance = null;
 
@@ -118,6 +125,18 @@ function initSidebarNav() {
       const mobileHeader = document.getElementById("adminMobileHeader");
       if (mobileHeader) {
         mobileHeader.classList.toggle("map-editor-active", targetSection === "map-editor");
+      }
+
+      // On desktop: remove "persistent" when entering map editor so sidebar
+      // becomes a dismissable drawer (map editor is full-screen, sidebar overlays it).
+      // Restore "persistent" when leaving map editor.
+      if (window.innerWidth > 768) {
+        const sidebar = document.querySelector(".admin-sidebar");
+        if (targetSection === "map-editor") {
+          sidebar?.classList.remove("persistent", "open");
+        } else {
+          sidebar?.classList.add("open", "persistent");
+        }
       }
 
       if (targetSection === "map-editor") {
@@ -158,11 +177,19 @@ function stopAdminMapTracking() {
 }
 
 function openAdminMenu() {
-  document.querySelector(".admin-sidebar")?.classList.add("open");
-  document.getElementById("adminSidebarOverlay")?.classList.remove("hidden");
+  const sidebar = document.querySelector(".admin-sidebar");
+  sidebar?.classList.add("open");
+  // Only show the overlay backdrop when not in persistent (always-visible) mode
+  if (!sidebar?.classList.contains("persistent")) {
+    document.getElementById("adminSidebarOverlay")?.classList.remove("hidden");
+  }
 }
 
 function closeAdminMenu() {
+  // On desktop (>768px), only close if not in persistent mode
+  if (window.innerWidth > 768 && document.querySelector(".admin-sidebar")?.classList.contains("persistent")) {
+    return;
+  }
   document.querySelector(".admin-sidebar")?.classList.remove("open");
   document.getElementById("adminSidebarOverlay")?.classList.add("hidden");
 }
