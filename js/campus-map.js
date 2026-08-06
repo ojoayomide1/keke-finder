@@ -4,7 +4,6 @@ import {
   getCampusMapData,
   getRideStops
 } from "./campus-data.js";
-import { initCampusEditor } from "./campus-editor.js";
 
 function getCategoryMeta(category) {
   return getCampusCategoryMeta(category);
@@ -87,5 +86,5 @@ export function renderCampusMapData(map) {
 
 export function initCampusMapTools(map, mapId) {
   renderCampusMapData(map);
-  initCampusEditor(map, { enabled: mapId === "pathfinderMap" });
+  // Student-facing campus editor removed; admin uses admin-editor.js instead
 }
