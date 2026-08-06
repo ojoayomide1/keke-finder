@@ -291,6 +291,10 @@
               <i class="fas fa-road"></i>
               <span>Road</span>
             </button>
+            <button type="button" class="me-tab" data-tab="building" role="tab" aria-selected="false">
+              <i class="fas fa-building"></i>
+              <span>Building</span>
+            </button>
             <button type="button" class="me-tab" data-tab="tools" role="tab" aria-selected="false">
               <i class="fas fa-screwdriver-wrench"></i>
               <span>Tools</span>
@@ -414,6 +418,32 @@
               </button>
               <button type="button" class="me-btn me-btn--primary" id="meRoadSaveBtn">
                 <i class="fas fa-check"></i> Save Road
+              </button>
+            </div>
+          </div>
+
+          <!-- Building tab -->
+          <div class="me-panel" id="me-panel-building">
+            <div class="me-panel__header">
+              <p class="me-panel__title">Draw Building Footprint</p>
+              <p class="me-panel__sub">Pan the crosshair to each corner, then tap Add Point. Need at least 3 points to save.</p>
+            </div>
+            <div class="me-form">
+              <label class="me-label">
+                Building Name
+                <input type="text" id="meBuildingName" class="me-input" placeholder="e.g. Faculty of Science" autocomplete="off">
+              </label>
+              <div class="me-road-status" id="meBuildingStatus">No points yet. Pan to a corner and tap Add Point.</div>
+            </div>
+            <div class="me-panel__actions me-road-actions">
+              <button type="button" class="me-btn me-btn--ghost" id="meBuildingUndoBtn">
+                <i class="fas fa-rotate-left"></i> Undo
+              </button>
+              <button type="button" class="me-btn me-btn--accent" id="meBuildingAddBtn">
+                <i class="fas fa-plus"></i> Add Point
+              </button>
+              <button type="button" class="me-btn me-btn--primary" id="meBuildingSaveBtn">
+                <i class="fas fa-check"></i> Save Building
               </button>
             </div>
           </div>

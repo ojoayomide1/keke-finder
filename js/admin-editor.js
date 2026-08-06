@@ -26,6 +26,10 @@ let measurePoints = [];
 let measureMarkers = [];
 let measureLine = null;
 
+// Building editor state
+let activeBuildingPoints = [];
+let activeBuildingPreviewLayer = null; // polygon/polyline preview while drawing
+
 // Layers
 let markersLayerGroup = null;
 let stopsLayerGroup = null;
@@ -81,6 +85,7 @@ export function initAdminMapEditor(mapInstance) {
   setupGpsTracking();
   setupSeeder();
   setupFormHandlers();
+  setupBuildingEditor();
   setupGeneralControls();
   setupGeneralActions();
 
@@ -792,6 +797,121 @@ function setupGeneralControls() {
   }
 }
 
+// ── Building Drawing Logic ───────────────────────────────
+function setupBuildingEditor() {
+  const addBtn    = document.getElementById("meBuildingAddBtn");
+  const undoBtn   = document.getElementById("meBuildingUndoBtn");
+  const saveBtn   = document.getElementById("meBuildingSaveBtn");
+  const statusEl  = document.getElementById("meBuildingStatus");
+  const nameInput = document.getElementById("meBuildingName");
+
+  if (!addBtn || !undoBtn || !saveBtn || !statusEl || !nameInput) return;
+
+  /** Redraws the in-progress polygon preview on the map. */
+  function refreshPreview() {
+    if (activeBuildingPreviewLayer) map.removeLayer(activeBuildingPreviewLayer);
+    activeBuildingPreviewLayer = null;
+
+    if (activeBuildingPoints.length === 0) {
+      statusEl.innerText = "No points yet. Pan to a corner and tap Add Point.";
+      return;
+    }
+
+    if (activeBuildingPoints.length === 1) {
+      // Just a single dot — draw a small circle so the user can see it
+      activeBuildingPreviewLayer = L.circleMarker(activeBuildingPoints[0], {
+        radius: 5,
+        color: "#6b7280",
+        fillColor: "#9ca3af",
+        fillOpacity: 0.7,
+        weight: 2
+      }).addTo(map);
+    } else if (activeBuildingPoints.length === 2) {
+      // Two points — just a line
+      activeBuildingPreviewLayer = L.polyline(activeBuildingPoints, {
+        color: "#6b7280",
+        weight: 2,
+        dashArray: "6, 4"
+      }).addTo(map);
+    } else {
+      // 3+ points — draw as a dashed polygon so it's clear it's a draft
+      activeBuildingPreviewLayer = L.polygon(activeBuildingPoints, {
+        color: "#6b7280",
+        fillColor: "#9ca3af",
+        fillOpacity: 0.25,
+        weight: 2,
+        dashArray: "6, 4"
+      }).addTo(map);
+    }
+
+    const last = activeBuildingPoints[activeBuildingPoints.length - 1];
+    statusEl.innerText = `${activeBuildingPoints.length} point(s). Last: ${last[0]}, ${last[1]}`;
+  }
+
+  // Add Point — capture current map centre
+  addBtn.addEventListener("click", () => {
+    const center = map.getCenter();
+    const pt = [Number(center.lat.toFixed(6)), Number(center.lng.toFixed(6))];
+    activeBuildingPoints.push(pt);
+    refreshPreview();
+  });
+
+  // Undo last point
+  undoBtn.addEventListener("click", () => {
+    if (activeBuildingPoints.length === 0) return;
+    activeBuildingPoints.pop();
+    refreshPreview();
+  });
+
+  // Save Building
+  saveBtn.addEventListener("click", () => {
+    const name = nameInput.value.trim();
+
+    if (activeBuildingPoints.length < 3) {
+      alert("A building footprint needs at least 3 points.");
+      return;
+    }
+    if (!name) {
+      alert("Please enter a building name.");
+      return;
+    }
+
+    pushToHistory();
+
+    const buildingId = slugify(name) + "_" + Date.now().toString().slice(-4);
+    if (!mapDataDraft.buildings) mapDataDraft.buildings = [];
+    mapDataDraft.buildings.push({
+      id: buildingId,
+      name: name,
+      points: activeBuildingPoints.slice() // snapshot
+    });
+
+    // Clear active draw
+    if (activeBuildingPreviewLayer) map.removeLayer(activeBuildingPreviewLayer);
+    activeBuildingPreviewLayer = null;
+    activeBuildingPoints = [];
+    nameInput.value = "";
+    statusEl.innerText = "Building saved! Pan to the next one.";
+
+    saveDraftToLocalStorage();
+    renderAllLayers();
+  });
+
+  // Clear preview when switching away from building tab
+  const tabs = document.querySelectorAll(".me-tab");
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      if (tab.dataset.tab !== "building" && activeBuildingPreviewLayer) {
+        map.removeLayer(activeBuildingPreviewLayer);
+        activeBuildingPreviewLayer = null;
+        activeBuildingPoints = [];
+        statusEl.innerText = "No points yet. Pan to a corner and tap Add Point.";
+        nameInput.value = "";
+      }
+    });
+  });
+}
+
 function fillGpsCoords(latId, lngId, validationId) {
   if (!navigator.geolocation) {
     showValidation(validationId, "GPS not supported.");
@@ -981,12 +1101,29 @@ function renderAllLayers() {
       return [pt.lat, pt.lng];
     });
 
-    L.polygon(latlngs, {
+    const poly = L.polygon(latlngs, {
       color: "#6b7280",
       fillColor: "#9ca3af",
       fillOpacity: 0.25,
       weight: 1.5
-    }).addTo(buildingsLayerGroup).bindPopup(`Building: ${b.name}`);
+    }).addTo(buildingsLayerGroup).bindPopup(`
+      <div class="campus-popup">
+        <strong>Building: ${b.name}</strong><br>
+        <span style="font-size:10px; color:#64748b">${b.points.length} vertices</span><br>
+        <button type="button" class="btn btn-danger" style="margin-top:8px; padding:3px 8px; font-size:11px" id="del-building-${b.id}">Delete Building</button>
+      </div>
+    `);
+
+    poly.on("popupopen", () => {
+      document.getElementById(`del-building-${b.id}`)?.addEventListener("click", () => {
+        if (confirm(`Delete building: ${b.name}?`)) {
+          pushToHistory();
+          mapDataDraft.buildings = mapDataDraft.buildings.filter(x => x.id !== b.id);
+          saveDraftToLocalStorage();
+          renderAllLayers();
+        }
+      });
+    });
   });
 
   // Keep advanced JSON text area updated
