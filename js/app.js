@@ -760,50 +760,58 @@ async function transitionToDashboard(user) {
 }
 
 async function checkForActiveRide(role) {
-  if (role === "student") {
-    const q = query(
-      collection(db, "rideRequests"), 
-      where("studentId", "==", state.currentUser?.uid),
-      where("status", "in", ["searching", "matched", "queued"])
-    );
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      const activeRequest = querySnapshot.docs[0];
-      state.currentRequestId = activeRequest.id;
-      import("./modules/student.js").then(m => m.listenToRequest(activeRequest.id));
-    }
-  } else {
-    const q = query(
-      collection(db, "rides"), 
-      where("riderId", "==", state.currentUser?.uid),
-      where("status", "in", ["waiting", "active"])
-    );
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      // Use the most recent active ride
-      const sortedDocs = querySnapshot.docs.sort((a, b) => 
-        (b.data().updatedAt?.seconds || 0) - (a.data().updatedAt?.seconds || 0)
+  try {
+    if (role === "student") {
+      const q = query(
+        collection(db, "rideRequests"), 
+        where("studentId", "==", state.currentUser?.uid),
+        where("status", "in", ["searching", "matched", "queued"])
       );
-      
-      const activeRide = sortedDocs[0];
-      state.riderDocId = activeRide.id;
-      state.currentRideId = activeRide.id;
-      const activeRideSection = document.getElementById("riderActiveRideSection");
-      const activeRideSub = document.getElementById("riderActiveRideSub");
-      activeRideSection?.classList.remove("hidden");
-      if (activeRideSub) activeRideSub.innerText = `Keke Online - ${activeRide.data().seats.occupied} passengers`;
-      import("./modules/rider.js").then(m => m.listenToActiveRide(activeRide.id));
-      listenForQueuedStudents(activeRide.id);
-      await drainWaitingQueueForRide(activeRide.id);
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const activeRequest = querySnapshot.docs[0];
+        state.currentRequestId = activeRequest.id;
+        import("./modules/student.js").then(m => m.listenToRequest(activeRequest.id));
+      }
+    } else {
+      const q = query(
+        collection(db, "rides"), 
+        where("riderId", "==", state.currentUser?.uid),
+        where("status", "in", ["waiting", "active"])
+      );
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        // Use the most recent active ride
+        const sortedDocs = querySnapshot.docs.sort((a, b) => 
+          (b.data().updatedAt?.seconds || 0) - (a.data().updatedAt?.seconds || 0)
+        );
+        
+        const activeRide = sortedDocs[0];
+        state.riderDocId = activeRide.id;
+        state.currentRideId = activeRide.id;
+        const activeRideSection = document.getElementById("riderActiveRideSection");
+        const activeRideSub = document.getElementById("riderActiveRideSub");
+        activeRideSection?.classList.remove("hidden");
+        if (activeRideSub) activeRideSub.innerText = `Keke Online - ${activeRide.data().seats.occupied} passengers`;
+        import("./modules/rider.js").then(m => m.listenToActiveRide(activeRide.id));
+        listenForQueuedStudents(activeRide.id);
+        await drainWaitingQueueForRide(activeRide.id);
 
-      // Clean up any other "stale" active sessions for this rider
-      for (let i = 1; i < sortedDocs.length; i++) {
-        await updateDoc(doc(db, "rides", sortedDocs[i].id), { 
-          status: "completed", 
-          reason: "stale_cleanup" 
-        });
+        // Clean up any other "stale" active sessions for this rider
+        for (let i = 1; i < sortedDocs.length; i++) {
+          try {
+            await updateDoc(doc(db, "rides", sortedDocs[i].id), { 
+              status: "completed", 
+              reason: "stale_cleanup" 
+            });
+          } catch (e) {
+            console.warn("Failed to clean up stale ride doc:", sortedDocs[i].id, e);
+          }
+        }
       }
     }
+  } catch (error) {
+    console.error("Error checking for active ride:", error);
   }
 }
 
