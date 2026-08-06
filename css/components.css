@@ -18,7 +18,6 @@
 }
 
 .green,
-.blue,
 .yellow,
 .danger,
 .auth-primary,
@@ -54,7 +53,6 @@
 }
 
 .green:disabled,
-.blue:disabled,
 .yellow:disabled,
 .danger:disabled,
 .auth-primary:disabled,
@@ -81,16 +79,6 @@
 
 .btn-primary:hover, button.green:hover {
   background: var(--color-accent-hover);
-}
-
-button.blue {
-  background: #2563eb;
-  color: #ffffff;
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
-}
-
-button.blue:hover {
-  background: #1d4ed8;
 }
 
 .btn-secondary, button.yellow {
@@ -1272,7 +1260,7 @@ select.input-field option {
   align-items: center;
   justify-content: space-around;
   padding-bottom: var(--safe-area-bottom);
-  z-index: 2500;
+  z-index: 100;
   /* Solid background, no blur — avoids compositor overhead while scrolling */
   box-shadow: var(--shadow-bottom-nav);
   overflow: hidden;

@@ -7,9 +7,25 @@
   <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="assets/brand/favicon-16.png">
   <link rel="apple-touch-icon" href="assets/brand/opr-app-icon.png">
-  <link rel="stylesheet" href="style.css">
+
+  <!-- Preconnect to CDN origins so DNS + TCP are resolved before the resources are requested -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://unpkg.com">
+
+  <link rel="stylesheet" href="style.css?v=1.2.1">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
+  <!-- Font Awesome: load asynchronously so it doesn't block first paint.
+       The onload trick swaps rel to stylesheet once loaded; noscript is the fallback. -->
+  <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  </noscript>
+
+  <!-- Google Fonts with display=swap so text renders immediately in fallback font -->
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -91,14 +107,7 @@
               <input type="text" id="plateNo" placeholder=" " class="input-field">
               <label class="floating-label">Plate Number</label>
             </div>
-            <div class="input-group">
-              <span class="input-icon"><i class="fas fa-bus"></i></span>
-              <select id="vehicleType" class="input-field">
-                <option value="keke">Keke</option>
-                <option value="shuttle">Campus Shuttle</option>
-              </select>
-              <label class="floating-label select-label">Vehicle Type</label>
-            </div>
+            <input type="hidden" id="vehicleType" value="keke">
           </div>
           
           <!-- Shared Info -->
@@ -153,13 +162,27 @@
     <p id="userBadge" class="user-badge hidden"></p>
     <p>How are you moving today?</p>
 
-    <button type="button" onclick="selectRole('student')" class="green" style="width:80%; max-width:280px;">
-       I'm a Student
-    </button>
+    <div class="role-select-card card-student role-card-spring" onclick="selectRole('student')">
+      <div class="role-icon">
+        <i class="fas fa-graduation-cap"></i>
+      </div>
+      <div class="role-card-content">
+        <strong>I'm a Student</strong>
+        <span>Request rides across campus</span>
+      </div>
+      <i class="fas fa-chevron-right role-card-arrow"></i>
+    </div>
 
-    <button type="button" onclick="selectRole('rider')" class="yellow" style="width:80%; max-width:280px;">
-       I'm a Rider - Go Online
-    </button>
+    <div class="role-select-card card-rider role-card-spring" onclick="selectRole('rider')">
+      <div class="role-icon">
+        <i class="fas fa-motorcycle"></i>
+      </div>
+      <div class="role-card-content">
+        <strong>I'm a Rider</strong>
+        <span>Go online and start earning</span>
+      </div>
+      <i class="fas fa-chevron-right role-card-arrow"></i>
+    </div>
   </div>
 
 
@@ -182,11 +205,6 @@
     <!-- Home / VeriRide Section -->
     <div id="studentDashboard" class="dashboard-container tab-view">
       <main class="dashboard-body fade-in">
-        <div class="welcome-section">
-          <p class="welcome-greeting">Good morning ☀️</p>
-          <h1 class="welcome-name" id="welcome-name-student">Student<span>.</span></h1>
-        </div>
-
         <!-- Active Ride Banner (Hidden by default) -->
         <div id="activeRideBanner" class="active-ride-banner ride-pulse hidden" onclick="switchTab('live')">
           <div class="active-ride-banner-left">
@@ -194,6 +212,34 @@
             <span class="active-ride-banner-text" id="activeRideStatusText">Your ride is on the way</span>
           </div>
           <span class="active-ride-banner-arrow">→</span>
+        </div>
+
+        <!-- Campus Activity Feed -->
+        <div id="campusActivityFeed" class="campus-activity-feed">
+          <div class="activity-feed-header">
+            <span class="activity-pulse-dot"></span>
+            <h4>Campus Live Activity</h4>
+          </div>
+          <div class="activity-feed-grid">
+            <div class="activity-feed-card">
+              <div class="activity-icon-container bg-green-dim">
+                <i class="fas fa-motorcycle text-success"></i>
+              </div>
+              <div class="activity-details">
+                <span class="activity-value" id="onlineKekesCount">0</span>
+                <span class="activity-label">Riders Online</span>
+              </div>
+            </div>
+            <div class="activity-feed-card">
+              <div class="activity-icon-container bg-orange-dim">
+                <i class="fas fa-users text-warning"></i>
+              </div>
+              <div class="activity-details">
+                <span class="activity-value" id="waitingStudentsCount">0</span>
+                <span class="activity-label">Students Waiting</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="ride-form-card">
@@ -224,13 +270,29 @@
         <h2>My Wallet</h2>
       </div>
       <div class="profile-content">
-        <div class="wallet-balance-panel">
-          <span>Balance</span>
-          <strong id="walletBalance">₦0</strong>
+        <div id="walletBalancePanel" class="wallet-balance-panel wallet-balance-healthy">
+          <span>Available Balance</span>
+          <strong id="walletBalance">&#8358;0</strong>
           <p id="walletDebt" class="wallet-debt hidden"></p>
-          <button type="button" class="green" onclick="openTopUpScreen()">+ Top Up</button>
+          <div class="wallet-actions">
+            <button type="button" class="green" onclick="openTopUpScreen()"><i class="fas fa-plus"></i> Top Up</button>
+            <button type="button" class="secondary-btn" onclick="scrollToWalletTransactions()"><i class="fas fa-clock-rotate-left"></i> View History</button>
+          </div>
         </div>
-        <h3 class="section-title">Recent Transactions</h3>
+        <div id="walletSpendingSummary" class="wallet-summary">
+          <div>
+            <span>This week</span>
+            <strong id="walletWeeklySpend">You spent &#8358;0 on 0 rides</strong>
+          </div>
+        </div>
+        <div id="walletTransactionsHeader" class="wallet-transactions-header">
+          <h3 class="section-title">Recent Transactions</h3>
+          <div class="wallet-filter-tabs" role="tablist" aria-label="Wallet transaction filters">
+            <button type="button" class="wallet-filter-tab active" data-wallet-filter="all" onclick="setWalletTransactionFilter('all')">All</button>
+            <button type="button" class="wallet-filter-tab" data-wallet-filter="topups" onclick="setWalletTransactionFilter('topups')">Top Ups</button>
+            <button type="button" class="wallet-filter-tab" data-wallet-filter="rides" onclick="setWalletTransactionFilter('rides')">Rides</button>
+          </div>
+        </div>
         <div id="walletTransactionsList" class="wallet-list">
           <p class="empty-state">No wallet transactions yet</p>
         </div>
@@ -293,6 +355,14 @@
     <div id="liveRideView" class="view-overlay map-view hidden tab-view">
       <div id="studentMap" class="map map-screen"></div>
       
+      <!-- Floating Map Legend -->
+      <div class="map-legend">
+        <div class="legend-item"><span class="legend-dot dot-user"></span><span>You</span></div>
+        <div class="legend-item"><span class="legend-dot dot-pickup"></span><span>Pickup</span></div>
+        <div class="legend-item"><span class="legend-dot dot-dropoff"></span><span>Destination</span></div>
+        <div class="legend-item"><span class="legend-dot dot-keke"></span><span>Keke</span></div>
+      </div>
+      
       <div class="bottomSheet hidden" id="studentSheet" style="position: absolute;">
         <div class="dragZone" onmousedown="startDrag(event, 'studentSheet')" ontouchstart="startDrag(event, 'studentSheet')">
           <div class="handle"></div>
@@ -324,10 +394,81 @@
             <select id="pathfinderSelect" class="input-field" onchange="navigateToLandmark(this.value)">
               <option value="">Select Landmark</option>
             </select>
+          </div>
+          <button type="button" id="campusEditorOpenBtn" class="yellow hidden" onclick="openCampusEditor()">
+            <i class="fas fa-map-pin"></i>
+            Open map editor
+          </button>
         </div>
       </div>
       <div id="pathfinderMapPanel" class="pathfinder-map-panel hidden">
         <div id="pathfinderMap" class="map map-screen"></div>
+        <div id="campusEditor" class="campus-editor hidden">
+          <div class="campus-editor__header">
+            <div>
+              <strong>Campus Editor</strong>
+              <span id="campusEditorHint">Click the map to capture coordinates.</span>
+            </div>
+            <div class="campus-editor__header-actions">
+              <button type="button" id="locateCampusEditorBtn" class="iconBtn" aria-label="Show my location">
+                <i class="fas fa-location-crosshairs"></i>
+              </button>
+              <button type="button" id="minimizeCampusEditorBtn" class="iconBtn" aria-label="Minimize editor">
+                <i class="fas fa-minus"></i>
+              </button>
+              <button type="button" id="undoCampusDraftBtn" class="iconBtn" aria-label="Undo last draft item">
+                <i class="fas fa-rotate-left"></i>
+              </button>
+              <button type="button" id="clearCampusDraftBtn" class="iconBtn" aria-label="Clear draft">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="campus-editor__grid">
+            <label for="campusPointName">
+              Name
+              <input type="text" id="campusPointName" class="input-field" placeholder="New pickup spot" autocomplete="off">
+            </label>
+            <label for="campusPointType">
+              Mode
+              <select id="campusPointType" class="input-field">
+                <option value="location">Campus marker</option>
+                <option value="rideStop">Pickup / drop-off stop</option>
+                <option value="path">Road / path</option>
+                <option value="roadArea">Road area</option>
+                <option value="building">Building shape</option>
+                <option value="buildingEdit">Edit building</option>
+                <option value="routePreview">Route preview</option>
+              </select>
+            </label>
+            <label for="campusPointCategory">
+              Category
+              <select id="campusPointCategory" class="input-field"></select>
+            </label>
+          </div>
+
+          <div id="campusGraphStatus" class="campus-editor__status"></div>
+          <textarea id="campusEditorOutput" readonly spellcheck="false"></textarea>
+          <div class="campus-editor__actions">
+            <button type="button" id="saveCampusShapeBtn" class="yellow">
+              <i class="fas fa-draw-polygon"></i>
+              Save shape
+            </button>
+            <button type="button" id="clearCampusPreviewBtn" class="yellow">
+              <i class="fas fa-route"></i>
+              Clear route
+            </button>
+            <button type="button" id="saveCampusCloudBtn" class="blue">
+              <i class="fas fa-cloud-arrow-up"></i>
+              Save map
+            </button>
+            <button type="button" id="copyCampusJsonBtn" class="green">
+              <i class="fas fa-copy"></i>
+              Copy JSON
+            </button>
+          </div>
+        </div>
         <button type="button" id="pathfinderBackBtn" class="backBtn" onclick="resetPathfinder()" aria-label="Back to pathfinder"></button>
         <div class="bottomSheet hidden" id="pathfinderSheet" style="position: absolute;">
           <div class="dragZone" onmousedown="startDrag(event, 'pathfinderSheet')" ontouchstart="startDrag(event, 'pathfinderSheet')">
@@ -351,51 +492,70 @@
         <h2>Profile</h2>
       </div>
       <div class="profile-content">
-        <div class="profile-card">
-          <div class="profile-avatar">S</div>
-          <h3 id="profileName">Student Name</h3>
+        <div class="profile-card premium-profile-card">
+          <div class="profile-avatar profile-avatar-gradient" id="profileAvatar">ST</div>
+          <span class="role-badge role-badge-student">Student</span>
+          <div class="profile-title-row">
+            <h3 id="profileName">Student Name</h3>
+          </div>
           <p id="profileEmail">email@example.com</p>
         </div>
-        
-        <div class="settings-list" style="margin-bottom: 20px;">
-          <div class="settings-item" onclick="switchTab('activity')">
-            <span>Ride Activity</span>
-            <i class="fas fa-chevron-right"></i>
+
+        <div class="profile-info-card">
+          <div class="profile-section-heading">Account Info</div>
+          <div class="profile-info-grid">
+            <div class="profile-info-item"><span>Matric number</span><strong id="profileMatricNo">Not provided</strong></div>
+            <div class="profile-info-item"><span>Phone number</span><strong id="profilePhone">Not provided</strong></div>
+            <div class="profile-info-item profile-info-wide"><span>Email</span><strong id="profileEmailReadonly">email@example.com</strong></div>
           </div>
-          <div class="settings-item" onclick="switchTab('wallet')">
-            <span>Wallet</span>
-            <i class="fas fa-chevron-right"></i>
+        </div>
+
+        <div class="profile-info-card">
+          <div class="profile-section-heading">Ride Stats</div>
+          <div class="profile-stats-grid">
+            <div class="profile-stat"><span>Total rides</span><strong id="studentTotalRides">0</strong></div>
+            <div class="profile-stat"><span>Total spent</span><strong id="studentTotalSpent">&#8358;0</strong></div>
           </div>
-          <div class="settings-item">
-            <span class="settings-copy">
-              <span>Dark Mode</span>
-            </span>
-            <label class="theme-switch" aria-label="Toggle dark mode">
-              <input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)">
-              <span></span>
-            </label>
-          </div>
-          <div class="settings-item hidden" id="biometricsSettingItemStudent">
-            <span class="settings-copy">
-              <span>Biometric Login</span>
-              <small>Use Face ID / Fingerprint to log in</small>
-            </span>
-            <label class="theme-switch" aria-label="Toggle biometric login">
-              <input type="checkbox" id="biometricsToggleStudent" onchange="toggleBiometrics(this.checked)">
-              <span></span>
-            </label>
-          </div>
-          <div class="settings-item hidden" id="adminLinkStudent" onclick="window.location.href='/admin.html'">
-            <span style="color: #22c55e; font-weight: bold;">Admin Dashboard</span>
-            <i class="fas fa-shield-alt" style="color: #22c55e;"></i>
-          </div>
-          <div class="settings-item">
-            <span>App Version</span>
-            <strong>1.2.0</strong>
+          <div class="profile-route-stats">
+            <div><span>Top pickup</span><strong id="studentTopPickup">No rides yet</strong></div>
+            <div><span>Top dropoff</span><strong id="studentTopDropoff">No rides yet</strong></div>
           </div>
         </div>
         
-        <button onclick="logout()" class="danger-text">Logout from account</button>
+        <div class="settings-group-title">Account & Security</div>
+        <div class="settings-list profile-settings-list">
+          <div class="settings-item" onclick="switchTab('activity')">
+            <span class="settings-label-with-icon"><i class="fas fa-history settings-icon"></i><span>Ride Activity</span></span>
+            <i class="fas fa-chevron-right arrow-icon"></i>
+          </div>
+          <div class="settings-item" onclick="switchTab('wallet')">
+            <span class="settings-label-with-icon"><i class="fas fa-wallet settings-icon"></i><span>Wallet</span></span>
+            <i class="fas fa-chevron-right arrow-icon"></i>
+          </div>
+          <div class="settings-item hidden" id="biometricsSettingItemStudent">
+            <div class="settings-copy"><span class="settings-label-with-icon"><i class="fas fa-fingerprint settings-icon"></i><span>Biometric Login</span></span><small>Use Face ID / Fingerprint to log in</small></div>
+            <label class="theme-switch" aria-label="Toggle biometric login"><input type="checkbox" id="biometricsToggleStudent" onchange="toggleBiometrics(this.checked)"><span></span></label>
+          </div>
+        </div>
+
+        <div class="settings-group-title">Preferences & Info</div>
+        <div class="settings-list profile-settings-list">
+          <div class="settings-item"><span class="settings-label-with-icon"><i class="fas fa-bell settings-icon"></i><span>Notification Preferences</span></span><label class="theme-switch" aria-label="Toggle notifications"><input type="checkbox" disabled><span></span></label></div>
+          <div class="settings-item no-clickable"><span class="settings-label-with-icon"><i class="fas fa-language settings-icon"></i><span>Language</span></span><strong>English</strong></div>
+          <div class="settings-item"><span class="settings-label-with-icon"><i class="fas fa-adjust settings-icon"></i><span>Dark Mode</span></span><label class="theme-switch" aria-label="Toggle dark mode"><input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)"><span></span></label></div>
+          <div class="settings-item" onclick="openLegalModal('privacy')"><span class="settings-label-with-icon"><i class="fas fa-user-shield settings-icon"></i><span>Privacy Policy</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
+          <div class="settings-item" onclick="openLegalModal('terms')"><span class="settings-label-with-icon"><i class="fas fa-file-contract settings-icon"></i><span>Terms of Service</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
+          <div class="settings-item" onclick="openHelpModal()"><span class="settings-label-with-icon"><i class="fas fa-question-circle settings-icon"></i><span>Help & Support</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
+          <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Feedback"><span class="settings-label-with-icon"><i class="fas fa-star settings-icon"></i><span>Rate the App</span></span><i class="fas fa-chevron-right arrow-icon"></i></a>
+          <div class="settings-item hidden" id="adminLinkStudent" onclick="window.location.href='/admin.html'"><span class="settings-label-with-icon" style="color: #22c55e;"><i class="fas fa-shield-alt settings-icon"></i><strong style="font-weight: 600;">Admin Dashboard</strong></span><i class="fas fa-chevron-right arrow-icon" style="color: #22c55e;"></i></div>
+          <div class="settings-item no-clickable"><span class="settings-label-with-icon"><i class="fas fa-info-circle settings-icon"></i><span>App Version</span></span><strong class="app-version-badge">1.2.1</strong></div>
+        </div>
+        
+        <div class="danger-zone">
+          <div class="settings-group-title">Danger Zone</div>
+          <button onclick="logout()" class="logout-btn"><i class="fas fa-sign-out-alt"></i><span>Logout</span></button>
+          <button onclick="confirmDeleteAccount()" class="delete-account-btn"><i class="fas fa-user-slash"></i><span>Delete Account</span></button>
+        </div>
       </div>
     </div>
 
@@ -412,6 +572,7 @@
 
     <!-- Bottom Navigation Bar -->
     <nav class="bottom-nav">
+      <div class="nav-active-pill" id="studentNavPill"></div>
       <button class="nav-tab active" id="tab-home" onclick="switchTab('home')">
         <i class="fas fa-home"></i>
         <span>Home</span>
@@ -423,6 +584,7 @@
       <button class="nav-tab" id="tab-live" onclick="switchTab('live')">
         <i class="fas fa-satellite-dish"></i>
         <span>Live</span>
+        <div class="notif-dot" id="studentLiveNotifDot"></div>
       </button>
       <button class="nav-tab" id="tab-map" onclick="switchTab('map')">
         <i class="fas fa-map-marked-alt"></i>
@@ -454,11 +616,6 @@
     <!-- Home Section -->
     <div id="riderDashboard" class="dashboard-container tab-view">
       <main class="dashboard-body fade-in">
-        <div class="welcome-section">
-          <p class="welcome-greeting">Good evening 🌙</p>
-          <h1 class="welcome-name" id="welcome-name-rider">Rider<span>.</span></h1>
-        </div>
-
         <div class="earnings-progress-card">
           <div class="earnings-progress-label">Today's Earnings</div>
           <div class="earnings-progress-value" id="riderDashEarnings">₦0</div>
@@ -478,6 +635,14 @@
     <!-- Live Section (Map + Sheet) -->
     <div id="riderLiveView" class="view-overlay map-view hidden tab-view">
       <div id="riderMap" class="map map-screen"></div>
+      
+      <!-- Floating Map Legend -->
+      <div class="map-legend">
+        <div class="legend-item"><span class="legend-dot dot-user"></span><span>You</span></div>
+        <div class="legend-item"><span class="legend-dot dot-pickup"></span><span>Pickup</span></div>
+        <div class="legend-item"><span class="legend-dot dot-dropoff"></span><span>Destination</span></div>
+        <div class="legend-item"><span class="legend-dot dot-keke"></span><span>Keke</span></div>
+      </div>
       
       <div class="bottomSheet hidden" id="riderSheet" style="position: absolute;">
         <div class="dragZone" onmousedown="startDrag(event, 'riderSheet')" ontouchstart="startDrag(event, 'riderSheet')">
@@ -502,14 +667,34 @@
         <h2>My Earnings</h2>
       </div>
       <div class="profile-content">
-        <div class="wallet-balance-panel yellow-panel">
+        <div id="riderEarningsPanel" class="wallet-balance-panel rider-earnings-panel">
           <span>Available Balance</span>
-          <strong id="riderEarningsBalance">₦0</strong>
-          <span>Total Earned</span>
-          <b id="riderTotalEarned">₦0</b>
-          <button type="button" class="yellow" onclick="openWithdrawalScreen()">Request Withdrawal</button>
+          <strong id="riderEarningsBalance">&#8358;0</strong>
+          <div class="rider-earnings-totals">
+            <div>
+              <span>Total Earned</span>
+              <b id="riderTotalEarned">&#8358;0</b>
+            </div>
+            <div>
+              <span>This Week</span>
+              <b id="riderWeeklyEarned">&#8358;0</b>
+            </div>
+          </div>
+          <button type="button" class="yellow" onclick="openWithdrawalScreen()"><i class="fas fa-money-bill-transfer"></i> Request Withdrawal</button>
         </div>
-        <h3 class="section-title">Recent Earnings</h3>
+        <div id="riderEarningsBreakdown" class="wallet-summary rider-breakdown-summary">
+          <div>
+            <span>Rides Completed</span>
+            <strong id="riderWeeklyRides">0</strong>
+          </div>
+        </div>
+        <div class="wallet-transactions-header">
+          <h3 class="section-title" id="riderEarningsSectionTitle">Earnings History</h3>
+          <div class="wallet-filter-tabs rider-history-tabs" role="tablist" aria-label="Rider earnings history tabs">
+            <button type="button" class="wallet-filter-tab active" data-rider-history-tab="earnings" onclick="setRiderEarningsTab('earnings')">Earnings History</button>
+            <button type="button" class="wallet-filter-tab" data-rider-history-tab="withdrawals" onclick="setRiderEarningsTab('withdrawals')">Withdrawals</button>
+          </div>
+        </div>
         <div id="riderEarningsList" class="wallet-list">
           <p class="empty-state">No earnings yet</p>
         </div>
@@ -539,50 +724,63 @@
         <h2>Profile</h2>
       </div>
       <div class="profile-content">
-        <div class="profile-card">
-          <div class="profile-avatar" style="background: #facc15;">R</div>
-          <h3 id="riderProfileName">Rider Name</h3>
+        <div class="profile-card premium-profile-card">
+          <div class="profile-avatar profile-avatar-gradient" id="riderProfileAvatar">RD</div>
+          <span class="role-badge role-badge-rider">Rider</span>
+          <div class="profile-title-row">
+            <h3 id="riderProfileName">Rider Name</h3>
+          </div>
           <p id="riderProfileEmail">email@example.com</p>
-          <div style="margin-top: 10px;">
-             <span id="riderProfilePlate" class="role-tag yellow-tag">ABC-123</span>
+        </div>
+
+        <div class="profile-info-card">
+          <div class="profile-section-heading">Vehicle Info</div>
+          <div class="profile-info-grid">
+            <div class="profile-info-item"><span>Plate number</span><strong id="riderProfilePlate">No Plate</strong></div>
+            <div class="profile-info-item"><span>Vehicle type</span><strong id="riderProfileVehicle">Keke</strong></div>
+            <div class="profile-info-item profile-info-wide"><span>Status</span><strong id="riderProfileStatus" class="profile-status-indicator offline">Offline</strong></div>
+          </div>
+        </div>
+
+        <div class="profile-info-card">
+          <div class="profile-section-heading">Rider Stats</div>
+          <div class="profile-stats-grid">
+            <div class="profile-stat"><span>Rides completed</span><strong id="riderProfileTotalRides">0</strong></div>
+            <div class="profile-stat"><span>All-time earned</span><strong id="riderProfileTotalEarned">&#8358;0</strong></div>
           </div>
         </div>
         
-        <div class="settings-list" style="margin-bottom: 20px;">
-          <div class="settings-item">
-            <span class="settings-copy">
-              <span>Dark Mode</span>
-            </span>
-            <label class="theme-switch" aria-label="Toggle dark mode">
-              <input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)">
-              <span></span>
-            </label>
-          </div>
+        <div class="settings-group-title">Preferences & Security</div>
+        <div class="settings-list profile-settings-list">
+          <div class="settings-item"><span class="settings-label-with-icon"><i class="fas fa-bell settings-icon"></i><span>Notification Preferences</span></span><label class="theme-switch" aria-label="Toggle notifications"><input type="checkbox" disabled><span></span></label></div>
+          <div class="settings-item no-clickable"><span class="settings-label-with-icon"><i class="fas fa-language settings-icon"></i><span>Language</span></span><strong>English</strong></div>
+          <div class="settings-item"><span class="settings-label-with-icon"><i class="fas fa-adjust settings-icon"></i><span>Dark Mode</span></span><label class="theme-switch" aria-label="Toggle dark mode"><input type="checkbox" data-theme-toggle onchange="toggleAppTheme(this.checked)"><span></span></label></div>
           <div class="settings-item hidden" id="biometricsSettingItemRider">
-            <span class="settings-copy">
-              <span>Biometric Login</span>
-              <small>Use Face ID / Fingerprint to log in</small>
-            </span>
-            <label class="theme-switch" aria-label="Toggle biometric login">
-              <input type="checkbox" id="biometricsToggleRider" onchange="toggleBiometrics(this.checked)">
-              <span></span>
-            </label>
+            <div class="settings-copy"><span class="settings-label-with-icon"><i class="fas fa-fingerprint settings-icon"></i><span>Biometric Login</span></span><small>Use Face ID / Fingerprint to log in</small></div>
+            <label class="theme-switch" aria-label="Toggle biometric login"><input type="checkbox" id="biometricsToggleRider" onchange="toggleBiometrics(this.checked)"><span></span></label>
           </div>
-          <div class="settings-item">
-            <span>App Version</span>
-            <strong>1.2.0</strong>
-          </div>
-          <div class="settings-item hidden" id="adminLinkRider" onclick="window.location.href='/admin.html'">
-            <span style="color: #22c55e; font-weight: bold;">Admin Dashboard</span>
-            <i class="fas fa-shield-alt" style="color: #22c55e;"></i>
-          </div>
-          </div>        
-        <button onclick="logout()" class="danger-text">Logout from account</button>
-      </div>
-      </div>
+        </div>
 
+        <div class="settings-group-title">App Info & Support</div>
+        <div class="settings-list profile-settings-list">
+          <div class="settings-item" onclick="openLegalModal('privacy')"><span class="settings-label-with-icon"><i class="fas fa-user-shield settings-icon"></i><span>Privacy Policy</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
+          <div class="settings-item" onclick="openLegalModal('terms')"><span class="settings-label-with-icon"><i class="fas fa-file-contract settings-icon"></i><span>Terms of Service</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
+          <div class="settings-item" onclick="openHelpModal()"><span class="settings-label-with-icon"><i class="fas fa-question-circle settings-icon"></i><span>Help & Support</span></span><i class="fas fa-chevron-right arrow-icon"></i></div>
+          <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Feedback"><span class="settings-label-with-icon"><i class="fas fa-star settings-icon"></i><span>Rate the App</span></span><i class="fas fa-chevron-right arrow-icon"></i></a>
+          <div class="settings-item hidden" id="adminLinkRider" onclick="window.location.href='/admin.html'"><span class="settings-label-with-icon" style="color: #22c55e;"><i class="fas fa-shield-alt settings-icon"></i><strong style="font-weight: 600;">Admin Dashboard</strong></span><i class="fas fa-chevron-right arrow-icon" style="color: #22c55e;"></i></div>
+          <div class="settings-item no-clickable"><span class="settings-label-with-icon"><i class="fas fa-info-circle settings-icon"></i><span>App Version</span></span><strong class="app-version-badge">1.2.1</strong></div>
+        </div>
+
+        <div class="danger-zone">
+          <div class="settings-group-title">Danger Zone</div>
+          <button onclick="logout()" class="logout-btn"><i class="fas fa-sign-out-alt"></i><span>Logout</span></button>
+          <button onclick="confirmDeleteAccount()" class="delete-account-btn"><i class="fas fa-user-slash"></i><span>Delete Account</span></button>
+        </div>
+      </div>
+    </div>
       <!-- Bottom Navigation Bar -->
       <nav class="bottom-nav">
+      <div class="nav-active-pill" id="riderNavPill"></div>
       <button class="nav-tab active" id="tab-home" onclick="switchTab('home')">
         <i class="fas fa-home"></i>
         <span>Home</span>
@@ -594,6 +792,7 @@
       <button class="nav-tab" id="tab-live" onclick="switchTab('live')">
         <i class="fas fa-satellite-dish"></i>
         <span>Live</span>
+        <div class="notif-dot" id="riderLiveNotifDot"></div>
       </button>
       <button class="nav-tab" id="tab-profile" onclick="switchTab('profile')">
         <i class="fas fa-user"></i>
@@ -602,8 +801,146 @@
       </nav>
   </div>
 
+  <!-- Help & Support Modal -->
+  <div id="helpModal" class="dialog-overlay hidden" style="z-index: 4000;">
+    <div class="dialog-sheet help-sheet">
+      <div class="dialog-handle"></div>
+      <div class="help-modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md);">
+        <h3 class="dialog-title" style="margin-bottom: 0;">Help & Support</h3>
+        <button class="iconBtn" onclick="closeHelpModal()" style="border: none; background: transparent; font-size: 1.2rem; cursor: pointer; color: var(--color-text-secondary); padding: var(--space-xs); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-height: unset;"><i class="fas fa-times"></i></button>
+      </div>
+
+      <div class="help-modal-body" style="flex: 1; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column;">
+        <!-- FAQ Accordion -->
+        <h4 style="font-family: 'Syne', sans-serif; font-size: 16px; margin: 0 0 var(--space-sm) 0; color: var(--color-text-primary);">Frequently Asked Questions</h4>
+        <div class="faq-accordion" id="studentFaqAccordion">
+          <details class="faq-item">
+            <summary class="faq-summary">How does pricing work?</summary>
+            <div class="faq-content">
+              Rides are a flat rate of <strong>₦150 per trip</strong> when paying with your OpRides wallet. The exact fare will always be shown before you confirm your request. Other payment options will be added soon.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">What if my keke doesn't show?</summary>
+            <div class="faq-content">
+              If a rider is assigned but doesn't arrive within a reasonable time, you can cancel the ride and request another. If your wallet is charged incorrectly, please report it via the form below or contact support.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">How do I fund my wallet?</summary>
+            <div class="faq-content">
+              Go to the "Wallet" tab and tap "Top Up". You can securely fund your wallet via bank transfer using Paystack. For the fastest top-up, select <strong>Bank Transfer</strong> when prompted.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">Can I cancel a ride?</summary>
+            <div class="faq-content">
+              Yes, you can cancel a ride before it starts from the Live tab. There are no cancellation fees, but please cancel as early as possible so riders can pick up other passengers.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">What is the waiting queue?</summary>
+            <div class="faq-content">
+              If no keke is immediately available, you're placed in a queue. You'll be automatically matched to the next available rider. Your position is shown on the Live tab.
+            </div>
+          </details>
+        </div>
+        <div class="faq-accordion" id="riderFaqAccordion" style="display: none;">
+          <details class="faq-item">
+            <summary class="faq-summary">How do I start receiving ride requests?</summary>
+            <div class="faq-content">
+              Go to your Home tab and tap <strong>Go Online</strong>. Once you're online, the system will automatically match you with students requesting rides near your location.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">How much do I earn per ride?</summary>
+            <div class="faq-content">
+              You earn <strong>₦100 per passenger</strong> on each trip. The fare is ₦150 per student — ₦100 goes to you and ₦50 goes to OpRides as a platform fee.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">When do earnings reflect in my wallet?</summary>
+            <div class="faq-content">
+              Your earnings are credited instantly when a stop is marked complete. You can view your full earnings history in the Earnings tab.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">How do I withdraw my earnings?</summary>
+            <div class="faq-content">
+              Tap the <strong>Request Withdrawal</strong> button in your Earnings tab. Enter the amount, your bank name, account number, and account name. Withdrawals are processed within 24 hours.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">What happens if a student cancels?</summary>
+            <div class="faq-content">
+              If a student cancels before you arrive, the request is removed and you'll be matched with the next available student. There is no penalty on your end.
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary class="faq-summary">Can I go offline mid-ride?</summary>
+            <div class="faq-content">
+              Please complete any active ride before going offline. Going offline with passengers on board may affect your standing on the platform.
+            </div>
+          </details>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid var(--color-border); margin: var(--space-lg) 0;" />
+
+        <!-- Report an Issue Form -->
+        <h4 style="font-family: 'Syne', sans-serif; font-size: 16px; margin: 0 0 var(--space-sm) 0; color: var(--color-text-primary);">Report an Issue</h4>
+        <form id="reportIssueForm" style="display: flex; flex-direction: column; gap: var(--space-sm);">
+          <div class="input-group">
+            <label for="issueCategory" style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px; display: block;">Category</label>
+            <select id="issueCategory" class="input-field" required style="background-image: none;">
+              <option value="" disabled selected>Select category</option>
+              <option value="ride_issue">Ride Issue</option>
+              <option value="payment_wallet">Payment & Wallet</option>
+              <option value="app_bug">App Bug / Technical</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label for="issueSubject" style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px; display: block;">Subject</label>
+            <input type="text" id="issueSubject" class="input-field" placeholder="Brief summary of the issue" required autocomplete="off" />
+          </div>
+          <div class="input-group">
+            <label for="issueDescription" style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px; display: block;">Description</label>
+            <textarea id="issueDescription" class="input-field" rows="4" placeholder="Please describe the issue in detail" required style="resize: vertical; min-height: 80px;"></textarea>
+          </div>
+          <button type="submit" id="submitIssueBtn" class="btn btn-primary" style="margin-top: var(--space-sm); min-height: 48px;">
+            <span>Submit Report</span>
+          </button>
+        </form>
+
+        <hr style="border: 0; border-top: 1px solid var(--color-border); margin: var(--space-lg) 0;" />
+
+        <!-- Contact Support Links -->
+        <h4 style="font-family: 'Syne', sans-serif; font-size: 16px; margin: 0 0 var(--space-sm) 0; color: var(--color-text-primary);">Still need help?</h4>
+        <div style="display: flex; flex-direction: column; gap: var(--space-sm); margin-bottom: var(--space-md);">
+          <a class="settings-item settings-link-item" href="mailto:ojopraise423@gmail.com?subject=OpRides%20Support" style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-md); background: var(--color-bg-tertiary); border: 1px solid var(--color-border); border-radius: var(--radius-md); text-decoration: none; color: var(--color-text-primary); transition: all var(--duration-fast);">
+            <span class="settings-label-with-icon" style="display: flex; align-items: center; gap: var(--space-sm);"><i class="fas fa-envelope settings-icon" style="color: var(--color-accent);"></i><span>Email Support</span></span>
+            <strong style="color: var(--color-text-secondary); font-weight: 500; font-size: 14px;">ojopraise423@gmail.com</strong>
+          </a>
+          <a class="settings-item settings-link-item" href="https://wa.me/2349070707363" target="_blank" rel="noopener" style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-md); background: var(--color-bg-tertiary); border: 1px solid var(--color-border); border-radius: var(--radius-md); text-decoration: none; color: var(--color-text-primary); transition: all var(--duration-fast);">
+            <span class="settings-label-with-icon" style="display: flex; align-items: center; gap: var(--space-sm);"><i class="fab fa-whatsapp settings-icon" style="color: #25D366;"></i><span>WhatsApp Support</span></span>
+            <strong style="color: var(--color-text-secondary); font-weight: 500; font-size: 14px;">09070707363</strong>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://js.paystack.co/v2/inline.js"></script>
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=1.2.1"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('ServiceWorker registered with scope: ', reg.scope))
+          .catch(err => console.warn('ServiceWorker registration failed: ', err));
+      });
+    }
+  </script>
 </body>
 </html>

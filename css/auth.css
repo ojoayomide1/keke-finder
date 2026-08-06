@@ -1,3 +1,9 @@
+/* Ensure seamless background when keyboard is shown/hidden on login screen */
+html:has(#loginScreen:not(.hidden)),
+body:has(#loginScreen:not(.hidden)) {
+  background-color: #07070f !important;
+}
+
 #loginScreen.screen {
   overflow-y: auto;
   display: flex;
@@ -14,42 +20,38 @@
   overflow: hidden;
 }
 
-/* Drift animations for glowing mesh background */
-#loginScreen::before,
-#loginScreen::after {
+/* Animated gradient background (always visible, no performance cost) */
+#loginScreen::before {
   content: "";
   position: absolute;
-  width: min(80vw, 320px);
-  height: min(80vw, 320px);
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.12;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    #0a0a14 0%,
+    #0f0f1e 25%,
+    #0a0a18 50%,
+    #12122a 75%,
+    #0a0a14 100%
+  );
+  background-size: 400% 400%;
+  animation: authGradientShift 12s ease infinite;
   z-index: 0;
   pointer-events: none;
 }
 
-#loginScreen::before {
-  background: var(--color-accent);
-  top: -40px;
-  left: -40px;
-  animation: driftBlue 15s infinite alternate ease-in-out;
-}
-
 #loginScreen::after {
-  background: #3b82f6;
-  bottom: -40px;
-  right: -40px;
-  animation: driftOrange 15s infinite alternate ease-in-out;
-}
-
-@keyframes driftBlue {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(50px, 30px) scale(1.15); }
-}
-
-@keyframes driftOrange {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(-50px, -30px) scale(1.15); }
+  content: "";
+  position: absolute;
+  width: min(60vw, 280px);
+  height: min(60vw, 280px);
+  border-radius: 50%;
+  /* Use a radial gradient instead of filter:blur — no GPU layer needed */
+  background: radial-gradient(circle, rgba(255, 94, 26, 0.18) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+  top: -60px;
+  left: -60px;
+  /* Static position — subtle enough without animation */
 }
 
 /* Wrapper to isolate content from background effects */
@@ -60,6 +62,36 @@
   flex-direction: column;
   align-items: center;
   z-index: 1;
+  position: relative;
+}
+
+/* Additional blobs via auth-wrapper pseudo-elements */
+.auth-wrapper::before {
+  content: "";
+  position: absolute;
+  width: min(50vw, 240px);
+  height: min(50vw, 240px);
+  border-radius: 50%;
+  /* Radial gradient replaces filter:blur — same visual, zero GPU overhead */
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.14) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+  bottom: -40px;
+  right: -40px;
+}
+
+.auth-wrapper::after {
+  content: "";
+  position: absolute;
+  width: min(40vw, 200px);
+  height: min(40vw, 200px);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.10) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .auth-brand {
@@ -117,14 +149,28 @@
 /* Premium Glassmorphic Card */
 .auth-card {
   width: 100%;
-  background: rgba(26, 26, 26, 0.45);
-  backdrop-filter: blur(20px) saturate(120%);
-  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  background: rgba(26, 26, 26, 0.85);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
   padding: 32px 24px;
   border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+/* Subtle card glow edge */
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 25%;
+  right: 25%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 94, 26, 0.4), transparent);
+  pointer-events: none;
 }
 
 .auth-tabs {
@@ -174,7 +220,7 @@
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .role-btn:active {
@@ -213,26 +259,43 @@
   z-index: 2;
 }
 
-.input-field {
-  width: 100%;
-  padding: 18px 16px 18px 46px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  color: white;
-  font-size: 15px;
-  outline: none;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+#loginScreen input.input-field,
+#loginScreen select.input-field,
+#loginScreen textarea.input-field {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
-.input-field:focus {
+#loginScreen .input-field {
+  width: 100%;
+  padding: 18px 16px 18px 48px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: white !important;
+  -webkit-text-fill-color: white !important;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#loginScreen .input-field:focus {
   border-color: var(--color-accent);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.05) !important;
   box-shadow: 0 0 0 3px rgba(255, 94, 26, 0.12);
 }
 
-.input-field:focus ~ .input-icon {
+#loginScreen .input-field:focus ~ .input-icon {
   color: var(--color-accent);
+}
+
+/* Autofill styling overrides to guarantee text visibility on login page */
+#loginScreen .input-field:-webkit-autofill,
+#loginScreen .input-field:-webkit-autofill:hover, 
+#loginScreen .input-field:-webkit-autofill:focus {
+  -webkit-text-fill-color: white !important;
+  -webkit-box-shadow: 0 0 0px 1000px #07070f inset !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 /* Floating Label Logic */
@@ -242,16 +305,16 @@
   top: 50%;
   transform: translateY(-50%);
   color: var(--color-text-secondary);
-  font-size: 15px;
+  font-size: 16px;
   pointer-events: none;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: left top;
   z-index: 2;
 }
 
 /* Slide label up when input is focused or has input content */
-.input-field:focus ~ .floating-label,
-.input-field:not(:placeholder-shown) ~ .floating-label {
+#loginScreen .input-field:focus ~ .floating-label,
+#loginScreen .input-field:not(:placeholder-shown) ~ .floating-label {
   transform: translateY(-25px) scale(0.8);
   color: var(--color-accent);
   background: #0c0d15; /* matching blurred background color to mask borders */
@@ -260,7 +323,7 @@
 }
 
 /* Special adjustments for Select Dropdowns */
-select.input-field {
+#loginScreen select.input-field {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23999999'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -268,7 +331,7 @@ select.input-field {
   background-size: 18px;
 }
 
-select.input-field:focus {
+#loginScreen select.input-field:focus {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23FF5E1A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
 }
 
@@ -333,7 +396,7 @@ select.input-field:focus {
   font-weight: 600;
   font-size: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   margin-bottom: 0 !important;
 }
 
@@ -354,7 +417,7 @@ select.input-field:focus {
   justify-content: center;
   cursor: pointer;
   font-size: 22px;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .biometric-login-btn:hover {
@@ -385,7 +448,7 @@ select.input-field:focus {
   background: rgba(255, 255, 255, 0.04);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .auth-secondary:hover {

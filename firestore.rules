@@ -15,7 +15,7 @@ service cloud.firestore {
     }
 
     function userRole() {
-      return currentUserDoc().data.get("role", "");
+      return currentUserDoc().data.role;
     }
 
     function isStudent() {
@@ -32,7 +32,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return hasUserDoc() && currentUserDoc().data.get("isAdmin", false) == true;
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
     function validShortString(value, maxLength) {
@@ -490,7 +490,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin() || (isSignedIn() && request.auth.uid != userId && isRider());
+      allow get: if isOwner(userId) || isAdmin() || isRider();
       allow list: if false;
       allow create: if validUserCreate(userId);
       allow update: if validUserUpdate(userId)

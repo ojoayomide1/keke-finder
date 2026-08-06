@@ -12,7 +12,7 @@ import {
   getDoc
 } from "./firebase.js";
 import { state } from "./modules/state.js";
-import { dismissSplash } from "./modules/ui.js";
+import { showPromptDialog, dismissSplash } from "./modules/ui.js";
 import {
   isBiometricsSupported,
   registerBiometrics,
@@ -52,18 +52,18 @@ function setAuthLoading(isLoading) {
   }
 }
 
-// Real Database Verification for Students
+// checking if the student's name and matric match what's in the db
 async function verifyMatricNumber(name, matricNo) {
   if (!name || !matricNo) return false;
   try {
-    // Document IDs cannot have slashes, so we replace them with dashes for the lookup
+    // firestore doesn't allow slashes in doc IDs so replace them with dashes
     const sanitizedMatric = matricNo.trim().toUpperCase().replace(/\//g, '-');
     const docRef = doc(db, "authorized_students", sanitizedMatric);
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
       const data = docSnap.data();
-      // Verify name matches (case-insensitive)
+      // name check is case-insensitive so "Ayomide" and "ayomide" both work
       return data.name.toLowerCase() === name.toLowerCase();
     }
     return false;
@@ -73,17 +73,17 @@ async function verifyMatricNumber(name, matricNo) {
   }
 }
 
-// Real Database Verification for Riders
+// same thing for riders, using plateNo as the doc ID
 async function verifyRiderDetails(name, phone, plateNo) {
   if (!name || !phone || !plateNo) return false;
   try {
-    // We use plateNo as the document ID for riders
+    // plate number is the doc ID for riders
     const docRef = doc(db, "authorized_riders", plateNo.toUpperCase());
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
       const data = docSnap.data();
-      // Verify name and phone match (case-insensitive for name, normalized for phone)
+      // check both name and phone, last 10 digits of phone is enough
       const nameMatch = data.name.toLowerCase() === name.toLowerCase();
       const phoneMatch = data.phone.replace(/\D/g, '').endsWith(phone.replace(/\D/g, '').slice(-10));
       return nameMatch && phoneMatch;
@@ -104,13 +104,13 @@ async function createAccount() {
   const plate = getAuthValue("plateNo");
   const vType = document.getElementById("vehicleType").value;
 
-  // Regex Patterns
+  // patterns to validate input before even touching the db
   const nameRegex = /^[a-zA-Z\s.']{3,60}$/;
   const phoneRegex = /^\+?[0-9]{10,15}$/;
   const matricRegex = /^[A-Z0-9/-]{5,30}$/i; 
   const plateRegex = /^[A-Z0-9\s-]{4,15}$/i;
 
-  // Validation
+  // validate fields first before trying anything
   if (!nameRegex.test(name)) return setAuthMessage("Enter a valid full name (3-30 letters).");
   if (!phoneRegex.test(phone)) return setAuthMessage("Enter a valid phone number.");
   
@@ -180,7 +180,7 @@ async function createAccount() {
       console.log("User document successfully written.");
     } catch (dbError) {
       console.error("Firestore setDoc failed:", dbError);
-      throw dbError; // Propagate to outer catch to show error in UI
+      throw dbError; // bubble it up so the error shows in the ui
     }
     
     setAuthMessage("Account created successfully.", "success");
@@ -220,7 +220,7 @@ function authErrorMessage(error) {
   return messages[error.code] || error.message || "Authentication failed.";
 }
 
-// ================= GLOBAL BINDINGS =================
+// ===== GLOBAL BINDINGS =====
 function setAuthMode(mode) {
   authMode = mode;
   const loginTab = document.getElementById("loginTab");
@@ -245,7 +245,7 @@ function setAuthMode(mode) {
     roleToggle.classList.remove("hidden");
     document.getElementById("displayName").classList.remove("hidden");
     document.getElementById("phoneNumber").classList.remove("hidden");
-    setSignupRole(signupRole); // Refresh specific fields
+    setSignupRole(signupRole); // re-render the role-specific fields
     submitBtn.innerText = "Sign Up";
   }
   setAuthMessage("");
@@ -286,7 +286,7 @@ async function logout() {
   showLoginScreen();
 }
 
-// ================= BIOMETRICS INTEGRATION =================
+// ===== BIOMETRICS =====
 async function toggleBiometrics(enabled) {
   const user = state.currentUser;
   if (!user) {
@@ -301,8 +301,19 @@ async function toggleBiometrics(enabled) {
     if (riderToggle) riderToggle.checked = val;
   };
 
+  if (!isBiometricsSupported()) {
+    if (window.showToast) window.showToast("Biometric authentication is not supported in this container.", "error");
+    setToggleState(false);
+    return;
+  }
+
   if (enabled) {
-    const password = prompt("Enter your account password to secure biometrics:");
+    const password = await showPromptDialog({
+      title: "Secure Biometrics",
+      message: "Enter your account password to secure biometrics:",
+      placeholder: "Enter password",
+      inputType: "password"
+    });
     if (!password) {
       setToggleState(false);
       return;
@@ -352,26 +363,57 @@ function updateBiometricsUI() {
   const isSupported = isBiometricsSupported();
   const studentItem = document.getElementById("biometricsSettingItemStudent");
   const riderItem = document.getElementById("biometricsSettingItemRider");
+  const studentToggle = document.getElementById("biometricsToggleStudent");
+  const riderToggle = document.getElementById("biometricsToggleRider");
+  const biometricLoginBtn = document.getElementById("biometricLoginBtn");
 
-  if (studentItem) studentItem.classList.toggle("hidden", !isSupported);
-  if (riderItem) riderItem.classList.toggle("hidden", !isSupported);
+  if (studentItem) {
+    studentItem.classList.remove("hidden");
+    if (!isSupported) {
+      studentItem.style.opacity = "0.6";
+      const small = studentItem.querySelector("small");
+      if (small) small.innerText = "Not supported in this container (Use Safari/Chrome)";
+      if (studentToggle) studentToggle.disabled = true;
+    } else {
+      studentItem.style.opacity = "1";
+      const small = studentItem.querySelector("small");
+      if (small) small.innerText = "Use Face ID / Fingerprint to log in";
+      if (studentToggle) studentToggle.disabled = false;
+    }
+  }
+
+  if (riderItem) {
+    riderItem.classList.remove("hidden");
+    if (!isSupported) {
+      riderItem.style.opacity = "0.6";
+      const small = riderItem.querySelector("small");
+      if (small) small.innerText = "Not supported in this container (Use Safari/Chrome)";
+      if (riderToggle) riderToggle.disabled = true;
+    } else {
+      riderItem.style.opacity = "1";
+      const small = riderItem.querySelector("small");
+      if (small) small.innerText = "Use Face ID / Fingerprint to log in";
+      if (riderToggle) riderToggle.disabled = false;
+    }
+  }
 
   if (isSupported) {
     const isEnabled = localStorage.getItem("oprBiometricsEnabled") === "true";
-    const studentToggle = document.getElementById("biometricsToggleStudent");
-    const riderToggle = document.getElementById("biometricsToggleRider");
-
     if (studentToggle) studentToggle.checked = isEnabled;
     if (riderToggle) riderToggle.checked = isEnabled;
-
-    const biometricLoginBtn = document.getElementById("biometricLoginBtn");
     if (biometricLoginBtn) {
       biometricLoginBtn.classList.toggle("hidden", !isEnabled);
+    }
+  } else {
+    if (studentToggle) studentToggle.checked = false;
+    if (riderToggle) riderToggle.checked = false;
+    if (biometricLoginBtn) {
+      biometricLoginBtn.classList.add("hidden");
     }
   }
 }
 
-// Password Visibility Toggle
+// toggle the show/hide password button
 function togglePasswordVisibility(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -385,7 +427,7 @@ function togglePasswordVisibility(id) {
   }
 }
 
-// Bind to window immediately for HTML onclick handlers
+// bind to window right away so html onclick attributes work
 export function bindAuthGlobals() {
   window.setAuthMode = setAuthMode;
   window.setSignupRole = setSignupRole;
@@ -402,10 +444,10 @@ export function initAuth(options) {
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      // Fetch role from Firestore
+      // pull role from firestore, not just from the auth token
       let userDoc = await getDoc(doc(db, "users", user.uid));
       
-      // Retry once after a short delay if not found, to handle race condition during signup
+      // retry once after a second, sometimes the doc isn't ready instantly after signup
       if (!userDoc.exists()) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         userDoc = await getDoc(doc(db, "users", user.uid));
@@ -418,20 +460,19 @@ export function initAuth(options) {
         finalUser = { ...user, ...data };
         onUserChanged(finalUser);
       } else {
-        // If still no doc, it might be a brand new user whose doc is still being created.
-        // We'll call onUserChanged anyway, but app.js should handle the missing role.
+        // still no doc? might be guest or doc is still being written, call onUserChanged anyway
         onUserChanged(user);
       }
+      dismissSplash();
       updateBiometricsUI();
     } else {
       onUserChanged(null);
+      dismissSplash();
       updateBiometricsUI();
     }
-    // Auth has resolved — dismiss the splash screen regardless of login state
-    dismissSplash();
   });
 
-  // Handle Enter key
+  // press enter to submit — basic UX stuff
   ["email", "password", "matricNo", "plateNo"].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -441,12 +482,12 @@ export function initAuth(options) {
     }
   });
 
-  // Initialize biometrics layout status
+  // set up biometrics toggle on init
   updateBiometricsUI();
 }
 
-// Bind globals immediately upon module load
+// bind as soon as module loads
 bindAuthGlobals();
 
-// Safety binding for when DOM is ready
+// also re-bind after DOM is ready just to be safe
 window.addEventListener('DOMContentLoaded', bindAuthGlobals);
