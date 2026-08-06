@@ -1272,7 +1272,7 @@ select.input-field option {
   align-items: center;
   justify-content: space-around;
   padding-bottom: var(--safe-area-bottom);
-  z-index: 100;
+  z-index: 2500;
   /* Solid background, no blur — avoids compositor overhead while scrolling */
   box-shadow: var(--shadow-bottom-nav);
   overflow: hidden;
