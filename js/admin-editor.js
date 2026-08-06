@@ -719,9 +719,16 @@ function setupGeneralControls() {
       
       activeRoadPoints.push(pt);
       
-      // Update preview line
+      // Update preview line — matches final road style so WYSIWYG while drawing
       if (activeRoadLineLayer) map.removeLayer(activeRoadLineLayer);
-      activeRoadLineLayer = L.polyline(activeRoadPoints, { color: "#6366f1", weight: 4 }).addTo(map);
+      activeRoadLineLayer = L.polyline(activeRoadPoints, {
+        color: "#9ca3af",
+        weight: 2,
+        opacity: 0.72,
+        lineCap: "round",
+        lineJoin: "round",
+        dashArray: "6, 4"   // dashed so it's clear it's still a draft
+      }).addTo(map);
 
       roadStatus.innerText = `${activeRoadPoints.length} point(s) placed. Last: ${pt[0]}, ${pt[1]}`;
     });
@@ -734,7 +741,14 @@ function setupGeneralControls() {
 
       if (activeRoadLineLayer) map.removeLayer(activeRoadLineLayer);
       if (activeRoadPoints.length > 0) {
-        activeRoadLineLayer = L.polyline(activeRoadPoints, { color: "#6366f1", weight: 4 }).addTo(map);
+        activeRoadLineLayer = L.polyline(activeRoadPoints, {
+          color: "#9ca3af",
+          weight: 2,
+          opacity: 0.72,
+          lineCap: "round",
+          lineJoin: "round",
+          dashArray: "6, 4"
+        }).addTo(map);
         roadStatus.innerText = `${activeRoadPoints.length} point(s) placed.`;
       } else {
         activeRoadLineLayer = null;
@@ -934,8 +948,10 @@ function renderAllLayers() {
 
     const polyline = L.polyline(latlngs, {
       color: "#9ca3af",
-      weight: 4,
-      opacity: 0.75
+      weight: 2,
+      opacity: 0.72,
+      lineCap: "round",
+      lineJoin: "round"
     }).addTo(roadsLayerGroup).bindPopup(`
       <div class="campus-popup">
         <strong>Road: ${path.name}</strong><br>

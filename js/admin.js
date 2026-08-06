@@ -167,6 +167,11 @@ function closeAdminMenu() {
   document.getElementById("adminSidebarOverlay")?.classList.add("hidden");
 }
 
+// Dismiss sidebar with Escape key on any screen size
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeAdminMenu();
+});
+
 function listenToAuthorizedRiders() {
   onSnapshot(query(collection(db, "authorized_riders"), orderBy("updatedAt", "desc")), (snapshot) => {
     renderAuthorizedRiders(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));

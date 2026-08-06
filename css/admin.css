@@ -10,8 +10,20 @@
   min-height: 100vh;
 }
 
-.admin-sidebar-overlay,
 .admin-mobile-header {
+  display: none;
+}
+
+/* Overlay works at all screen sizes — dismisses sidebar when open via hamburger */
+.admin-sidebar-overlay {
+  display: block;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 190;
+}
+
+.admin-sidebar-overlay.hidden {
   display: none;
 }
 
@@ -511,18 +523,6 @@
 
   .admin-sidebar.open {
     transform: translateX(0);
-  }
-
-  .admin-sidebar-overlay {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 190;
-  }
-
-  .admin-sidebar-overlay.hidden {
-    display: none;
   }
 
   .admin-mobile-header {
