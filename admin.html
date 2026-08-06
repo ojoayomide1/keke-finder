@@ -14,7 +14,10 @@
 </head>
 <body class="admin-page">
   <div id="adminSidebarOverlay" class="admin-sidebar-overlay hidden" onclick="closeAdminMenu()"></div>
+
   <div class="admin-layout">
+
+    <!-- ── Sidebar ── -->
     <aside class="admin-sidebar">
       <div class="admin-sidebar-logo">
         <span class="logo-text">OP<span>rides</span></span>
@@ -23,46 +26,55 @@
 
       <nav>
         <div class="admin-nav-item active" data-section="overview">
-          <span class="admin-nav-icon">📊</span>
+          <span class="admin-nav-icon"><i class="fas fa-chart-simple"></i></span>
           Overview
         </div>
         <div class="admin-nav-item" data-section="withdrawals">
-          <span class="admin-nav-icon">💸</span>
+          <span class="admin-nav-icon"><i class="fas fa-money-bill-transfer"></i></span>
           Withdrawals
           <span class="admin-nav-badge" id="withdrawal-badge">0</span>
         </div>
         <div class="admin-nav-item" data-section="riders">
-          <span class="admin-nav-icon">🛺</span>
+          <span class="admin-nav-icon"><i class="fas fa-motorcycle"></i></span>
           Riders
         </div>
         <div class="admin-nav-item" data-section="transactions">
-          <span class="admin-nav-icon">📋</span>
+          <span class="admin-nav-icon"><i class="fas fa-receipt"></i></span>
           Transactions
         </div>
         <div class="admin-nav-item" data-section="campus">
-          <span class="admin-nav-icon">M</span>
+          <span class="admin-nav-icon"><i class="fas fa-database"></i></span>
           Campus Data
         </div>
         <div class="admin-nav-item" data-section="map-editor">
-          <span class="admin-nav-icon">🗺️</span>
+          <span class="admin-nav-icon"><i class="fas fa-map"></i></span>
           Map Editor
         </div>
       </nav>
 
-      <div style="margin-top: auto; padding: var(--space-lg);">
-        <button class="btn btn-danger" onclick="adminLogout()">Logout</button>
+      <div class="admin-sidebar-footer">
+        <button class="btn btn-danger" onclick="adminLogout()">
+          <i class="fas fa-arrow-right-from-bracket"></i>
+          Logout
+        </button>
       </div>
     </aside>
 
-    <main class="admin-main">
-      <header class="admin-mobile-header">
-        <button type="button" class="admin-menu-btn" onclick="openAdminMenu()" aria-label="Open admin menu">☰</button>
+    <!-- ── Main content ── -->
+    <main class="admin-main" id="adminMain">
+
+      <!-- Mobile header (hidden on map editor) -->
+      <header class="admin-mobile-header" id="adminMobileHeader">
+        <button type="button" class="admin-menu-btn" onclick="openAdminMenu()" aria-label="Open admin menu">
+          <i class="fas fa-bars"></i>
+        </button>
         <strong>OPrides Admin</strong>
       </header>
-      <!-- Overview Section -->
+
+      <!-- ── Overview ── -->
       <section id="section-overview" class="admin-section fade-in">
-        <h2 class="admin-section-title">📊 Platform Overview</h2>
-        
+        <h2 class="admin-section-title">Platform Overview</h2>
+
         <div class="admin-stats-grid">
           <div class="admin-stat-card">
             <div class="admin-stat-label">Admin Commission</div>
@@ -85,63 +97,71 @@
 
         <div class="admin-panel">
           <div class="panel-head">
-            <h2>Active Rides</h2>
-            <p>Live monitor for currently active rides.</p>
+            <div>
+              <h2>Active Rides</h2>
+              <p>Live monitor for currently active rides.</p>
+            </div>
           </div>
           <div id="activeRidesList" class="admin-list"></div>
         </div>
       </section>
 
-      <!-- Withdrawals Section -->
+      <!-- ── Withdrawals ── -->
       <section id="section-withdrawals" class="admin-section hidden fade-in">
-        <h2 class="admin-section-title">💸 Pending Withdrawals</h2>
-        <p style="margin-bottom: var(--space-lg); color: var(--color-text-secondary);">Pay riders manually in Paystack, then mark each request paid.</p>
+        <h2 class="admin-section-title">Pending Withdrawals</h2>
+        <p class="admin-section-sub">Pay riders manually in Paystack, then mark each request paid.</p>
         <div id="withdrawalList" class="admin-list"></div>
       </section>
 
-      <!-- Riders Section -->
+      <!-- ── Riders ── -->
       <section id="section-riders" class="admin-section hidden fade-in">
-        <h2 class="admin-section-title">🛺 Rider Management</h2>
-        
+        <h2 class="admin-section-title">Rider Management</h2>
+
         <div class="admin-panel" style="margin-bottom: var(--space-lg);">
           <div class="panel-head">
-            <h2>Add New Rider</h2>
+            <div>
+              <h2>Add New Rider</h2>
+              <p>Register an authorized keke rider on the platform.</p>
+            </div>
           </div>
           <form id="addRiderForm" class="admin-form">
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: var(--space-md); align-items: end;">
-              <div class="input-group" style="margin-bottom: 0;">
+            <div class="admin-form-row">
+              <div class="input-group">
                 <label class="input-label">Plate Number</label>
                 <input type="text" id="newRiderPlate" class="input-field" placeholder="KJA-123-XY" required>
               </div>
-              <div class="input-group" style="margin-bottom: 0;">
+              <div class="input-group">
                 <label class="input-label">Full Name</label>
                 <input type="text" id="newRiderName" class="input-field" placeholder="John Doe" required>
               </div>
-              <div class="input-group" style="margin-bottom: 0;">
+              <div class="input-group">
                 <label class="input-label">Phone Number</label>
                 <input type="text" id="newRiderPhone" class="input-field" placeholder="08012345678" required>
               </div>
-              <button type="submit" class="btn btn-primary" style="width: auto;">Add Rider</button>
+              <button type="submit" class="btn btn-primary admin-form-submit">Add Rider</button>
             </div>
           </form>
         </div>
 
         <div class="admin-panel">
           <div class="panel-head">
-            <h2>Authorized Riders</h2>
+            <div>
+              <h2>Authorized Riders</h2>
+              <p>All riders currently registered on the platform.</p>
+            </div>
           </div>
           <div id="authorizedRidersList" class="admin-list"></div>
         </div>
       </section>
 
-      <!-- Transactions Section -->
+      <!-- ── Transactions ── -->
       <section id="section-transactions" class="admin-section hidden fade-in">
         <div class="panel-head transaction-head">
           <div>
-            <h2 class="admin-section-title" style="margin-bottom: 0;">📋 Transaction History</h2>
-            <p>All wallet movements ordered newest first.</p>
+            <h2 class="admin-section-title" style="margin-bottom: 0;">Transaction History</h2>
+            <p class="admin-section-sub" style="margin: 4px 0 0;">All wallet movements, newest first.</p>
           </div>
-          <select id="transactionTypeFilter" class="input-field" onchange="listenToTransactions(this.value)" style="max-width: 200px;">
+          <select id="transactionTypeFilter" class="input-field admin-filter-select" onchange="listenToTransactions(this.value)">
             <option value="">All types</option>
             <option value="topup">Top-up</option>
             <option value="deduction">Deduction</option>
@@ -154,15 +174,17 @@
         <div id="transactionList" class="admin-table"></div>
       </section>
 
-      <!-- Campus Data Section -->
+      <!-- ── Campus Data ── -->
       <section id="section-campus" class="admin-section hidden fade-in">
         <div class="panel-head transaction-head">
           <div>
             <h2 class="admin-section-title" style="margin-bottom: 0;">Campus Data</h2>
-            <p>Manage map markers, keke stops, building shapes, and hidden indoor records.</p>
+            <p class="admin-section-sub" style="margin: 4px 0 0;">Markers, keke stops, building shapes, and indoor records.</p>
           </div>
-          <div style="display: flex; gap: var(--space-sm);">
-            <button type="button" class="btn btn-secondary" onclick="document.querySelector('.admin-nav-item[data-section=\'map-editor\']').click()">🗺️ Open Map Editor</button>
+          <div class="admin-head-actions">
+            <button type="button" class="btn btn-secondary" onclick="document.querySelector('.admin-nav-item[data-section=\'map-editor\']').click()">
+              <i class="fas fa-map"></i> Map Editor
+            </button>
             <button type="button" class="btn btn-primary" id="saveCampusDataBtn">Save campus data</button>
           </div>
         </div>
@@ -186,7 +208,7 @@
           </div>
           <details class="admin-advanced-json">
             <summary>Advanced — Raw JSON Editor</summary>
-            <p class="admin-help">Use valid JSON. Campus markers and ride stops have separate coordinates because keke stops can be away from the actual building. Indoor records are stored here but are not shown on the map.</p>
+            <p class="admin-help">Use valid JSON. Campus markers and ride stops have separate coordinates because keke stops can be offset from the actual building. Indoor records are stored here but not shown on the map.</p>
             <textarea id="campusDataEditor" class="admin-json-editor" spellcheck="false"></textarea>
             <div class="admin-actions">
               <button type="button" class="green" id="reloadCampusDataBtn">Reload</button>
@@ -197,11 +219,11 @@
       </section>
 
       <!-- ══════════════════════════════════════════════════ -->
-      <!-- MAP EDITOR SECTION                                 -->
+      <!-- MAP EDITOR — full-screen, no shared layout chrome  -->
       <!-- ══════════════════════════════════════════════════ -->
       <section id="section-map-editor" class="admin-section map-editor-section hidden">
 
-        <!-- ── Top bar ── -->
+        <!-- Top bar -->
         <div class="me-topbar">
           <button type="button" class="me-topbar__menu" onclick="openAdminMenu()" aria-label="Menu">
             <i class="fas fa-bars"></i>
@@ -220,18 +242,16 @@
           </div>
         </div>
 
-        <!-- ── Map container ── -->
+        <!-- Map -->
         <div class="me-map-wrap">
           <div id="meMap" class="me-map"></div>
 
-          <!-- Crosshair (always centered) -->
           <div class="me-crosshair" aria-hidden="true">
             <div class="me-crosshair__h"></div>
             <div class="me-crosshair__v"></div>
             <div class="me-crosshair__dot"></div>
           </div>
 
-          <!-- Map floating buttons -->
           <div class="me-map-fab-group">
             <button type="button" class="me-fab" id="meLocateBtn" title="Go to my location">
               <i class="fas fa-location-crosshairs"></i>
@@ -241,19 +261,16 @@
             </button>
           </div>
 
-          <!-- Zoom + accuracy status pill -->
           <div class="me-map-status" id="meMapStatus">Zoom in for accuracy</div>
         </div>
 
-        <!-- ── Bottom sheet ── -->
+        <!-- Bottom sheet -->
         <div class="me-sheet" id="meSheet">
 
-          <!-- Sheet handle (swipe to resize) -->
           <div class="me-sheet__handle-wrap" id="meSheetHandle">
             <div class="me-sheet__handle"></div>
           </div>
 
-          <!-- Tool tab bar -->
           <div class="me-tabs" role="tablist">
             <button type="button" class="me-tab active" data-tab="seed" role="tab" aria-selected="true">
               <i class="fas fa-list-check"></i>
@@ -277,7 +294,7 @@
             </button>
           </div>
 
-          <!-- ── Seed tab ── -->
+          <!-- Seed tab -->
           <div class="me-panel active" id="me-panel-seed">
             <div class="me-panel__header">
               <div>
@@ -288,20 +305,17 @@
                 <span id="meSeedCount">0</span> / <span id="meSeedTotal">0</span>
               </div>
             </div>
-            <!-- Search Filter Bar -->
             <div style="padding: 0 16px 8px;">
-              <input type="text" id="meSeedSearch" class="me-input" placeholder="🔍 Search locations..." style="min-height: 40px; padding: 8px 12px; font-size: 14px;">
+              <input type="text" id="meSeedSearch" class="me-input" placeholder="Search locations..." style="min-height: 40px; padding: 8px 12px; font-size: 14px;">
             </div>
-            <div class="me-seed-list" id="meSeedList">
-              <!-- Populated by JS -->
-            </div>
+            <div class="me-seed-list" id="meSeedList"></div>
           </div>
 
-          <!-- ── Pin tab ── -->
+          <!-- Pin tab -->
           <div class="me-panel" id="me-panel-pin">
             <div class="me-panel__header">
               <p class="me-panel__title">Drop Campus Marker</p>
-              <p class="me-panel__sub">Pan map so ✛ is on the spot, then tap Place Pin.</p>
+              <p class="me-panel__sub">Pan map so the crosshair is on the spot, then tap Place Pin.</p>
             </div>
             <div class="me-form">
               <label class="me-label">
@@ -338,11 +352,11 @@
             </div>
           </div>
 
-          <!-- ── Stop tab ── -->
+          <!-- Stop tab -->
           <div class="me-panel" id="me-panel-stop">
             <div class="me-panel__header">
               <p class="me-panel__title">Drop Ride Stop</p>
-              <p class="me-panel__sub">Pan map so ✛ is on the keke stop, then tap Place Stop.</p>
+              <p class="me-panel__sub">Pan map so the crosshair is on the keke stop, then tap Place Stop.</p>
             </div>
             <div class="me-form">
               <label class="me-label">
@@ -351,9 +365,7 @@
               </label>
               <label class="me-label">
                 Serves (select all that apply)
-                <div class="me-checklist" id="meStopServesList">
-                  <!-- Populated by JS -->
-                </div>
+                <div class="me-checklist" id="meStopServesList"></div>
               </label>
               <div class="me-coords-row">
                 <label class="me-label">
@@ -377,11 +389,11 @@
             </div>
           </div>
 
-          <!-- ── Road tab ── -->
+          <!-- Road tab -->
           <div class="me-panel" id="me-panel-road">
             <div class="me-panel__header">
               <p class="me-panel__title">Draw Road / Path</p>
-              <p class="me-panel__sub">Walk the road. Tap "Add Point" at each bend or junction.</p>
+              <p class="me-panel__sub">Walk the road. Tap Add Point at each bend or junction.</p>
             </div>
             <div class="me-form">
               <label class="me-label">
@@ -403,7 +415,7 @@
             </div>
           </div>
 
-          <!-- ── Tools tab ── -->
+          <!-- Tools tab -->
           <div class="me-panel" id="me-panel-tools">
             <div class="me-panel__header">
               <p class="me-panel__title">Tools & Settings</p>
@@ -430,7 +442,6 @@
                 <span>Clear Draft</span>
               </button>
             </div>
-            <!-- Layer toggles (hidden by default, shown when Layers tapped) -->
             <div class="me-layers hidden" id="meLayers">
               <label class="me-layer-toggle">
                 <input type="checkbox" id="meLayerLocations" checked>
@@ -449,9 +460,7 @@
                 <span>Buildings</span>
               </label>
             </div>
-            <!-- Graph status -->
             <div class="me-graph-status" id="meGraphStatus"></div>
-            <!-- Advanced JSON toggle -->
             <details class="me-advanced">
               <summary>Advanced — Raw JSON Editor</summary>
               <textarea id="meJsonEditor" class="me-json-textarea" spellcheck="false"></textarea>
@@ -465,12 +474,12 @@
         </div>
         <!-- /me-sheet -->
 
-        <!-- Seeder pin mode overlay (full-screen prompt) -->
+        <!-- Seeder overlay -->
         <div class="me-seeder-overlay hidden" id="meSeederOverlay">
           <div class="me-seeder-card">
             <p class="me-seeder-card__label">Walk to this location:</p>
             <h2 class="me-seeder-card__name" id="meSeederName">—</h2>
-            <p class="me-seeder-card__hint" id="meSeederHint">Pan the map so the ✛ crosshair is exactly on the spot, then tap the button below.</p>
+            <p class="me-seeder-card__hint" id="meSeederHint">Pan the map so the crosshair is exactly on the spot, then tap the button below.</p>
             <button type="button" class="me-btn me-btn--primary me-btn--lg" id="meSeederDropBtn">
               <i class="fas fa-thumbtack"></i>
               I'm Here — Drop Pin
@@ -486,6 +495,8 @@
         </div>
 
       </section>
+      <!-- /map-editor -->
+
     </main>
   </div>
 

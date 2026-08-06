@@ -114,6 +114,12 @@ function initSidebarNav() {
       });
       closeAdminMenu();
 
+      // Hide the mobile header inside the map editor — it has its own topbar
+      const mobileHeader = document.getElementById("adminMobileHeader");
+      if (mobileHeader) {
+        mobileHeader.classList.toggle("map-editor-active", targetSection === "map-editor");
+      }
+
       if (targetSection === "map-editor") {
         initAdminMap();
       } else {

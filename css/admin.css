@@ -15,7 +15,7 @@
   display: none;
 }
 
-/* Sidebar */
+/* ── Sidebar ───────────────────────────────────────────── */
 .admin-sidebar {
   background: var(--admin-surface);
   border-right: 1px solid var(--admin-border);
@@ -62,13 +62,18 @@
   margin-left: var(--space-sm);
 }
 
+.admin-sidebar nav {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .admin-nav-item {
   display: flex;
   align-items: center;
   gap: var(--space-md);
   padding: 12px var(--space-lg);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
   border-left: 3px solid transparent;
   color: var(--color-text-secondary);
   font-family: 'DM Sans', sans-serif;
@@ -87,9 +92,11 @@
 }
 
 .admin-nav-icon {
-  font-size: 18px;
-  width: 24px;
+  width: 20px;
   text-align: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  color: inherit;
 }
 
 .admin-nav-badge {
@@ -104,12 +111,34 @@
   text-align: center;
 }
 
-/* Main Content */
-.admin-main {
-  padding: var(--space-xl);
-  max-width: 1200px;
+.admin-sidebar-footer {
+  padding: var(--space-lg);
+  border-top: 1px solid var(--admin-border);
+  margin-top: var(--space-md);
 }
 
+.admin-sidebar-footer .btn {
+  width: 100%;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+/* ── Main content ──────────────────────────────────────── */
+.admin-main {
+  grid-column: 2;
+  padding: var(--space-xl);
+  max-width: 1200px;
+  /* leave room for fixed sidebar */
+  min-width: 0;
+}
+
+/* Map editor section overrides to be full-screen — the main
+   padding must not apply when map-editor is active. That is
+   handled in map-editor.css via position:fixed on the section
+   itself. The mobile header also hides when map-editor is open
+   (toggled via JS class on adminMobileHeader). */
+
+/* ── Section titles ────────────────────────────────────── */
 .admin-section-title {
   font-family: 'Syne', sans-serif;
   font-size: 22px;
@@ -118,7 +147,14 @@
   color: var(--color-text-primary);
 }
 
-/* Stats Grid */
+.admin-section-sub {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  margin: 0 0 var(--space-lg);
+  line-height: 1.5;
+}
+
+/* ── Stats grid ────────────────────────────────────────── */
 .admin-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -130,8 +166,8 @@
   background: var(--admin-card);
   border: 1px solid var(--admin-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-md);
-  transition: all 0.2s ease;
+  padding: var(--space-md) var(--space-lg);
+  transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
 .admin-stat-card:hover {
@@ -168,7 +204,7 @@
   margin-top: 4px;
 }
 
-/* Panels */
+/* ── Panels ────────────────────────────────────────────── */
 .admin-panel {
   background: var(--admin-card);
   border: 1px solid var(--admin-border);
@@ -182,10 +218,12 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: var(--space-lg);
+  gap: var(--space-md);
 }
 
 .panel-head h2 {
-  font-size: 18px;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
 }
@@ -194,9 +232,23 @@
   color: var(--color-text-secondary);
   font-size: 13px;
   margin: 4px 0 0;
+  line-height: 1.4;
 }
 
-/* Admin Cards (Lists) */
+.admin-head-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+  align-items: flex-start;
+}
+
+/* ── Filter select ─────────────────────────────────────── */
+.admin-filter-select {
+  max-width: 200px;
+  flex-shrink: 0;
+}
+
+/* ── List / cards ──────────────────────────────────────── */
 .admin-list {
   display: grid;
   gap: var(--space-md);
@@ -241,7 +293,7 @@
   margin-top: var(--space-sm);
 }
 
-/* Table Style (Transactions) */
+/* ── Transaction table ─────────────────────────────────── */
 .admin-table {
   display: grid;
   gap: 0;
@@ -270,7 +322,23 @@
   font-size: 14px;
 }
 
-/* Advanced JSON Section Details */
+/* ── Rider form row ────────────────────────────────────── */
+.admin-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: var(--space-md);
+  align-items: end;
+}
+
+.admin-form-row .input-group {
+  margin-bottom: 0;
+}
+
+.admin-form-submit {
+  white-space: nowrap;
+}
+
+/* ── Advanced JSON section ─────────────────────────────── */
 .admin-advanced-json {
   margin-top: var(--space-lg);
   border-top: 1px solid var(--admin-border);
@@ -301,7 +369,7 @@
 .admin-help {
   color: var(--color-text-secondary);
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 1.5;
   margin: 0 0 var(--space-md);
 }
 
@@ -318,8 +386,10 @@
   font-size: 12px;
   line-height: 1.5;
   resize: vertical;
+  outline: none;
 }
 
+/* ── Campus data section ───────────────────────────────── */
 .campus-admin-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -427,19 +497,22 @@
   grid-column: 1 / -1;
 }
 
-/* Mobile Adjustments */
+/* ── Mobile ────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .admin-layout {
     grid-template-columns: 1fr;
   }
+
   .admin-sidebar {
     transform: translateX(-100%);
-    transition: transform 0.2s ease;
+    transition: transform 0.25s ease;
     box-shadow: 18px 0 40px rgba(0, 0, 0, 0.3);
   }
+
   .admin-sidebar.open {
     transform: translateX(0);
   }
+
   .admin-sidebar-overlay {
     display: block;
     position: fixed;
@@ -447,9 +520,11 @@
     background: rgba(0, 0, 0, 0.45);
     z-index: 190;
   }
+
   .admin-sidebar-overlay.hidden {
     display: none;
   }
+
   .admin-mobile-header {
     display: flex;
     align-items: center;
@@ -462,6 +537,12 @@
     padding: var(--space-md) 0;
     margin-bottom: var(--space-lg);
   }
+
+  /* Hide the mobile header when map editor is the active section */
+  .admin-mobile-header.map-editor-active {
+    display: none;
+  }
+
   .admin-menu-btn {
     width: 42px;
     height: 42px;
@@ -469,32 +550,52 @@
     border-radius: var(--radius-md);
     background: var(--admin-card);
     color: var(--color-text-primary);
-    font-size: 22px;
-    line-height: 1;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
   }
+
   .admin-main {
+    grid-column: 1;
     padding: var(--space-lg);
     max-width: none;
   }
+
   .admin-stats-grid {
     grid-template-columns: 1fr 1fr;
   }
+
   .panel-head,
   .transaction-head {
-    display: grid;
-    gap: var(--space-md);
+    flex-direction: column;
+    align-items: stretch;
   }
+
+  .admin-head-actions {
+    flex-wrap: wrap;
+  }
+
+  .admin-filter-select {
+    max-width: none;
+    width: 100%;
+  }
+
   .admin-row {
     grid-template-columns: 1fr;
     gap: 4px;
     padding: 16px 0;
   }
-  .admin-form div {
-    grid-template-columns: 1fr !important;
+
+  .admin-form-row {
+    grid-template-columns: 1fr;
   }
+
   .admin-json-editor {
     min-height: 360px;
   }
+
   .campus-admin-grid {
     grid-template-columns: 1fr;
   }
