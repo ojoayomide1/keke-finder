@@ -12,6 +12,7 @@ import {
   getDoc
 } from "./firebase.js";
 import { state } from "./modules/state.js";
+import { dismissSplash } from "./modules/ui.js";
 import {
   isBiometricsSupported,
   registerBiometrics,
@@ -432,6 +433,8 @@ export function initAuth(options) {
       onUserChanged(null);
       updateBiometricsUI();
     }
+    // Auth has resolved — dismiss the splash screen regardless of login state
+    dismissSplash();
   });
 
   // Handle Enter key
