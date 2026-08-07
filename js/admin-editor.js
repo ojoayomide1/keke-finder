@@ -725,6 +725,18 @@ function setupGeneralControls() {
   const roadUndoBtn = document.getElementById("meRoadUndoBtn");
   const roadSaveBtn = document.getElementById("meRoadSaveBtn");
   const roadStatus = document.getElementById("meRoadStatus");
+  const roadWeightSlider = document.getElementById("meRoadWeight");
+  const roadWeightValue  = document.getElementById("meRoadWeightValue");
+
+  function getRoadWeight() {
+    return parseFloat(roadWeightSlider?.value ?? 3.5);
+  }
+
+  // Update the numeric label and live-redraw preview whenever slider moves
+  roadWeightSlider?.addEventListener("input", () => {
+    if (roadWeightValue) roadWeightValue.innerText = getRoadWeight();
+    refreshRoadPreview();
+  });
 
   /** Redraws the in-progress road preview. */
   function refreshRoadPreview() {
@@ -733,7 +745,7 @@ function setupGeneralControls() {
     if (activeRoadPoints.length >= 2) {
       activeRoadLineLayer = L.polyline(activeRoadPoints, {
         color: "#f97316",
-        weight: 3.5,
+        weight: getRoadWeight(),
         opacity: 0.7,
         lineCap: "round",
         lineJoin: "round",
