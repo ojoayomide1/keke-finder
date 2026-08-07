@@ -83,16 +83,29 @@ function getMapBackground() {
   return document.body?.classList.contains("light-theme") ? "#F0F2F5" : "#141418";
 }
 
+function getTileLayerConfig() {
+  const isLight = document.body?.classList.contains("light-theme");
+  return {
+    // Stamen Toner Background — land/water outlines only, zero roads, zero labels
+    url: isLight
+      ? "https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png"
+      : "https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png",
+    options: {
+      attribution: "&copy; Stamen Design &copy; OpenStreetMap contributors",
+      maxZoom: 20,
+      opacity: isLight ? 0.12 : 0.08   // very faint — just enough to feel grounded
+    }
+  };
+}
+
 export function refreshMapTheme() {
   if (!state.map) return;
-  // Remove old tile layer if any
   if (state.tileLayer) {
     try { state.map.removeLayer(state.tileLayer); } catch (e) { console.warn("Map theme refresh warning:", e); }
     state.tileLayer = null;
   }
-  // Update the map pane background colour
-  const pane = state.map.getPane("tilePane");
-  if (pane) pane.style.background = getMapBackground();
+  const { url, options } = getTileLayerConfig();
+  state.tileLayer = L.tileLayer(url, options).addTo(state.map);
   const container = state.map.getContainer();
   if (container) container.style.background = getMapBackground();
 }
@@ -121,16 +134,12 @@ export function initMap(mapId) {
   if (mapElement.offsetParent === null) return;
 
   const bg = getMapBackground();
-  state.map = L.map(mapId, {
-    tap: false,
-    zoomControl: false,
-    background: bg
-  }).setView([9.2880, 7.4130], 16);
+  state.map = L.map(mapId, { tap: false, zoomControl: false }).setView([9.2880, 7.4130], 16);
 
-  // No tile layer — blank canvas. Set the background directly on the container.
   state.map.getContainer().style.background = bg;
-  const tilePane = state.map.getPane("tilePane");
-  if (tilePane) tilePane.style.background = bg;
+
+  const { url, options } = getTileLayerConfig();
+  state.tileLayer = L.tileLayer(url, options).addTo(state.map);
 
   initCampusMapTools(state.map, mapId);
   setTimeout(() => state.map && state.map.invalidateSize(), 500);
