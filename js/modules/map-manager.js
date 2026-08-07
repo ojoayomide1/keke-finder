@@ -79,26 +79,22 @@ export function getDistance(lat1, lon1, lat2, lng2) {
   return R * c; 
 }
 
-function getTileLayerConfig() {
-  const isLight = document.body?.classList.contains("light-theme");
-  return {
-    url: isLight
-      ? "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
-      : "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-    options: {
-      attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-      maxZoom: 20
-    }
-  };
+function getMapBackground() {
+  return document.body?.classList.contains("light-theme") ? "#F0F2F5" : "#141418";
 }
 
 export function refreshMapTheme() {
   if (!state.map) return;
-  const { url, options } = getTileLayerConfig();
+  // Remove old tile layer if any
   if (state.tileLayer) {
     try { state.map.removeLayer(state.tileLayer); } catch (e) { console.warn("Map theme refresh warning:", e); }
+    state.tileLayer = null;
   }
-  state.tileLayer = L.tileLayer(url, options).addTo(state.map);
+  // Update the map pane background colour
+  const pane = state.map.getPane("tilePane");
+  if (pane) pane.style.background = getMapBackground();
+  const container = state.map.getContainer();
+  if (container) container.style.background = getMapBackground();
 }
 
 export function initMap(mapId) {
@@ -119,16 +115,23 @@ export function initMap(mapId) {
   state.lastRenderedLocation = null;
   state.activeMarkerAnimations.forEach(id => cancelAnimationFrame(id));
   state.activeMarkerAnimations.clear();
-  
+
   const mapElement = document.getElementById(mapId);
   if (!mapElement) return;
   if (mapElement.offsetParent === null) return;
 
-  state.map = L.map(mapId, { tap: false, zoomControl: false }).setView([9.2880, 7.4130], 16);
-  
-  const { url, options } = getTileLayerConfig();
-  state.tileLayer = L.tileLayer(url, options).addTo(state.map);
-  
+  const bg = getMapBackground();
+  state.map = L.map(mapId, {
+    tap: false,
+    zoomControl: false,
+    background: bg
+  }).setView([9.2880, 7.4130], 16);
+
+  // No tile layer — blank canvas. Set the background directly on the container.
+  state.map.getContainer().style.background = bg;
+  const tilePane = state.map.getPane("tilePane");
+  if (tilePane) tilePane.style.background = bg;
+
   initCampusMapTools(state.map, mapId);
   setTimeout(() => state.map && state.map.invalidateSize(), 500);
 }

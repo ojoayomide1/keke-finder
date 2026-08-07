@@ -3,7 +3,21 @@
   height: 100%;
   flex: 1;
   z-index: 1;
-  background: var(--color-bg-primary);
+  background: #141418;
+}
+
+:root.light-theme .map,
+body.light-theme .map {
+  background: #F0F2F5;
+}
+
+/* Leaflet container itself — matches blank canvas */
+.leaflet-container {
+  background: #141418 !important;
+}
+
+body.light-theme .leaflet-container {
+  background: #F0F2F5 !important;
 }
 
 /* Promote all Leaflet marker icons to their own GPU layer so the browser
