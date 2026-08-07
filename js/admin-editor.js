@@ -88,6 +88,8 @@ export function initAdminMapEditor(mapInstance) {
   setupBuildingEditor();
   setupGeneralControls();
   setupGeneralActions();
+  setupRouteTab();
+  setupSnapIndicator();
 
   // Render everything
   renderAllLayers();
@@ -204,6 +206,13 @@ function setupTabSwitcher() {
       panels.forEach(p => {
         p.classList.toggle("active", p.id === `me-panel-${targetTab}`);
       });
+
+      // Track road drawing mode for snap indicator
+      isRoadDrawingActive = (targetTab === "road");
+      if (!isRoadDrawingActive) clearSnapIndicator();
+
+      // Refresh route selectors when entering route tab
+      if (targetTab === "route") populateRouteSelectors();
 
       // Clear seeder overlay if switching tabs
       cancelSeederMode();
@@ -717,25 +726,46 @@ function setupGeneralControls() {
   const roadSaveBtn = document.getElementById("meRoadSaveBtn");
   const roadStatus = document.getElementById("meRoadStatus");
 
+  /** Redraws the in-progress road preview. */
+  function refreshRoadPreview() {
+    if (activeRoadLineLayer) map.removeLayer(activeRoadLineLayer);
+    activeRoadLineLayer = null;
+    if (activeRoadPoints.length >= 2) {
+      activeRoadLineLayer = L.polyline(activeRoadPoints, {
+        color: "#f97316",
+        weight: 3.5,
+        opacity: 0.7,
+        lineCap: "round",
+        lineJoin: "round",
+        dashArray: "8, 5"   // dashed = still a draft
+      }).addTo(map);
+    }
+    if (roadStatus) {
+      roadStatus.innerText = activeRoadPoints.length > 0
+        ? `${activeRoadPoints.length} point(s) placed. Last: ${activeRoadPoints.at(-1).join(", ")}`
+        : "No points yet. Start walking and tap Add Point.";
+    }
+  }
+
+  // Listen for the extend-road event dispatched by startRoadExtension()
+  document.addEventListener("me:extendRoad", (e) => {
+    activeRoadPoints = e.detail.points.slice();
+    if (activeRoadLineLayer) map.removeLayer(activeRoadLineLayer);
+    activeRoadLineLayer = null;
+    refreshRoadPreview();
+    // Pan map to the last point of the road so admin can continue from there
+    const last = activeRoadPoints.at(-1);
+    if (last) map.setView(last, Math.max(map.getZoom(), 18));
+  });
+
   if (roadAddBtn && roadStatus) {
     roadAddBtn.addEventListener("click", () => {
       const center = map.getCenter();
       const pt = [Number(center.lat.toFixed(6)), Number(center.lng.toFixed(6))];
-      
       activeRoadPoints.push(pt);
-      
-      // Update preview line — matches final road style so WYSIWYG while drawing
-      if (activeRoadLineLayer) map.removeLayer(activeRoadLineLayer);
-      activeRoadLineLayer = L.polyline(activeRoadPoints, {
-        color: "#9ca3af",
-        weight: 2,
-        opacity: 0.72,
-        lineCap: "round",
-        lineJoin: "round",
-        dashArray: "6, 4"   // dashed so it's clear it's still a draft
-      }).addTo(map);
-
-      roadStatus.innerText = `${activeRoadPoints.length} point(s) placed. Last: ${pt[0]}, ${pt[1]}`;
+      refreshRoadPreview();
+      // Trigger snap check immediately after adding
+      updateSnapIndicator();
     });
   }
 
@@ -743,22 +773,7 @@ function setupGeneralControls() {
     roadUndoBtn.addEventListener("click", () => {
       if (activeRoadPoints.length === 0) return;
       activeRoadPoints.pop();
-
-      if (activeRoadLineLayer) map.removeLayer(activeRoadLineLayer);
-      if (activeRoadPoints.length > 0) {
-        activeRoadLineLayer = L.polyline(activeRoadPoints, {
-          color: "#9ca3af",
-          weight: 2,
-          opacity: 0.72,
-          lineCap: "round",
-          lineJoin: "round",
-          dashArray: "6, 4"
-        }).addTo(map);
-        roadStatus.innerText = `${activeRoadPoints.length} point(s) placed.`;
-      } else {
-        activeRoadLineLayer = null;
-        roadStatus.innerText = "No points yet. Start walking and tap Add Point.";
-      }
+      refreshRoadPreview();
     });
   }
 
@@ -777,19 +792,26 @@ function setupGeneralControls() {
 
       pushToHistory();
 
-      const roadId = slugify(name) + "_" + Date.now().toString().slice(-4);
-      mapDataDraft.paths.push({
-        id: roadId,
-        name: name,
-        points: activeRoadPoints
-      });
+      if (extendingRoadId) {
+        // Replace the existing road with the extended version
+        const idx = mapDataDraft.paths.findIndex(p => p.id === extendingRoadId);
+        if (idx !== -1) {
+          mapDataDraft.paths[idx] = { ...mapDataDraft.paths[idx], name, points: activeRoadPoints };
+          roadStatus.innerText = `Road "${name}" extended and saved!`;
+        }
+        extendingRoadId = null;
+      } else {
+        const roadId = slugify(name) + "_" + Date.now().toString().slice(-4);
+        mapDataDraft.paths.push({ id: roadId, name, points: activeRoadPoints });
+        roadStatus.innerText = "Road saved successfully!";
+      }
 
       // Clear active draw
       if (activeRoadLineLayer) map.removeLayer(activeRoadLineLayer);
       activeRoadLineLayer = null;
       activeRoadPoints = [];
       document.getElementById("meRoadName").value = "";
-      roadStatus.innerText = "Road saved successfully!";
+      clearSnapIndicator();
 
       saveDraftToLocalStorage();
       renderAllLayers();
@@ -1067,19 +1089,29 @@ function renderAllLayers() {
     });
 
     const polyline = L.polyline(latlngs, {
-      color: "#9ca3af",
-      weight: 2,
-      opacity: 0.72,
+      color: "#f97316",
+      weight: 3.5,
+      opacity: 0.85,
       lineCap: "round",
       lineJoin: "round"
     }).addTo(roadsLayerGroup).bindPopup(`
       <div class="campus-popup">
         <strong>Road: ${path.name}</strong><br>
-        <button type="button" class="btn btn-danger" style="margin-top:8px; padding:3px 8px; font-size:11px" id="del-road-${path.id}">Delete Road</button>
+        <span style="font-size:10px; color:#64748b">${path.points.length} point(s)</span><br>
+        <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+          <button type="button" class="btn" style="padding:3px 8px; font-size:11px; background:#3b82f6; color:#fff;" id="ext-road-${path.id}">
+            <i class="fas fa-arrow-right-to-bracket"></i> Extend
+          </button>
+          <button type="button" class="btn btn-danger" style="padding:3px 8px; font-size:11px;" id="del-road-${path.id}">Delete</button>
+        </div>
       </div>
     `);
 
     polyline.on("popupopen", () => {
+      document.getElementById(`ext-road-${path.id}`)?.addEventListener("click", () => {
+        polyline.closePopup();
+        window.meStartRoadExtension(path.id);
+      });
       document.getElementById(`del-road-${path.id}`)?.addEventListener("click", () => {
         if (confirm(`Delete road network segment: ${path.name}?`)) {
           pushToHistory();
@@ -1138,6 +1170,9 @@ function renderAllLayers() {
 
   // Update local diagnostic details
   updateGraphStatusDetails();
+
+  // Refresh route tab selectors if available (new locations/stops may have been added)
+  if (activeTab === "route") populateRouteSelectors();
 }
 
 function updateGraphStatusDetails() {
@@ -1405,3 +1440,518 @@ export function stopAdminMapEditor() {
   isMeasureMode = false;
   clearMeasure();
 }
+
+// ── Routing constants (must mirror campus-router.js) ────────────────────────
+const CONNECT_TOLERANCE_M = 10;
+const SNAP_DISTANCE_LIMIT_M = 180;
+const EARTH_RADIUS_M = 6371e3;
+
+// ── Snap indicator state ─────────────────────────────────────────────────────
+let snapIndicatorCircle = null; // green circle shown when crosshair is near a node
+let isRoadDrawingActive = false; // true while the road tab is active
+
+// ── Route preview state ──────────────────────────────────────────────────────
+let routePreviewLayer = null;
+let routePreviewMarkers = [];
+
+// ── Road extension state ─────────────────────────────────────────────────────
+let extendingRoadId = null; // id of road being extended, null otherwise
+
+// ── Mini routing engine (works on mapDataDraft, not live data) ───────────────
+
+function _rDistM(a, b) {
+  const toRad = v => v * Math.PI / 180;
+  const dLat = toRad(b[0] - a[0]);
+  const dLng = toRad(b[1] - a[1]);
+  const hav = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
+  return EARTH_RADIUS_M * 2 * Math.atan2(Math.sqrt(hav), Math.sqrt(1 - hav));
+}
+
+function _ptKey(pt) {
+  return `${pt[0].toFixed(6)},${pt[1].toFixed(6)}`;
+}
+
+function _normalizePoint(pt) {
+  if (Array.isArray(pt)) return [Number(pt[0]), Number(pt[1])];
+  if (pt && typeof pt === "object") return [Number(pt.lat), Number(pt.lng)];
+  return [NaN, NaN];
+}
+
+function _buildDraftGraph() {
+  const graph = { nodes: new Map(), segments: [] };
+
+  function addNode(pt) {
+    const key = _ptKey(pt);
+    if (!graph.nodes.has(key)) graph.nodes.set(key, { key, point: pt, edges: new Map() });
+    return graph.nodes.get(key);
+  }
+
+  function addEdge(a, b) {
+    const d = _rDistM(a.point, b.point);
+    if (!Number.isFinite(d) || d <= 0) return;
+    if (!a.edges.has(b.key) || a.edges.get(b.key) > d) a.edges.set(b.key, d);
+    if (!b.edges.has(a.key) || b.edges.get(a.key) > d) b.edges.set(a.key, d);
+  }
+
+  (mapDataDraft.paths || []).forEach(path => {
+    const pts = (path.points || []).map(_normalizePoint).filter(([a, b]) => isFinite(a) && isFinite(b));
+    for (let i = 1; i < pts.length; i++) {
+      const fromNode = addNode(pts[i - 1]);
+      const toNode = addNode(pts[i]);
+      addEdge(fromNode, toNode);
+      graph.segments.push({ fromNode, toNode });
+    }
+  });
+
+  // Auto-connect near nodes within CONNECT_TOLERANCE_M
+  const nodes = Array.from(graph.nodes.values());
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      if (_rDistM(nodes[i].point, nodes[j].point) <= CONNECT_TOLERANCE_M) {
+        addEdge(nodes[i], nodes[j]);
+      }
+    }
+  }
+
+  return graph;
+}
+
+function _toXY(pt, origin) {
+  const latScale = 111320;
+  const lngScale = 111320 * Math.cos(origin[0] * Math.PI / 180);
+  return { x: (pt[1] - origin[1]) * lngScale, y: (pt[0] - origin[0]) * latScale };
+}
+
+function _fromXY(xy, origin) {
+  const latScale = 111320;
+  const lngScale = 111320 * Math.cos(origin[0] * Math.PI / 180);
+  return [origin[0] + xy.y / latScale, origin[1] + xy.x / lngScale];
+}
+
+function _closestOnSegment(pt, from, to) {
+  const p = _toXY(pt, pt), a = _toXY(from, pt), b = _toXY(to, pt);
+  const ab = { x: b.x - a.x, y: b.y - a.y };
+  const ap = { x: p.x - a.x, y: p.y - a.y };
+  const lenSq = ab.x ** 2 + ab.y ** 2;
+  const t = lenSq === 0 ? 0 : Math.min(1, Math.max(0, (ap.x * ab.x + ap.y * ab.y) / lenSq));
+  const proj = { x: a.x + ab.x * t, y: a.y + ab.y * t };
+  return { point: _fromXY(proj, pt), dist: Math.hypot(p.x - proj.x, p.y - proj.y), ratio: t };
+}
+
+function _snapToGraph(graph, pt, id) {
+  let nearestSeg = null, nearestDist = Infinity;
+  graph.segments.forEach(seg => {
+    const r = _closestOnSegment(pt, seg.fromNode.point, seg.toNode.point);
+    if (r.dist < nearestDist) { nearestSeg = { ...seg, ...r }; nearestDist = r.dist; }
+  });
+  if (!nearestSeg || nearestDist > SNAP_DISTANCE_LIMIT_M) return { node: null, dist: nearestDist };
+  if (nearestSeg.ratio <= 0.02) return { node: nearestSeg.fromNode, dist: nearestDist };
+  if (nearestSeg.ratio >= 0.98) return { node: nearestSeg.toNode, dist: nearestDist };
+
+  const key = `${id}:${_ptKey(nearestSeg.point)}`;
+  const anchor = { key, point: nearestSeg.point, edges: new Map() };
+  graph.nodes.set(key, anchor);
+  function addEdge(a, b) {
+    const d = _rDistM(a.point, b.point);
+    if (Number.isFinite(d) && d > 0) { a.edges.set(b.key, d); b.edges.set(a.key, d); }
+  }
+  addEdge(anchor, nearestSeg.fromNode);
+  addEdge(anchor, nearestSeg.toNode);
+  return { node: anchor, dist: nearestDist };
+}
+
+function _dijkstra(graph, startKey, endKey) {
+  const dist = new Map(), prev = new Map(), unvisited = new Set(graph.nodes.keys());
+  graph.nodes.forEach((_, k) => dist.set(k, Infinity));
+  dist.set(startKey, 0);
+  while (unvisited.size > 0) {
+    let cur = null, curDist = Infinity;
+    unvisited.forEach(k => { if (dist.get(k) < curDist) { cur = k; curDist = dist.get(k); } });
+    if (!cur || curDist === Infinity || cur === endKey) break;
+    unvisited.delete(cur);
+    graph.nodes.get(cur).edges.forEach((d, nk) => {
+      if (!unvisited.has(nk)) return;
+      const nd = curDist + d;
+      if (nd < dist.get(nk)) { dist.set(nk, nd); prev.set(nk, cur); }
+    });
+  }
+  if (startKey !== endKey && !prev.has(endKey)) return null;
+  const path = []; let cursor = endKey;
+  while (cursor) { path.unshift(cursor); cursor = prev.get(cursor); }
+  return path.map(k => graph.nodes.get(k).point);
+}
+
+function _routeDist(pts) {
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) total += _rDistM(pts[i - 1], pts[i]);
+  return total;
+}
+
+/**
+ * calculateDraftRoute — same algorithm as campus-router.js but reads from
+ * mapDataDraft so the admin can preview routing before saving to Firestore.
+ */
+function calculateDraftRoute(fromInput, toInput) {
+  const from = _normalizePoint(fromInput);
+  const to = _normalizePoint(toInput);
+
+  if (!isFinite(from[0]) || !isFinite(from[1]) || !isFinite(to[0]) || !isFinite(to[1])) {
+    return { points: [from, to], distance: null, routed: false, reason: "Invalid coordinates", nodeCount: 0 };
+  }
+
+  const graph = _buildDraftGraph();
+  if (graph.nodes.size === 0) {
+    return { points: [from, to], distance: _routeDist([from, to]), routed: false, reason: "No roads drawn yet", nodeCount: 0 };
+  }
+
+  const start = _snapToGraph(graph, from, "start");
+  const end   = _snapToGraph(graph, to,   "end");
+
+  if (!start.node || !end.node) {
+    const whichFailed = !start.node ? "origin" : "destination";
+    const worstDist = Math.max(start.dist, end.dist);
+    return {
+      points: [from, to],
+      distance: _routeDist([from, to]),
+      routed: false,
+      reason: `${whichFailed} is ${Math.round(worstDist)}m from the nearest road (limit: ${SNAP_DISTANCE_LIMIT_M}m)`,
+      nodeCount: graph.nodes.size,
+      snapDistOrigin: start.dist,
+      snapDistDest: end.dist
+    };
+  }
+
+  const path = _dijkstra(graph, start.node.key, end.node.key);
+  if (!path || path.length === 0) {
+    return {
+      points: [from, to],
+      distance: _routeDist([from, to]),
+      routed: false,
+      reason: "Road network is not connected between these points",
+      nodeCount: graph.nodes.size
+    };
+  }
+
+  const points = [from, ...path, to];
+  return {
+    points,
+    distance: _routeDist(points),
+    routed: true,
+    reason: "Campus path route",
+    nodeCount: graph.nodes.size,
+    pathNodeCount: path.length
+  };
+}
+
+// ── Road graph diagnostics ───────────────────────────────────────────────────
+
+function runGraphDiagnostics() {
+  const graph = _buildDraftGraph();
+  const nodes = Array.from(graph.nodes.values());
+  const nodeCount = nodes.length;
+  const segCount = graph.segments.length;
+
+  // Count isolated nodes (no edges)
+  const isolatedNodes = nodes.filter(n => n.edges.size === 0);
+
+  // Find connected components using BFS
+  const visited = new Set();
+  let components = 0;
+  const componentSizes = [];
+
+  nodes.forEach(startNode => {
+    if (visited.has(startNode.key)) return;
+    components++;
+    const queue = [startNode.key];
+    const componentMembers = [];
+    while (queue.length > 0) {
+      const key = queue.shift();
+      if (visited.has(key)) continue;
+      visited.add(key);
+      componentMembers.push(key);
+      const node = graph.nodes.get(key);
+      if (node) node.edges.forEach((_, nk) => { if (!visited.has(nk)) queue.push(nk); });
+    }
+    componentSizes.push(componentMembers.length);
+  });
+
+  // Check how many ride stops snap within SNAP_DISTANCE_LIMIT_M
+  const stops = [
+    ...(mapDataDraft.rideStops || []).filter(s => s.lat != null),
+    ...(mapDataDraft.locations || []).filter(l => l.lat != null)
+  ];
+  const snapWarnings = [];
+  if (graph.segments.length > 0) {
+    stops.forEach(stop => {
+      const pt = [stop.lat, stop.lng];
+      let minDist = Infinity;
+      nodes.forEach(n => { const d = _rDistM(pt, n.point); if (d < minDist) minDist = d; });
+      if (minDist > SNAP_DISTANCE_LIMIT_M) {
+        snapWarnings.push({ name: stop.name, dist: Math.round(minDist) });
+      }
+    });
+  }
+
+  return { nodeCount, segCount, components, componentSizes, isolatedNodes, snapWarnings };
+}
+
+function renderDiagnostics() {
+  const result = runGraphDiagnostics();
+
+  document.getElementById("meDiagNodes").innerText = result.nodeCount;
+  document.getElementById("meDiagSegments").innerText = result.segCount;
+
+  const compEl = document.getElementById("meDiagComponents");
+  compEl.innerText = result.components;
+  compEl.style.color = result.components > 1 ? "#ef4444" : "#22c55e";
+
+  const isoEl = document.getElementById("meDiagIsolated");
+  isoEl.innerText = result.isolatedNodes.length;
+  isoEl.style.color = result.isolatedNodes.length > 0 ? "#f59e0b" : "#22c55e";
+
+  const warnEl = document.getElementById("meDiagWarnings");
+  if (!warnEl) return;
+
+  const lines = [];
+  if (result.components > 1) {
+    const sorted = [...result.componentSizes].sort((a, b) => b - a);
+    lines.push(`<div class="me-diag-warn warn">⚠️ ${result.components} disconnected road island(s). Largest has ${sorted[0]} node(s). Roads must be connected for routing to work.</div>`);
+  }
+  if (result.snapWarnings.length > 0) {
+    result.snapWarnings.forEach(w => {
+      lines.push(`<div class="me-diag-warn warn">⚠️ "${w.name}" is ${w.dist}m from the nearest road — exceeds snap limit (${SNAP_DISTANCE_LIMIT_M}m). Routing will fall back to straight line.</div>`);
+    });
+  }
+  if (result.nodeCount === 0) {
+    lines.push(`<div class="me-diag-warn warn">⚠️ No roads drawn. Add roads in the Road tab first.</div>`);
+  }
+  if (lines.length === 0) {
+    lines.push(`<div class="me-diag-warn ok">✓ Graph looks healthy. All stops are within snap range and the network is fully connected.</div>`);
+  }
+
+  warnEl.innerHTML = lines.join("");
+}
+
+// ── Route tab setup ──────────────────────────────────────────────────────────
+
+function setupRouteTab() {
+  // Populate dropdowns with all locations + stops that have coordinates
+  populateRouteSelectors();
+
+  document.getElementById("meRouteTestBtn")?.addEventListener("click", () => {
+    const fromVal = document.getElementById("meRouteFrom").value;
+    const toVal   = document.getElementById("meRouteTo").value;
+
+    if (!fromVal || !toVal) {
+      showStatus("Select both origin and destination first.", "warn");
+      return;
+    }
+    if (fromVal === toVal) {
+      showStatus("Origin and destination must be different.", "warn");
+      return;
+    }
+
+    // Look up the [lat, lng] for each selection
+    const allPoints = getAllRoutePoints();
+    const from = allPoints.find(p => p.id === fromVal);
+    const to   = allPoints.find(p => p.id === toVal);
+    if (!from || !to) return;
+
+    // Clear old preview
+    clearRoutePreview();
+
+    const result = calculateDraftRoute([from.lat, from.lng], [to.lat, to.lng]);
+
+    // Draw the route line
+    routePreviewLayer = L.polyline(result.points, {
+      color: result.routed ? "#22c55e" : "#ef4444",
+      weight: 5,
+      opacity: 0.85,
+      dashArray: result.routed ? null : "10, 8",
+      lineCap: "round",
+      lineJoin: "round"
+    }).addTo(map);
+
+    // From/to markers
+    routePreviewMarkers.push(
+      L.circleMarker([from.lat, from.lng], { radius: 8, color: "#fff", fillColor: "#3b82f6", fillOpacity: 1, weight: 2 })
+        .addTo(map).bindTooltip(from.name, { permanent: true, direction: "top" }),
+      L.circleMarker([to.lat, to.lng],   { radius: 8, color: "#fff", fillColor: "#22c55e", fillOpacity: 1, weight: 2 })
+        .addTo(map).bindTooltip(to.name,   { permanent: true, direction: "top" })
+    );
+
+    // Fit map to route
+    map.fitBounds(L.latLngBounds(result.points), { padding: [40, 40] });
+
+    // Show result card
+    const resultEl = document.getElementById("meRouteResult");
+    const badgeEl  = document.getElementById("meRouteBadge");
+    const statsEl  = document.getElementById("meRouteStats");
+
+    if (!resultEl || !badgeEl || !statsEl) return;
+
+    resultEl.classList.remove("hidden");
+    badgeEl.innerHTML = result.routed
+      ? `<span class="me-route-badge--ok"><i class="fas fa-check-circle"></i> Routed via campus roads</span>`
+      : `<span class="me-route-badge--fail"><i class="fas fa-triangle-exclamation"></i> Straight-line fallback</span>`;
+
+    const distText = result.distance != null
+      ? result.distance >= 1000
+        ? `${(result.distance / 1000).toFixed(2)} km`
+        : `${Math.round(result.distance)} m`
+      : "N/A";
+
+    const snapOriginText = result.snapDistOrigin != null ? `${Math.round(result.snapDistOrigin)}m` : "—";
+    const snapDestText   = result.snapDistDest   != null ? `${Math.round(result.snapDistDest)}m`   : "—";
+
+    statsEl.innerHTML = `
+      <div class="me-diag-grid">
+        <div class="me-diag-item"><span class="me-diag-label">Distance</span><strong class="me-diag-value">${distText}</strong></div>
+        <div class="me-diag-item"><span class="me-diag-label">Graph nodes</span><strong class="me-diag-value">${result.nodeCount ?? "—"}</strong></div>
+        <div class="me-diag-item"><span class="me-diag-label">Path nodes</span><strong class="me-diag-value">${result.pathNodeCount ?? (result.routed ? "—" : "0")}</strong></div>
+        <div class="me-diag-item"><span class="me-diag-label">Snap (origin)</span><strong class="me-diag-value" style="color:${result.snapDistOrigin > SNAP_DISTANCE_LIMIT_M ? '#ef4444' : 'inherit'}">${snapOriginText}</strong></div>
+        <div class="me-diag-item"><span class="me-diag-label">Snap (dest)</span><strong class="me-diag-value" style="color:${result.snapDistDest > SNAP_DISTANCE_LIMIT_M ? '#ef4444' : 'inherit'}">${snapDestText}</strong></div>
+        <div class="me-diag-item"><span class="me-diag-label">Reason</span><strong class="me-diag-value" style="font-size:11px;">${result.reason}</strong></div>
+      </div>
+    `;
+
+    showStatus(result.routed ? "Route found via campus roads." : `No road route: ${result.reason}`, result.routed ? "good" : "warn");
+  });
+
+  document.getElementById("meRouteClearBtn")?.addEventListener("click", () => {
+    clearRoutePreview();
+    const resultEl = document.getElementById("meRouteResult");
+    if (resultEl) resultEl.classList.add("hidden");
+    showStatus("Route preview cleared.");
+  });
+
+  document.getElementById("meRunDiagBtn")?.addEventListener("click", () => {
+    renderDiagnostics();
+    showStatus("Diagnostics updated.", "good");
+  });
+}
+
+function getAllRoutePoints() {
+  const out = [];
+  (mapDataDraft.rideStops || []).forEach(s => {
+    if (s.lat != null) out.push({ id: `stop:${s.id}`, name: `🚏 ${s.name}`, lat: s.lat, lng: s.lng });
+  });
+  (mapDataDraft.locations || []).forEach(l => {
+    if (l.lat != null) out.push({ id: `loc:${l.id}`, name: l.name, lat: l.lat, lng: l.lng });
+  });
+  return out;
+}
+
+function populateRouteSelectors() {
+  const fromEl = document.getElementById("meRouteFrom");
+  const toEl   = document.getElementById("meRouteTo");
+  if (!fromEl || !toEl) return;
+
+  const pts = getAllRoutePoints();
+  const opts = pts.map(p => `<option value="${p.id}">${p.name}</option>`).join("");
+  fromEl.innerHTML = `<option value="">— select origin —</option>${opts}`;
+  toEl.innerHTML   = `<option value="">— select destination —</option>${opts}`;
+}
+
+function clearRoutePreview() {
+  if (routePreviewLayer && map) {
+    try { map.removeLayer(routePreviewLayer); } catch (e) { /* ok */ }
+  }
+  routePreviewLayer = null;
+  routePreviewMarkers.forEach(m => { try { map.removeLayer(m); } catch (e) { /* ok */ } });
+  routePreviewMarkers = [];
+}
+
+// ── Junction snap indicator (road drawing mode) ──────────────────────────────
+
+function setupSnapIndicator() {
+  // Run whenever the map moves while road tab is active
+  map.on("move", () => {
+    if (!isRoadDrawingActive) return;
+    updateSnapIndicator();
+  });
+}
+
+function updateSnapIndicator() {
+  const center = map.getCenter();
+  const pt = [center.lat, center.lng];
+
+  // Find closest existing road node
+  const graph = _buildDraftGraph();
+  const nodes = Array.from(graph.nodes.values());
+
+  let closestNode = null, closestDist = Infinity;
+  nodes.forEach(n => {
+    const d = _rDistM(pt, n.point);
+    if (d < closestDist) { closestNode = n; closestDist = d; }
+  });
+
+  if (closestNode && closestDist <= CONNECT_TOLERANCE_M) {
+    // Within snap range — show green indicator
+    if (!snapIndicatorCircle) {
+      snapIndicatorCircle = L.circle(closestNode.point, {
+        radius: CONNECT_TOLERANCE_M,
+        color: "#22c55e",
+        fillColor: "#22c55e",
+        fillOpacity: 0.18,
+        weight: 2,
+        dashArray: "4, 4",
+        interactive: false
+      }).addTo(map);
+    } else {
+      snapIndicatorCircle.setLatLng(closestNode.point);
+    }
+    showStatus(`Snap junction detected! (${Math.round(closestDist)}m away — point will auto-connect)`, "good");
+  } else {
+    clearSnapIndicator();
+  }
+}
+
+function clearSnapIndicator() {
+  if (snapIndicatorCircle && map) {
+    try { map.removeLayer(snapIndicatorCircle); } catch (e) { /* ok */ }
+  }
+  snapIndicatorCircle = null;
+}
+
+// ── Road extension logic ─────────────────────────────────────────────────────
+
+/**
+ * Called from a road popup's Extend button.
+ * Loads the road's existing points into activeRoadPoints, switches to the Road
+ * tab, and removes the road from the draft (it will be re-saved with extra points).
+ */
+function startRoadExtension(roadId) {
+  const roadIndex = mapDataDraft.paths.findIndex(p => p.id === roadId);
+  if (roadIndex === -1) return;
+
+  const road = mapDataDraft.paths[roadIndex];
+  if (!road || !Array.isArray(road.points) || road.points.length < 2) return;
+
+  // Normalize points to [lat, lng] arrays
+  const normalizedPoints = road.points.map(pt => {
+    if (Array.isArray(pt)) return [Number(pt[0].toFixed(6)), Number(pt[1].toFixed(6))];
+    return [Number(pt.lat.toFixed(6)), Number(pt.lng.toFixed(6))];
+  });
+
+  // Set road name in input
+  const nameInput = document.getElementById("meRoadName");
+  if (nameInput) nameInput.value = road.name;
+
+  // Remember which road we're extending so save can handle it
+  extendingRoadId = roadId;
+
+  // Switch to Road tab
+  const roadTab = document.querySelector('.me-tab[data-tab="road"]');
+  if (roadTab) roadTab.click();
+
+  // Inject the existing points (the road drawing logic uses module-scoped vars,
+  // so we dispatch a custom event to avoid coupling)
+  document.dispatchEvent(new CustomEvent("me:extendRoad", { detail: { points: normalizedPoints, name: road.name } }));
+
+  showStatus(`Extending road: "${road.name}" — ${normalizedPoints.length} existing points loaded.`, "good");
+}
+
+// Expose globally so popup onclick can reach it
+window.meStartRoadExtension = startRoadExtension;

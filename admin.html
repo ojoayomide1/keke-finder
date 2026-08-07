@@ -295,6 +295,10 @@
               <i class="fas fa-building"></i>
               <span>Building</span>
             </button>
+            <button type="button" class="me-tab" data-tab="route" role="tab" aria-selected="false">
+              <i class="fas fa-route"></i>
+              <span>Route</span>
+            </button>
             <button type="button" class="me-tab" data-tab="tools" role="tab" aria-selected="false">
               <i class="fas fa-screwdriver-wrench"></i>
               <span>Tools</span>
@@ -444,6 +448,73 @@
               </button>
               <button type="button" class="me-btn me-btn--primary" id="meBuildingSaveBtn">
                 <i class="fas fa-check"></i> Save Building
+              </button>
+            </div>
+          </div>
+
+          <!-- Route tab -->
+          <div class="me-panel" id="me-panel-route">
+            <div class="me-panel__header">
+              <div>
+                <p class="me-panel__title">Route Preview</p>
+                <p class="me-panel__sub">Test routing between two stops using the <em>current draft</em> road network.</p>
+              </div>
+            </div>
+            <div class="me-form">
+              <label class="me-label">
+                From
+                <select id="meRouteFrom" class="me-input me-select">
+                  <option value="">— select origin —</option>
+                </select>
+              </label>
+              <label class="me-label">
+                To
+                <select id="meRouteTo" class="me-input me-select">
+                  <option value="">— select destination —</option>
+                </select>
+              </label>
+            </div>
+            <div class="me-panel__actions">
+              <button type="button" class="me-btn me-btn--ghost" id="meRouteClearBtn">
+                <i class="fas fa-xmark"></i> Clear
+              </button>
+              <button type="button" class="me-btn me-btn--primary" id="meRouteTestBtn">
+                <i class="fas fa-route"></i> Test Route
+              </button>
+            </div>
+
+            <!-- Result card -->
+            <div class="me-route-result hidden" id="meRouteResult">
+              <div class="me-route-badge" id="meRouteBadge"></div>
+              <div class="me-route-stats" id="meRouteStats"></div>
+            </div>
+
+            <!-- Graph diagnostics -->
+            <div class="me-route-diagnostics" id="meRouteDiagnostics">
+              <div class="me-panel__header" style="padding: 12px 0 4px;">
+                <p class="me-panel__title" style="font-size:13px;">Road Graph Diagnostics</p>
+              </div>
+              <div class="me-diag-grid" id="meDiagGrid">
+                <div class="me-diag-item">
+                  <span class="me-diag-label">Total nodes</span>
+                  <strong class="me-diag-value" id="meDiagNodes">—</strong>
+                </div>
+                <div class="me-diag-item">
+                  <span class="me-diag-label">Road segments</span>
+                  <strong class="me-diag-value" id="meDiagSegments">—</strong>
+                </div>
+                <div class="me-diag-item">
+                  <span class="me-diag-label">Components</span>
+                  <strong class="me-diag-value" id="meDiagComponents">—</strong>
+                </div>
+                <div class="me-diag-item">
+                  <span class="me-diag-label">Isolated nodes</span>
+                  <strong class="me-diag-value" id="meDiagIsolated">—</strong>
+                </div>
+              </div>
+              <div class="me-diag-warnings" id="meDiagWarnings"></div>
+              <button type="button" class="me-btn me-btn--ghost" style="width:100%; margin-top:8px;" id="meRunDiagBtn">
+                <i class="fas fa-stethoscope"></i> Run Diagnostics
               </button>
             </div>
           </div>

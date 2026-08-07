@@ -818,3 +818,100 @@
 
 /* ── Hidden utility ───────────────────────────────────────*/
 .hidden { display: none !important; }
+
+/* ── Route tab ────────────────────────────────────────────*/
+.me-route-result {
+  margin: 4px 16px 4px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+}
+
+.me-route-result.hidden { display: none; }
+
+.me-route-badge {
+  padding: 10px 14px 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+}
+
+.me-route-badge--ok {
+  color: #22c55e;
+}
+
+.me-route-badge--ok i { margin-right: 5px; }
+
+.me-route-badge--fail {
+  color: #ef4444;
+}
+
+.me-route-badge--fail i { margin-right: 5px; }
+
+.me-route-stats {
+  padding: 0 14px 12px;
+}
+
+.me-route-diagnostics {
+  padding: 0 16px 12px;
+}
+
+/* ── Diagnostics grid ─────────────────────────────────────*/
+.me-diag-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.me-diag-item {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.me-diag-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.me-diag-value {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: #e2e8f0;
+  font-weight: 700;
+}
+
+.me-diag-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.me-diag-warn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.me-diag-warn.warn {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.me-diag-warn.ok {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.07);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}

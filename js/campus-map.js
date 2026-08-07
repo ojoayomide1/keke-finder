@@ -59,9 +59,9 @@ export function renderCampusMapData(map) {
       }).addTo(map);
     }
     L.polyline(path.points, {
-      color: "#9ca3af",
-      weight: 2,
-      opacity: 0.72,
+      color: "#64748b",
+      weight: 2.5,
+      opacity: 0.55,
       lineCap: "round",
       lineJoin: "round"
     }).addTo(map).bindPopup(path.name);
