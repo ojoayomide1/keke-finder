@@ -29,7 +29,7 @@ export function stabilizeLocation(lat, lng) {
   return { lat: smoothLat, lng: smoothLng };
 }
 
-export function animateMarker(marker, targetLat, targetLng, duration = 1200) {
+export function animateMarker(marker, targetLat, targetLng, duration = 800) {
   if (!marker) return;
   
   if (state.activeMarkerAnimations.has(marker)) {
@@ -115,6 +115,8 @@ export function initMap(mapId) {
   state.routeLayer = null;
   state.tileLayer = null;
   state.requestMarkers = [];
+  state.stopMarkersCache.clear();
+  state.lastRenderedLocation = null;
   state.activeMarkerAnimations.forEach(id => cancelAnimationFrame(id));
   state.activeMarkerAnimations.clear();
   

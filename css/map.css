@@ -6,6 +6,13 @@
   background: var(--color-bg-primary);
 }
 
+/* Promote all Leaflet marker icons to their own GPU layer so the browser
+   doesn't have to repaint them on every animation frame. */
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  will-change: transform;
+}
+
 .pathfinder-student-marker {
   width: 38px;
   height: 38px;
@@ -79,6 +86,7 @@
   justify-content: center;
   transform: rotate(-45deg);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+  will-change: transform;
 }
 
 .campus-marker i {

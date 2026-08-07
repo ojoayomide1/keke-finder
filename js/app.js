@@ -291,7 +291,11 @@ function switchTab(tab) {
       resetPathfinder();
     } else if (tab === "live") {
       setTimeout(() => {
-        initMap("studentMap");
+        if (!state.map) {
+          initMap("studentMap");
+        } else {
+          state.map.invalidateSize();
+        }
         if (state.latestRide) window.updateRideUI(state.latestRide);
       }, 100);
     }
@@ -302,7 +306,11 @@ function switchTab(tab) {
       renderRiderWallet();
     } else if (tab === "live") {
       setTimeout(() => {
-        initMap("riderMap");
+        if (!state.map) {
+          initMap("riderMap");
+        } else {
+          state.map.invalidateSize();
+        }
         if (state.latestRide) window.updateRideUI(state.latestRide);
         if (state.currentRideId) {
           const riderSheet = document.getElementById("riderSheet");
@@ -845,6 +853,7 @@ function resetPathfinder() {
   state.userMarker = null;
   state.routeLayer = null;
   state.requestMarkers = [];
+  state.lastRenderedLocation = null;
 }
 
 function completePathfinderSession() {
@@ -1076,7 +1085,7 @@ window.restoreActiveRideUI = async () => {
     const riderSheet = document.getElementById("riderSheet");
     riderSheet?.classList.remove("hidden", "expanded");
     riderSheet?.classList.add("minimized");
-    initMap("riderMap");
+    if (!state.map) initMap("riderMap");
     listenToActiveRide(state.currentRideId);
     window.updateRideUI(docSnap.data());
     showToast("Trip map restored");
@@ -1330,12 +1339,18 @@ function listenForQueuedStudents(rideId) {
   );
 }
 
+// Minimum keke movement (metres) required before we bother recalculating the
+// route and rebuilding stop markers. Keeps the map smooth between GPS ticks.
+const RIDE_UI_MIN_MOVE_M = 5;
+
 window.updateRideUI = (ride) => {
   state.latestRide = ride;
   renderLiveSheetEnhancements(ride);
   if (!state.map) return;
   
   const currentLocation = ride.currentLocation;
+
+  // ── Keke marker ──────────────────────────────────────────────────────────
   if (currentLocation) {
     if (!state.riderMarker) {
       state.riderMarker = L.marker([currentLocation.lat, currentLocation.lng], { icon: riderKekeIcon }).addTo(state.map);
@@ -1350,8 +1365,31 @@ window.updateRideUI = (ride) => {
     }
   }
 
-  // draw the route line to the next stop on map
+  // ── Throttle: skip route + stop-marker work if keke hasn't moved enough ──
   const pendingStops = ride.stopQueue.filter(s => s.status === "pending");
+
+  if (currentLocation && state.lastRenderedLocation) {
+    const moved = getDistance(
+      state.lastRenderedLocation.lat, state.lastRenderedLocation.lng,
+      currentLocation.lat, currentLocation.lng
+    );
+    // Also skip when the pending stop list hasn't changed shape
+    const stopKey = pendingStops.map(s => `${s.passengerId}:${s.type}`).join("|");
+    if (moved < RIDE_UI_MIN_MOVE_M && stopKey === state.lastRenderedLocation.stopKey) {
+      return;
+    }
+  }
+
+  // Record what we're about to render so the next call can diff against it
+  if (currentLocation) {
+    state.lastRenderedLocation = {
+      lat: currentLocation.lat,
+      lng: currentLocation.lng,
+      stopKey: pendingStops.map(s => `${s.passengerId}:${s.type}`).join("|")
+    };
+  }
+
+  // ── Route line ────────────────────────────────────────────────────────────
   if (pendingStops.length > 0 && currentLocation) {
     const nextStop = pendingStops[0];
     const route = calculateCampusRoute(
@@ -1364,23 +1402,46 @@ window.updateRideUI = (ride) => {
       dashArray: route.routed ? null : "8, 10"
     });
 
-    // put pins on all the pending stops
-    if (state.map) {
-      state.requestMarkers.forEach(m => {
-        if (m && state.map.hasLayer(m)) state.map.removeLayer(m);
-      });
+    // ── Stop markers (cached) ────────────────────────────────────────────────
+    // Build the set of keys we need this frame
+    const neededKeys = new Set(
+      pendingStops.map(s => `${s.passengerId}:${s.type}:${s.location.lat}:${s.location.lng}`)
+    );
+
+    // Remove any cached markers that are no longer in pendingStops
+    for (const [key, marker] of state.stopMarkersCache) {
+      if (!neededKeys.has(key)) {
+        if (state.map && state.map.hasLayer(marker)) state.map.removeLayer(marker);
+        state.stopMarkersCache.delete(key);
+      }
     }
-    state.requestMarkers = [];
+
+    // Add markers that aren't cached yet
     pendingStops.forEach(stop => {
-       if (!state.map) return;
-       const marker = L.marker([stop.location.lat, stop.location.lng], { 
-         icon: stop.type === 'pickup' ? pickupPinIcon : dropoffPinIcon
-       }).addTo(state.map);
-       marker.bindPopup(`${stop.type === 'pickup' ? 'Pick up' : 'Drop off'}: ${stop.passengerName}<br>${stop.locationLabel}`);
-       state.requestMarkers.push(marker);
-     });
+      const key = `${stop.passengerId}:${stop.type}:${stop.location.lat}:${stop.location.lng}`;
+      if (!state.stopMarkersCache.has(key)) {
+        if (!state.map) return;
+        const marker = L.marker([stop.location.lat, stop.location.lng], {
+          icon: stop.type === "pickup" ? pickupPinIcon : dropoffPinIcon
+        }).addTo(state.map);
+        marker.bindPopup(`${stop.type === "pickup" ? "Pick up" : "Drop off"}: ${stop.passengerName}<br>${stop.locationLabel}`);
+        state.stopMarkersCache.set(key, marker);
+      }
+    });
+
+    // Keep legacy requestMarkers array in sync (used elsewhere for cleanup)
+    state.requestMarkers = [...state.stopMarkersCache.values()];
   } else {
     clearRouteLayer();
+
+    // Remove all cached stop markers when there are no pending stops
+    if (state.map) {
+      for (const marker of state.stopMarkersCache.values()) {
+        if (state.map.hasLayer(marker)) state.map.removeLayer(marker);
+      }
+    }
+    state.stopMarkersCache.clear();
+    state.requestMarkers = [];
   }
 };
 
@@ -1428,6 +1489,8 @@ window.addEventListener("load", () => {
         state.riderMarker = null;
         state.userMarker = null;
         state.routeLayer = null;
+        state.stopMarkersCache.clear();
+        state.lastRenderedLocation = null;
         
         showLoginScreen();
       }
