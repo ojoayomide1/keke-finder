@@ -83,8 +83,8 @@ function getTileLayerConfig() {
   const isLight = document.body?.classList.contains("light-theme");
   return {
     url: isLight
-      ? "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      ? "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
+      : "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
     options: {
       attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
       maxZoom: 20
