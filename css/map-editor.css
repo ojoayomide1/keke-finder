@@ -970,3 +970,93 @@
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(249, 115, 22, 0.5);
 }
+
+
+/* ── Inline rename row (popup) ────────────────────────────*/
+.me-rename-row {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+}
+
+.me-rename-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 6px;
+  color: #f1f5f9;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  padding: 4px 7px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.me-rename-input:focus {
+  border-color: #f97316;
+}
+
+.me-rename-save,
+.me-rename-cancel {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s;
+}
+
+.me-rename-save {
+  background: #22c55e;
+  color: #fff;
+}
+
+.me-rename-cancel {
+  background: rgba(255,255,255,0.12);
+  color: #94a3b8;
+}
+
+.me-rename-save:hover  { opacity: 0.85; }
+.me-rename-cancel:hover { opacity: 0.85; }
+
+/* ── Merge section (Tools tab) ────────────────────────────*/
+.me-merge-section {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 12px;
+  padding: 14px 14px 10px;
+  margin-bottom: 14px;
+}
+
+.me-merge-section .me-panel__title {
+  font-size: 13px;
+  padding: 0 0 6px;
+}
+
+.me-merge-section .me-panel__sub {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 0 0 10px;
+}
+
+.me-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+  cursor: pointer;
+}
+
+.me-select option {
+  background: #1e293b;
+  color: #f1f5f9;
+}

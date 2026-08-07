@@ -90,6 +90,7 @@ export function initAdminMapEditor(mapInstance) {
   setupGeneralActions();
   setupRouteTab();
   setupSnapIndicator();
+  setupMerge();
 
   // Render everything
   renderAllLayers();
@@ -1043,7 +1044,19 @@ function renderAllLayers() {
         <strong>${loc.name}</strong><br>
         <span>Category: ${loc.category}</span><br>
         <span style="font-size:10px; color:#64748b">${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}</span><br>
-        <button type="button" class="btn" style="margin-top:8px; padding:3px 8px; font-size:11px" id="edit-loc-${loc.id}">Edit Pin</button>
+        <div class="me-rename-row" id="rename-row-loc-${loc.id}" style="display:none; margin-top:6px;">
+          <input type="text" class="me-rename-input" id="rename-input-loc-${loc.id}" value="${loc.name}" placeholder="New name">
+          <button type="button" class="me-rename-save" id="rename-save-loc-${loc.id}">✓</button>
+          <button type="button" class="me-rename-cancel" id="rename-cancel-loc-${loc.id}">✕</button>
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+          <button type="button" class="btn" style="padding:3px 8px; font-size:11px;" id="rename-btn-loc-${loc.id}">
+            <i class="fas fa-pencil"></i> Rename
+          </button>
+          <button type="button" class="btn" style="padding:3px 8px; font-size:11px; background:#3b82f6; color:#fff;" id="edit-loc-${loc.id}">
+            <i class="fas fa-crosshairs"></i> Move
+          </button>
+        </div>
       </div>
     `;
 
@@ -1055,6 +1068,10 @@ function renderAllLayers() {
       document.getElementById(`edit-loc-${loc.id}`)?.addEventListener("click", () => {
         startSeederMode(loc);
         marker.closePopup();
+      });
+      setupRenameHandlers(`loc-${loc.id}`, (newName) => {
+        const idx = mapDataDraft.locations.findIndex(l => l.id === loc.id);
+        if (idx !== -1) { pushToHistory(); mapDataDraft.locations[idx].name = newName; saveDraftToLocalStorage(); renderAllLayers(); updateSeederList(); }
       });
     });
   });
@@ -1069,7 +1086,17 @@ function renderAllLayers() {
         <strong>${stop.name} (Stop)</strong><br>
         <span>Serves: ${(stop.serves || []).join(", ") || 'None'}</span><br>
         <span style="font-size:10px; color:#64748b">${stop.lat.toFixed(6)}, ${stop.lng.toFixed(6)}</span><br>
-        <button type="button" class="btn btn-danger" style="margin-top:8px; padding:3px 8px; font-size:11px" id="del-stop-${stop.id}">Delete Stop</button>
+        <div class="me-rename-row" id="rename-row-stop-${stop.id}" style="display:none; margin-top:6px;">
+          <input type="text" class="me-rename-input" id="rename-input-stop-${stop.id}" value="${stop.name}" placeholder="New name">
+          <button type="button" class="me-rename-save" id="rename-save-stop-${stop.id}">✓</button>
+          <button type="button" class="me-rename-cancel" id="rename-cancel-stop-${stop.id}">✕</button>
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+          <button type="button" class="btn" style="padding:3px 8px; font-size:11px;" id="rename-btn-stop-${stop.id}">
+            <i class="fas fa-pencil"></i> Rename
+          </button>
+          <button type="button" class="btn btn-danger" style="padding:3px 8px; font-size:11px;" id="del-stop-${stop.id}">Delete</button>
+        </div>
       </div>
     `;
 
@@ -1085,6 +1112,10 @@ function renderAllLayers() {
           saveDraftToLocalStorage();
           renderAllLayers();
         }
+      });
+      setupRenameHandlers(`stop-${stop.id}`, (newName) => {
+        const idx = mapDataDraft.rideStops.findIndex(s => s.id === stop.id);
+        if (idx !== -1) { pushToHistory(); mapDataDraft.rideStops[idx].name = newName; saveDraftToLocalStorage(); renderAllLayers(); }
       });
     });
   });
@@ -1110,7 +1141,15 @@ function renderAllLayers() {
       <div class="campus-popup">
         <strong>Road: ${path.name}</strong><br>
         <span style="font-size:10px; color:#64748b">${path.points.length} point(s)</span><br>
+        <div class="me-rename-row" id="rename-row-road-${path.id}" style="display:none; margin-top:6px;">
+          <input type="text" class="me-rename-input" id="rename-input-road-${path.id}" value="${path.name}" placeholder="New name">
+          <button type="button" class="me-rename-save" id="rename-save-road-${path.id}">✓</button>
+          <button type="button" class="me-rename-cancel" id="rename-cancel-road-${path.id}">✕</button>
+        </div>
         <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+          <button type="button" class="btn" style="padding:3px 8px; font-size:11px;" id="rename-btn-road-${path.id}">
+            <i class="fas fa-pencil"></i> Rename
+          </button>
           <button type="button" class="btn" style="padding:3px 8px; font-size:11px; background:#3b82f6; color:#fff;" id="ext-road-${path.id}">
             <i class="fas fa-arrow-right-to-bracket"></i> Extend
           </button>
@@ -1131,6 +1170,10 @@ function renderAllLayers() {
           saveDraftToLocalStorage();
           renderAllLayers();
         }
+      });
+      setupRenameHandlers(`road-${path.id}`, (newName) => {
+        const idx = mapDataDraft.paths.findIndex(p => p.id === path.id);
+        if (idx !== -1) { pushToHistory(); mapDataDraft.paths[idx].name = newName; saveDraftToLocalStorage(); renderAllLayers(); updateMergeSelectors(); }
       });
     });
   });
@@ -1154,7 +1197,17 @@ function renderAllLayers() {
       <div class="campus-popup">
         <strong>Building: ${b.name}</strong><br>
         <span style="font-size:10px; color:#64748b">${b.points.length} vertices</span><br>
-        <button type="button" class="btn btn-danger" style="margin-top:8px; padding:3px 8px; font-size:11px" id="del-building-${b.id}">Delete Building</button>
+        <div class="me-rename-row" id="rename-row-bld-${b.id}" style="display:none; margin-top:6px;">
+          <input type="text" class="me-rename-input" id="rename-input-bld-${b.id}" value="${b.name}" placeholder="New name">
+          <button type="button" class="me-rename-save" id="rename-save-bld-${b.id}">✓</button>
+          <button type="button" class="me-rename-cancel" id="rename-cancel-bld-${b.id}">✕</button>
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+          <button type="button" class="btn" style="padding:3px 8px; font-size:11px;" id="rename-btn-bld-${b.id}">
+            <i class="fas fa-pencil"></i> Rename
+          </button>
+          <button type="button" class="btn btn-danger" style="padding:3px 8px; font-size:11px;" id="del-building-${b.id}">Delete</button>
+        </div>
       </div>
     `);
 
@@ -1166,6 +1219,10 @@ function renderAllLayers() {
           saveDraftToLocalStorage();
           renderAllLayers();
         }
+      });
+      setupRenameHandlers(`bld-${b.id}`, (newName) => {
+        const idx = mapDataDraft.buildings.findIndex(x => x.id === b.id);
+        if (idx !== -1) { pushToHistory(); mapDataDraft.buildings[idx].name = newName; saveDraftToLocalStorage(); renderAllLayers(); }
       });
     });
   });
@@ -1441,6 +1498,128 @@ function clearMeasure() {
   if (measureLine) map.removeLayer(measureLine);
   measureLine = null;
   measurePoints = [];
+}
+
+// ── Rename helpers ───────────────────────────────────────────────────────────
+
+/**
+ * Wires up the Rename button + inline input for any popup.
+ * key   — unique suffix matching the id attributes (e.g. "road-abc123")
+ * onSave(newName) — called with the trimmed new name on confirm
+ */
+function setupRenameHandlers(key, onSave) {
+  const renameBtn   = document.getElementById(`rename-btn-${key}`);
+  const renameRow   = document.getElementById(`rename-row-${key}`);
+  const renameInput = document.getElementById(`rename-input-${key}`);
+  const saveBtn     = document.getElementById(`rename-save-${key}`);
+  const cancelBtn   = document.getElementById(`rename-cancel-${key}`);
+
+  if (!renameBtn || !renameRow || !renameInput || !saveBtn || !cancelBtn) return;
+
+  renameBtn.addEventListener("click", () => {
+    renameRow.style.display = "flex";
+    renameBtn.style.display = "none";
+    renameInput.focus();
+    renameInput.select();
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    renameRow.style.display = "none";
+    renameBtn.style.display = "";
+  });
+
+  const doSave = () => {
+    const newName = renameInput.value.trim();
+    if (!newName) { renameInput.focus(); return; }
+    onSave(newName);
+    // renderAllLayers closes/reopens the popup so no need to hide manually
+  };
+
+  saveBtn.addEventListener("click", doSave);
+  renameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") doSave();
+    if (e.key === "Escape") cancelBtn.click();
+  });
+}
+
+// ── Road merge ───────────────────────────────────────────────────────────────
+
+function updateMergeSelectors() {
+  const aEl = document.getElementById("meMergeRoadA");
+  const bEl = document.getElementById("meMergeRoadB");
+  if (!aEl || !bEl) return;
+
+  const opts = (mapDataDraft.paths || [])
+    .map(p => `<option value="${p.id}">${p.name} (${p.points.length} pts)</option>`)
+    .join("");
+  const placeholder = `<option value="">— select road —</option>`;
+  aEl.innerHTML = placeholder + opts;
+  bEl.innerHTML = placeholder + opts;
+}
+
+function setupMerge() {
+  updateMergeSelectors();
+
+  document.getElementById("meMergeBtn")?.addEventListener("click", () => {
+    const aId  = document.getElementById("meMergeRoadA").value;
+    const bId  = document.getElementById("meMergeRoadB").value;
+    const name = document.getElementById("meMergeName").value.trim();
+    const valEl = document.getElementById("meMergeValidation");
+
+    const showErr = (msg) => { if (valEl) { valEl.innerText = msg; valEl.className = "me-validation-msg"; } };
+    const showOk  = (msg) => { if (valEl) { valEl.innerText = msg; valEl.className = "me-validation-msg ok"; } };
+
+    if (!aId || !bId)  return showErr("Select both roads.");
+    if (aId === bId)   return showErr("Select two different roads.");
+    if (!name)         return showErr("Enter a name for the merged road.");
+
+    const roadA = mapDataDraft.paths.find(p => p.id === aId);
+    const roadB = mapDataDraft.paths.find(p => p.id === bId);
+    if (!roadA || !roadB) return showErr("Road not found.");
+
+    // Normalise points to [lat, lng] arrays
+    const normPts = (pts) => pts.map(pt =>
+      Array.isArray(pt) ? [Number(pt[0]), Number(pt[1])] : [Number(pt.lat), Number(pt.lng)]
+    );
+
+    const ptsA = normPts(roadA.points);
+    const ptsB = normPts(roadB.points);
+
+    // Figure out the best join: end of A → start/end of B
+    // We check all four combinations and pick the one with the shortest gap
+    const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    const endA   = ptsA.at(-1);
+    const startA = ptsA[0];
+    const endB   = ptsB.at(-1);
+    const startB = ptsB[0];
+
+    const combos = [
+      { d: dist(endA, startB),  pts: [...ptsA, ...ptsB],                  label: "A-end → B-start" },
+      { d: dist(endA, endB),    pts: [...ptsA, ...[...ptsB].reverse()],   label: "A-end → B-end (B reversed)" },
+      { d: dist(startA, startB),pts: [...[...ptsA].reverse(), ...ptsB],   label: "A-start → B-start (A reversed)" },
+      { d: dist(startA, endB),  pts: [...[...ptsA].reverse(), ...[...ptsB].reverse()], label: "A-start → B-end (both reversed)" },
+    ];
+
+    const best = combos.reduce((a, b) => a.d < b.d ? a : b);
+
+    pushToHistory();
+
+    // Remove both originals, add merged road
+    mapDataDraft.paths = mapDataDraft.paths.filter(p => p.id !== aId && p.id !== bId);
+    const mergedId = slugify(name) + "_" + Date.now().toString().slice(-4);
+    mapDataDraft.paths.push({ id: mergedId, name, points: best.pts });
+
+    // Reset selectors and input
+    document.getElementById("meMergeRoadA").value = "";
+    document.getElementById("meMergeRoadB").value = "";
+    document.getElementById("meMergeName").value = "";
+
+    saveDraftToLocalStorage();
+    renderAllLayers();
+    updateMergeSelectors();
+    showOk(`✓ Merged via ${best.label}. New road has ${best.pts.length} points.`);
+    showStatus(`Roads merged into "${name}".`, "good");
+  });
 }
 
 // Stop tracking geolocation when navigating away

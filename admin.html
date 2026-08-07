@@ -529,6 +529,37 @@
             <div class="me-panel__header">
               <p class="me-panel__title">Tools & Settings</p>
             </div>
+
+            <!-- Road Merge -->
+            <div class="me-merge-section">
+              <p class="me-panel__title" style="font-size:13px; padding: 0 0 6px;">Merge Roads</p>
+              <p class="me-panel__sub" style="padding:0 0 10px;">Join two roads end-to-end into one. The end of Road A connects to the start of Road B.</p>
+              <div class="me-form" style="padding:0;">
+                <label class="me-label">
+                  Road A (first)
+                  <select id="meMergeRoadA" class="me-input me-select">
+                    <option value="">— select road —</option>
+                  </select>
+                </label>
+                <label class="me-label">
+                  Road B (second)
+                  <select id="meMergeRoadB" class="me-input me-select">
+                    <option value="">— select road —</option>
+                  </select>
+                </label>
+                <label class="me-label">
+                  Merged road name
+                  <input type="text" id="meMergeName" class="me-input" placeholder="e.g. Main Campus Road" autocomplete="off">
+                </label>
+              </div>
+              <div class="me-panel__actions" style="padding: 8px 0 4px;">
+                <button type="button" class="me-btn me-btn--primary" id="meMergeBtn">
+                  <i class="fas fa-code-merge"></i> Merge Roads
+                </button>
+              </div>
+              <p class="me-validation-msg" id="meMergeValidation"></p>
+            </div>
+
             <div class="me-tools-grid">
               <button type="button" class="me-tool-btn" id="meLayerToggleBtn">
                 <i class="fas fa-layer-group"></i>
