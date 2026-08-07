@@ -83,29 +83,12 @@ function getMapBackground() {
   return document.body?.classList.contains("light-theme") ? "#F0F2F5" : "#141418";
 }
 
-function getTileLayerConfig() {
-  const isLight = document.body?.classList.contains("light-theme");
-  return {
-    // Stamen Toner Background — land/water outlines only, zero roads, zero labels
-    url: isLight
-      ? "https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png"
-      : "https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png",
-    options: {
-      attribution: "&copy; Stamen Design &copy; OpenStreetMap contributors",
-      maxZoom: 20,
-      opacity: isLight ? 0.12 : 0.08   // very faint — just enough to feel grounded
-    }
-  };
-}
-
 export function refreshMapTheme() {
   if (!state.map) return;
   if (state.tileLayer) {
     try { state.map.removeLayer(state.tileLayer); } catch (e) { console.warn("Map theme refresh warning:", e); }
     state.tileLayer = null;
   }
-  const { url, options } = getTileLayerConfig();
-  state.tileLayer = L.tileLayer(url, options).addTo(state.map);
   const container = state.map.getContainer();
   if (container) container.style.background = getMapBackground();
 }
@@ -133,14 +116,10 @@ export function initMap(mapId) {
   if (!mapElement) return;
   if (mapElement.offsetParent === null) return;
 
-  const bg = getMapBackground();
   state.map = L.map(mapId, { tap: false, zoomControl: false }).setView([9.2880, 7.4130], 16);
+  state.map.getContainer().style.background = getMapBackground();
 
-  state.map.getContainer().style.background = bg;
-
-  const { url, options } = getTileLayerConfig();
-  state.tileLayer = L.tileLayer(url, options).addTo(state.map);
-
+  // No tile layer — pure canvas, only your drawn data is visible
   initCampusMapTools(state.map, mapId);
   setTimeout(() => state.map && state.map.invalidateSize(), 500);
 }
