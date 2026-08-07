@@ -58,21 +58,10 @@ export function renderCampusMapData(map) {
         interactive: false
       }).addTo(map);
     }
-    // White outline drawn first so it sits behind the orange line,
-    // visually covering the default tile roads underneath
-    L.polyline(path.points, {
-      color: "#ffffff",
-      weight: 9,
-      opacity: 0.9,
-      lineCap: "round",
-      lineJoin: "round",
-      interactive: false
-    }).addTo(map);
-    // Orange fill line on top
     L.polyline(path.points, {
       color: "#f97316",
       weight: 5,
-      opacity: 1,
+      opacity: 0.9,
       lineCap: "round",
       lineJoin: "round"
     }).addTo(map).bindPopup(path.name);

@@ -718,18 +718,7 @@ function drawCampusRoute(points, style = {}) {
   if (!state.map || !Array.isArray(points) || points.length < 2) return;
 
   clearRouteLayer();
-
-  // White outline behind the coloured line so it punches through tile roads
-  const outlineLayer = L.polyline(points, {
-    color: "#ffffff",
-    weight: (style.weight || 6) + 4,
-    opacity: 0.85,
-    lineCap: "round",
-    lineJoin: "round",
-    interactive: false
-  }).addTo(state.map);
-
-  const fillLayer = L.polyline(points, {
+  state.routeLayer = L.polyline(points, {
     color: style.color || "#3b82f6",
     weight: style.weight || 6,
     opacity: style.opacity || 0.9,
@@ -737,9 +726,6 @@ function drawCampusRoute(points, style = {}) {
     lineCap: "round",
     lineJoin: "round"
   }).addTo(state.map);
-
-  // Group both into a single removable layer via a LayerGroup
-  state.routeLayer = L.layerGroup([outlineLayer, fillLayer]).addTo(state.map);
 }
 
 function updatePathfinderRouteFromPosition(pos, landmark, watchId) {
