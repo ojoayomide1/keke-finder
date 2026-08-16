@@ -58,18 +58,27 @@ export async function registerForPushNotifications(userId) {
       return null;
     }
 
-    // 2. Get Expo push token
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    const token     = tokenData.data;
+    // 2. Try to get Expo push token — this requires a projectId and won't
+    //    work in Expo Go (SDK 53+). We skip it gracefully so local
+    //    notifications (ride matched, picked up, etc.) still work fine.
+    try {
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: "oprides", // fallback slug — replace with real EAS projectId when building
+      });
+      const token = tokenData.data;
 
-    // 3. Save token to Firestore
-    if (userId && token) {
-      await updateDoc(doc(db, "users", userId), { pushToken: token });
+      // 3. Save token to Firestore
+      if (userId && token) {
+        await updateDoc(doc(db, "users", userId), { pushToken: token });
+      }
+
+      return token;
+    } catch (tokenErr) {
+      // Expected to fail in Expo Go — local notifications still work
+      console.warn("[Notifications] Push token unavailable (Expo Go):", tokenErr?.message);
+      return null;
     }
-
-    return token;
   } catch (err) {
-    // Non-fatal — device may not support push (e.g. simulator)
     console.warn("[Notifications] registerForPushNotifications failed:", err?.message ?? err);
     return null;
   }

@@ -510,10 +510,10 @@ export function listenToQueue(queueDocId, callback) {
  * @returns {() => void} unsubscribe
  */
 export function listenToRideHistory(studentId, callback) {
+  // Simple query - only filter by studentId, no orderBy to avoid composite index
   const q = query(
     collection(db, "rideRequests"),
-    where("studentId", "==", studentId),
-    orderBy("requestedAt", "desc")
+    where("studentId", "==", studentId)
   );
 
   return onSnapshot(
@@ -525,6 +525,12 @@ export function listenToRideHistory(studentId, callback) {
         if (!data.deletedByStudent) {
           rides.push({ id: d.id, ...data });
         }
+      });
+      // Sort in memory to avoid composite index requirement
+      rides.sort((a, b) => {
+        const aTime = a.requestedAt?.toMillis ? a.requestedAt.toMillis() : 0;
+        const bTime = b.requestedAt?.toMillis ? b.requestedAt.toMillis() : 0;
+        return bTime - aTime; // desc
       });
       callback(rides);
     },
