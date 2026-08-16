@@ -72,10 +72,10 @@ export async function getRiderStatus(riderId) {
  * Listen to incoming ride requests for this rider
  */
 export function listenToRideRequests(riderId, callback) {
+  // Simple query - only filter by status, no ordering to avoid composite index
   const q = query(
     collection(db, "rideRequests"),
-    where("status", "==", "pending"),
-    orderBy("createdAt", "asc")
+    where("status", "==", "pending")
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -83,6 +83,14 @@ export function listenToRideRequests(riderId, callback) {
     snapshot.forEach((doc) => {
       requests.push({ id: doc.id, ...doc.data() });
     });
+    
+    // Sort in memory by createdAt (newest first)
+    requests.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return aTime - bTime; // asc order (oldest first for fairness)
+    });
+    
     callback(requests);
   });
 }
