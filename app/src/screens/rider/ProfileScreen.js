@@ -49,6 +49,7 @@ import {
   registerBiometrics,
   clearBiometrics,
 } from "../../services/biometrics";
+import SupportModal from "../shared/SupportModal";
 
 // ─── COLOURS ─────────────────────────────────────────────────────────────────
 
@@ -171,6 +172,7 @@ export default function RiderProfileScreen() {
 
   const [stats,        setStats]       = useState({ totalRides: 0, totalEarned: 0, todayEarnings: 0 });
   const [loadingStats, setLoadingStats] = useState(true);
+  const [showSupport,  setShowSupport]  = useState(false);
   
   // Biometric state
   const [bioAvailable, setBioAvailable] = useState(false);
@@ -333,12 +335,18 @@ export default function RiderProfileScreen() {
         </View>
 
         {/* ── Log Out Button ──────────────────────────────────── */}
+        <TouchableOpacity style={styles.helpBtn} onPress={() => setShowSupport(true)} activeOpacity={0.8}>
+          <Text style={styles.helpText}>Help & Support</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
         <Text style={styles.appVersion}>OpRides v2.0 — Rider Edition</Text>
       </ScrollView>
+
+      <SupportModal visible={showSupport} onClose={() => setShowSupport(false)} />
     </View>
   );
 }
@@ -441,6 +449,16 @@ const styles = StyleSheet.create({
     marginBottom:    24,
   },
   logoutText: { color: "#fca5a5", fontWeight: "600" },
+
+  helpBtn: {
+    borderRadius:    14,
+    paddingVertical: 14,
+    alignItems:      "center",
+    borderWidth:     1,
+    borderColor:     C.border,
+    marginBottom:    12,
+  },
+  helpText: { color: C.text, fontWeight: "600" },
 
   appVersion: {
     textAlign: "center",

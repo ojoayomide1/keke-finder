@@ -39,6 +39,7 @@ import {
 import useStore from "../../store";
 import { fetchProfileStats, formatNaira } from "../../services/wallet";
 import { auth, signOut } from "../../config/firebase";
+import SupportModal from "../shared/SupportModal";
 import {
   isBiometricsAvailable,
   isBiometricsEnabled,
@@ -129,6 +130,9 @@ export default function ProfileScreen() {
   const [stats,        setStats]       = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
   
+  // Support modal
+  const [showSupport, setShowSupport] = useState(false);
+
   // Biometric state
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioEnabled,   setBioEnabled]   = useState(false);
@@ -307,12 +311,27 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        <TouchableOpacity
+          style={styles.helpBtn}
+          onPress={() => setShowSupport(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.helpIcon}>🛟</Text>
+          <Text style={styles.helpText}>Help & Support</Text>
+          <Text style={styles.helpChevron}>›</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
         <Text style={styles.appVersion}>OpRides v2.0 — Expo Edition</Text>
       </ScrollView>
+
+      <SupportModal
+        visible={showSupport}
+        onClose={() => setShowSupport(false)}
+      />
     </View>
   );
 }
@@ -404,4 +423,3 @@ const styles = StyleSheet.create({
   logoutText: { color: "#fca5a5", fontWeight: "700", fontSize: 15 },
 
   appVersion: { color: C.sub, fontSize: 11, textAlign: "center", marginBottom: 8 },
-});

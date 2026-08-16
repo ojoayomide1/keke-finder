@@ -29,8 +29,10 @@ import {
   View,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
+import * as Location from "expo-location";
 
 import useStore from "../../store";
+import { sendLocalNotification } from "../../services/notifications";
 import {
   setRiderStatus,
   getRiderStatus,
@@ -44,6 +46,7 @@ import {
   formatNaira,
   getNextRideAction,
 } from "../../services/rider";
+import { db, doc, setDoc, serverTimestamp } from "../../config/firebase";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
@@ -231,8 +234,91 @@ export default function RiderHomeScreen() {
   const requestsUnsubscribe = useRef(null);
   const ridesUnsubscribe = useRef(null);
   const earningsUnsubscribe = useRef(null);
+  const locationWatcherRef = useRef(null);
+  const prevRequestCountRef = useRef(0);
 
   const riderId = currentUser?.uid;
+
+  // ── Notify rider on new requests ──────────────────────────────────────────
+  useEffect(() => {
+    const prev = prevRequestCountRef.current;
+    const curr = rideRequests.length;
+    if (curr > prev && isRiderOnline) {
+      sendLocalNotification(
+        "New Ride Request!",
+        "A student needs a ride. Open the app to accept.",
+        { type: "newRequest" }
+      );
+    }
+    prevRequestCountRef.current = curr;
+  }, [rideRequests.length]);
+
+  // ── GPS location broadcaster ───────────────────────────────────────────────
+  // Watches rider's position and writes to Firestore whenever they are online
+  // and have active rides. Cleans up watcher on unmount or when conditions change.
+  useEffect(() => {
+    let active = true;
+
+    async function startWatching() {
+      // Only broadcast when online and has active rides
+      if (!riderId || !isRiderOnline || activeRides.length === 0) {
+        // Stop any existing watcher if conditions no longer met
+        if (locationWatcherRef.current) {
+          locationWatcherRef.current.remove();
+          locationWatcherRef.current = null;
+        }
+        return;
+      }
+
+      // Request foreground location permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted" || !active) return;
+
+      // Stop any existing watcher before starting a new one
+      if (locationWatcherRef.current) {
+        locationWatcherRef.current.remove();
+        locationWatcherRef.current = null;
+      }
+
+      locationWatcherRef.current = await Location.watchPositionAsync(
+        {
+          accuracy:     Location.Accuracy.Balanced,
+          timeInterval: 5000,   // minimum 5 seconds between updates
+          distanceInterval: 5,  // or at least 5 metres moved
+        },
+        async (position) => {
+          if (!active) return;
+          const { latitude, longitude, heading } = position.coords;
+          try {
+            await setDoc(
+              doc(db, "rideLocations", riderId),
+              {
+                riderId,
+                lat:       latitude,
+                lng:       longitude,
+                heading:   heading ?? 0,
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          } catch (err) {
+            // Silent fail — location updates are best-effort
+            console.warn("[RiderHome] location write failed:", err);
+          }
+        }
+      );
+    }
+
+    startWatching();
+
+    return () => {
+      active = false;
+      if (locationWatcherRef.current) {
+        locationWatcherRef.current.remove();
+        locationWatcherRef.current = null;
+      }
+    };
+  }, [riderId, isRiderOnline, activeRides.length]);
 
   // ── Initialize data and listeners ─────────────────────────────────────────
   useEffect(() => {

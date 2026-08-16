@@ -42,6 +42,7 @@ import MapView, { Marker, Polyline } from "react-native-maps";
 import * as Location from "expo-location";
 
 import useStore from "../../store";
+import { db, doc, onSnapshot } from "../../config/firebase";
 import {
   loadCampusDataFromFirestore,
   listenToCampusData,
@@ -60,6 +61,7 @@ import {
   deleteRideRecord,
 } from "../../services/student";
 import { formatNaira } from "../../services/ride-helpers";
+import { sendLocalNotification } from "../../services/notifications";
 
 // ─── COLOURS / TOKENS ────────────────────────────────────────────────────────
 
@@ -212,6 +214,8 @@ export default function StudentHomeScreen() {
   const [locations, setLocations]       = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   const [riderMarker, setRiderMarker]   = useState(null);
+  // Real-time rider GPS location from rideLocations/{riderId}
+  const [riderLocation, setRiderLocation] = useState(null); // { lat, lng }
 
   // ── sheet + tab state
   const [activeTab, setActiveTab] = useState("home");
@@ -240,6 +244,7 @@ export default function StudentHomeScreen() {
   const unsubQueueRef   = useRef(null);
   const unsubHistoryRef = useRef(null);
   const unsubCampusRef  = useRef(null);
+  const unsubRiderLocationRef = useRef(null);
 
   // ─── INIT ──────────────────────────────────────────────────────────────────
 
@@ -275,8 +280,47 @@ export default function StudentHomeScreen() {
       unsubRequestRef.current?.();
       unsubRideRef.current?.();
       unsubQueueRef.current?.();
+      unsubRiderLocationRef.current?.();
     };
   }, []);
+
+  // ─── RIDER LOCATION LISTENER ───────────────────────────────────────────────
+  // When matched or onTrip, subscribe to real-time rider GPS from Firestore.
+  // The riderId comes from latestRide.riderId written by the rider's GPS watcher.
+  useEffect(() => {
+    const riderId = latestRide?.riderId;
+    const isActive = ridePhase === "matched" || ridePhase === "onTrip";
+
+    // Tear down any existing listener first
+    unsubRiderLocationRef.current?.();
+    unsubRiderLocationRef.current = null;
+
+    if (!riderId || !isActive) {
+      // Clear stale location when ride ends or no rider yet
+      setRiderLocation(null);
+      return;
+    }
+
+    unsubRiderLocationRef.current = onSnapshot(
+      doc(db, "rideLocations", riderId),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setRiderLocation({ lat: data.lat, lng: data.lng });
+        } else {
+          setRiderLocation(null);
+        }
+      },
+      (err) => {
+        console.warn("[StudentHome] riderLocation listener error:", err);
+      }
+    );
+
+    return () => {
+      unsubRiderLocationRef.current?.();
+      unsubRiderLocationRef.current = null;
+    };
+  }, [latestRide?.riderId, ridePhase]);
 
   // ─── LISTEN TO REQUEST ─────────────────────────────────────────────────────
 
@@ -290,6 +334,11 @@ export default function StudentHomeScreen() {
         setRidePhase("matched");
         attachRideListener(request.matchedRideId);
         showToast("Ride matched! Your keke is on the way.", "success");
+        sendLocalNotification(
+          "Ride Matched!",
+          "Your keke is on the way. Track it live on the map.",
+          { type: "matched", rideId: request.matchedRideId }
+        );
       }
 
       if (request.status === "queued") {
@@ -321,6 +370,11 @@ export default function StudentHomeScreen() {
       if (summary.pickupStatus === "completed" && ridePhase !== "onTrip") {
         setRidePhase("onTrip");
         notifiedArrivingRef.current = false;
+        sendLocalNotification(
+          "Picked Up!",
+          "You're on your way. Enjoy the ride!",
+          { type: "onTrip" }
+        );
       }
 
       if (summary.isCompleted && summary.passenger) {
@@ -904,6 +958,15 @@ export default function StudentHomeScreen() {
               coordinate={{ latitude: riderMarker.lat, longitude: riderMarker.lng }}
               title="Your Keke"
               pinColor={C.orange}
+            />
+          )}
+
+          {/* Real-time rider GPS marker (from rideLocations collection) */}
+          {riderLocation && (
+            <Marker
+              coordinate={{ latitude: riderLocation.lat, longitude: riderLocation.lng }}
+              title="Your Rider"
+              pinColor="blue"
             />
           )}
         </MapView>

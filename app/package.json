@@ -11,6 +11,7 @@
     "expo-linking": "~8.0.12",
     "expo-local-authentication": "~17.0.8",
     "expo-location": "~19.0.8",
+    "expo-notifications": "~0.31.0",
     "expo-status-bar": "~3.0.9",
     "firebase": "^12.17.1",
     "react": "19.1.0",

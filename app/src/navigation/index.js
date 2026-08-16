@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { auth, onAuthStateChanged, db, doc, getDoc } from "../config/firebase";
 import useStore from "../store";
+import { registerForPushNotifications } from "../services/notifications";
 
 // ─── SCREENS ─────────────────────────────────────────────────────────────────
 import LoginScreen from "../screens/auth/LoginScreen";
@@ -185,6 +186,9 @@ export default function RootNavigator() {
 
         setCurrentUser(merged);
         setUser(merged);
+
+        // Register for push notifications after login (non-blocking, best-effort)
+        registerForPushNotifications(firebaseUser.uid).catch(() => {});
       } else {
         clearCurrentUser();
         setUser(null);
