@@ -423,3 +423,15 @@ const styles = StyleSheet.create({
   logoutText: { color: "#fca5a5", fontWeight: "700", fontSize: 15 },
 
   appVersion: { color: C.sub, fontSize: 11, textAlign: "center", marginBottom: 8 },
+
+
+  helpBtn: {
+    borderRadius:    14,
+    paddingVertical: 14,
+    alignItems:      "center",
+    borderWidth:     1,
+    borderColor:     "#2a2a35",
+    marginBottom:    12,
+  },
+  helpText: { color: "#FFFFFF", fontWeight: "600" },
+});
