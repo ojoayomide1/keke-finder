@@ -41,11 +41,59 @@ const useStore = create((set, get) => ({
   lastRiderLoc: null,      // { lat, lng }
   lastStudentLoc: null,    // { lat, lng }
 
+  // Rider status and data
+  isRiderOnline: false,
+  rideRequests: [],        // Incoming ride requests
+  activeRides: [],         // Current passengers in vehicle
+  riderEarnings: {         // Live earnings data
+    balance: 0,
+    totalEarned: 0,
+    todayEarnings: 0,
+    totalRides: 0,
+  },
+
   setRiderSession: (data) => set({
     riderDocId: data.riderDocId ?? null,
     currentRiderName: data.currentRiderName ?? "",
     vehicleType: data.vehicleType ?? null
   }),
+
+  setRiderOnlineStatus: (isOnline) => set({ isRiderOnline: isOnline }),
+  
+  setRideRequests: (requests) => set({ rideRequests: requests }),
+  
+  setActiveRides: (rides) => set({ activeRides: rides }),
+  
+  setRiderEarnings: (earnings) => set({ 
+    riderEarnings: { ...get().riderEarnings, ...earnings }
+  }),
+
+  // Add/remove individual requests
+  addRideRequest: (request) => set((state) => ({
+    rideRequests: [...state.rideRequests, request]
+  })),
+
+  removeRideRequest: (requestId) => set((state) => ({
+    rideRequests: state.rideRequests.filter(r => r.id !== requestId)
+  })),
+
+  // Move request to active ride
+  acceptRideRequest: (requestId, rideData) => set((state) => ({
+    rideRequests: state.rideRequests.filter(r => r.id !== requestId),
+    activeRides: [...state.activeRides, rideData]
+  })),
+
+  // Update active ride status
+  updateActiveRide: (rideId, updates) => set((state) => ({
+    activeRides: state.activeRides.map(ride => 
+      ride.id === rideId ? { ...ride, ...updates } : ride
+    )
+  })),
+
+  // Complete ride (remove from active)
+  completeRide: (rideId) => set((state) => ({
+    activeRides: state.activeRides.filter(r => r.id !== rideId)
+  })),
 
   setLastRiderLoc: (loc) => set({ lastRiderLoc: loc }),
   setLastStudentLoc: (loc) => set({ lastStudentLoc: loc }),
@@ -55,7 +103,11 @@ const useStore = create((set, get) => ({
     currentRiderName: "",
     vehicleType: null,
     lastRiderLoc: null,
-    lastStudentLoc: null
+    lastStudentLoc: null,
+    isRiderOnline: false,
+    rideRequests: [],
+    activeRides: [],
+    riderEarnings: { balance: 0, totalEarned: 0, todayEarnings: 0, totalRides: 0 },
   }),
 
   // ─── MAP ─────────────────────────────────────────────────────────────────

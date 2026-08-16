@@ -41,8 +41,7 @@ import {
   listenToRiderEarnings,
   acceptRideRequest,
   declineRideRequest,
-  completePickup,
-  completeDropoff,
+  completeNextStop,
   fetchRiderStats,
   formatNaira,
   getNextRideAction,
@@ -145,39 +144,51 @@ function RideRequestCard({ request, onAccept, onDecline, accepting }) {
   );
 }
 
-function ActiveRideCard({ ride, onPickup, onDropoff, actionLoading }) {
+function ActiveRideCard({ ride, onNextStop, actionLoading }) {
   const nextAction = getNextRideAction(ride);
+  
+  // Show all passengers in this ride
+  const passengers = ride.passengers ? Object.values(ride.passengers) : [];
   
   return (
     <View style={styles.activeCard}>
       <View style={styles.activeHeader}>
-        <Text style={styles.activeStudent}>{ride.studentName}</Text>
+        <Text style={styles.activeStudent}>
+          {passengers.length > 1 
+            ? `${passengers.length} passengers` 
+            : passengers[0]?.studentName || "Passenger"
+          }
+        </Text>
         <View style={[styles.statusDot, ride.status === "onTrip" ? styles.statusDotActive : styles.statusDotPending]} />
       </View>
       
-      <View style={styles.activeRoute}>
-        <Text style={styles.routeLabel}>From:</Text>
-        <Text style={styles.routeLocation}>{ride.pickup?.name || "Unknown"}</Text>
-      </View>
-      <View style={styles.activeRoute}>
-        <Text style={styles.routeLabel}>To:</Text>
-        <Text style={styles.routeLocation}>{ride.dropoff?.name || "Unknown"}</Text>
-      </View>
+      {/* Show all passenger routes */}
+      {passengers.map((passenger, index) => (
+        <View key={passenger.studentId} style={index > 0 ? { marginTop: 8 } : {}}>
+          {index > 0 && <View style={styles.passengerDivider} />}
+          <Text style={styles.passengerName}>{passenger.studentName}</Text>
+          <View style={styles.activeRoute}>
+            <Text style={styles.routeLabel}>From:</Text>
+            <Text style={styles.routeLocation}>{passenger.pickup?.name || "Unknown"}</Text>
+          </View>
+          <View style={styles.activeRoute}>
+            <Text style={styles.routeLabel}>To:</Text>
+            <Text style={styles.routeLocation}>{passenger.dropoff?.name || "Unknown"}</Text>
+          </View>
+          <Text style={styles.rideStatus}>
+            Status: {passenger.pickupStatus === "completed" ? 
+              (passenger.dropoffStatus === "completed" ? "Completed" : "On board") : 
+              "Waiting for pickup"
+            }
+          </Text>
+        </View>
+      ))}
       
-      <Text style={styles.rideStatus}>
-        Status: {ride.pickupStatus === "completed" ? "On board" : "Waiting for pickup"}
-      </Text>
-      
+      {/* Next action button */}
       {nextAction && (
         <TouchableOpacity
           style={[styles.actionBtn, styles.nextActionBtn]}
-          onPress={() => {
-            if (nextAction.type === "pickup") {
-              onPickup(ride.id);
-            } else {
-              onDropoff(ride.id);
-            }
-          }}
+          onPress={() => onNextStop(ride.id)}
           disabled={actionLoading}
         >
           {actionLoading ? (
@@ -194,19 +205,27 @@ function ActiveRideCard({ ride, onPickup, onDropoff, actionLoading }) {
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
 export default function RiderHomeScreen() {
-  const { currentUser, showToast } = useStore();
+  const { 
+    currentUser, 
+    showToast,
+    // Rider store state
+    isRiderOnline,
+    rideRequests,
+    activeRides,
+    riderEarnings,
+    setRiderOnlineStatus,
+    setRideRequests,
+    setActiveRides,
+    setRiderEarnings,
+    acceptRideRequest: moveRequestToActive,
+    removeRideRequest,
+    updateActiveRide,
+    completeRide,
+  } = useStore();
 
-  // State
-  const [isOnline, setIsOnline] = useState(false);
+  // Local loading states only
   const [statusLoading, setStatusLoading] = useState(false);
-  
-  const [rideRequests, setRideRequests] = useState([]);
-  const [activeRides, setActiveRides] = useState([]);
-  const [earnings, setEarnings] = useState({ balance: 0, totalEarned: 0 });
-  
-  const [stats, setStats] = useState({ todayEarnings: 0, totalRides: 0, balance: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
-  
   const [accepting, setAccepting] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -223,21 +242,23 @@ export default function RiderHomeScreen() {
 
     // Load initial rider status
     getRiderStatus(riderId).then((status) => {
-      setIsOnline(status.isOnline);
+      setRiderOnlineStatus(status.isOnline);
     });
 
-    // Fetch initial stats
+    // Fetch initial stats and sync to store
     fetchRiderStats(riderId)
-      .then(setStats)
+      .then((stats) => {
+        setRiderEarnings(stats);
+      })
       .finally(() => setStatsLoading(false));
 
-    // Set up listeners
-    if (isOnline) {
+    // Set up listeners that sync to store
+    if (isRiderOnline) {
       requestsUnsubscribe.current = listenToRideRequests(riderId, setRideRequests);
     }
     
     ridesUnsubscribe.current = listenToActiveRides(riderId, setActiveRides);
-    earningsUnsubscribe.current = listenToRiderEarnings(riderId, setEarnings);
+    earningsUnsubscribe.current = listenToRiderEarnings(riderId, setRiderEarnings);
 
     // Cleanup
     return () => {
@@ -245,7 +266,7 @@ export default function RiderHomeScreen() {
       ridesUnsubscribe.current?.();
       earningsUnsubscribe.current?.();
     };
-  }, [riderId, isOnline]);
+  }, [riderId, isRiderOnline]);
 
   // ── Status toggle ─────────────────────────────────────────────────────────
   async function handleStatusToggle() {
@@ -253,11 +274,11 @@ export default function RiderHomeScreen() {
     
     setStatusLoading(true);
     try {
-      const newStatus = !isOnline;
+      const newStatus = !isRiderOnline;
       const result = await setRiderStatus(riderId, newStatus);
       
       if (result.success) {
-        setIsOnline(newStatus);
+        setRiderOnlineStatus(newStatus);
         showToast(newStatus ? "You're now online" : "You're now offline", "success");
         
         // Set up or cleanup request listener
@@ -283,6 +304,22 @@ export default function RiderHomeScreen() {
     try {
       const result = await acceptRideRequest(requestId, riderId);
       if (result.success) {
+        // Find the request and create ride data for store
+        const request = rideRequests.find(r => r.id === requestId);
+        if (request) {
+          const rideData = {
+            id: result.rideId,
+            requestId,
+            studentId: request.studentId,
+            studentName: request.studentName,
+            pickup: request.pickup,
+            dropoff: request.dropoff,
+            status: "matched",
+            pickupStatus: "pending",
+            dropoffStatus: "pending",
+          };
+          moveRequestToActive(requestId, rideData);
+        }
         showToast("Ride accepted!", "success");
       } else {
         showToast(result.error || "Failed to accept ride", "error");
@@ -297,41 +334,34 @@ export default function RiderHomeScreen() {
   async function handleDeclineRequest(requestId) {
     const result = await declineRideRequest(requestId);
     if (result.success) {
+      removeRideRequest(requestId);
       showToast("Request declined", "info");
     }
   }
 
   // ── Active ride handlers ──────────────────────────────────────────────────
-  async function handlePickupComplete(rideId) {
+  async function handleNextStopComplete(rideId) {
     setActionLoading(true);
     try {
-      const result = await completePickup(rideId);
+      const result = await completeNextStop(rideId);
       if (result.success) {
-        showToast("Pickup completed", "success");
+        if (result.isCompleted) {
+          // Ride fully completed
+          completeRide(rideId);
+          showToast(`Ride completed! Earned ${formatNaira(result.earned)}`, "success");
+          // Refresh stats in store
+          const newStats = await fetchRiderStats(riderId);
+          setRiderEarnings(newStats);
+        } else {
+          // Just completed one stop
+          const action = result.stopType === "pickup" ? "Pickup" : "Dropoff";
+          showToast(`${action} completed for ${result.passengerName}`, "success");
+        }
       } else {
-        showToast(result.error || "Pickup failed", "error");
+        showToast(result.error || "Action failed", "error");
       }
     } catch (error) {
-      showToast("Pickup action failed", "error");
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function handleDropoffComplete(rideId) {
-    setActionLoading(true);
-    try {
-      const result = await completeDropoff(rideId);
-      if (result.success) {
-        showToast(`Ride completed! Earned ${formatNaira(result.earned)}`, "success");
-        // Refresh stats
-        const newStats = await fetchRiderStats(riderId);
-        setStats(newStats);
-      } else {
-        showToast(result.error || "Dropoff failed", "error");
-      }
-    } catch (error) {
-      showToast("Dropoff action failed", "error");
+      showToast("Stop completion failed", "error");
     } finally {
       setActionLoading(false);
     }
@@ -370,7 +400,7 @@ export default function RiderHomeScreen() {
             <Text style={styles.greeting}>Hello, {name}</Text>
             <Text style={styles.plateText}>Plate: {plateNo}</Text>
           </View>
-          <StatusBadge isOnline={isOnline} />
+          <StatusBadge isOnline={isRiderOnline} />
         </View>
 
         {/* ── Online Toggle ───────────────────────────────────── */}
@@ -383,19 +413,19 @@ export default function RiderHomeScreen() {
             <ActivityIndicator color={C.green} />
           ) : (
             <Switch
-              value={isOnline}
+              value={isRiderOnline}
               onValueChange={handleStatusToggle}
               trackColor={{ false: C.border, true: C.greenMute }}
-              thumbColor={isOnline ? C.green : C.sub}
+              thumbColor={isRiderOnline ? C.green : C.sub}
             />
           )}
         </View>
 
         {/* ── Earnings Summary ────────────────────────────────── */}
-        <EarningsCard stats={stats} loading={statsLoading} />
+        <EarningsCard stats={riderEarnings} loading={statsLoading} />
 
         {/* ── Ride Requests ───────────────────────────────────── */}
-        {isOnline && rideRequests.length > 0 && (
+        {isRiderOnline && rideRequests.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Incoming Requests</Text>
             {rideRequests.map((request) => (
@@ -418,23 +448,96 @@ export default function RiderHomeScreen() {
               <ActiveRideCard
                 key={ride.id}
                 ride={ride}
-                onPickup={handlePickupComplete}
-                onDropoff={handleDropoffComplete}
+                onNextStop={handleNextStopComplete}
                 actionLoading={actionLoading}
               />
             ))}
           </View>
         )}
 
+        {/* ── Map View ────────────────────────────────────────── */}
+        {(activeRides.length > 0 || rideRequests.length > 0) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Map</Text>
+            <View style={styles.mapContainer}>
+              <MapView
+                style={styles.map}
+                initialRegion={{
+                  latitude: 7.3775,   // Ibadan center
+                  longitude: 3.9470,
+                  latitudeDelta: 0.05,
+                  longitudeDelta: 0.05,
+                }}
+                showsUserLocation={true}
+                followsUserLocation={true}
+                showsMyLocationButton={true}
+              >
+                {/* Pickup markers for pending requests */}
+                {rideRequests.map((request) => (
+                  <Marker
+                    key={`request-${request.id}`}
+                    coordinate={{
+                      latitude: request.pickup?.lat || 0,
+                      longitude: request.pickup?.lng || 0,
+                    }}
+                    title={`Pickup: ${request.studentName}`}
+                    description={request.pickup?.name || "Pickup location"}
+                    pinColor="orange"
+                  />
+                ))}
+
+                {/* Active ride markers */}
+                {activeRides.map((ride) => {
+                  const markers = [];
+                  
+                  // Pickup marker (if not completed)
+                  if (ride.pickupStatus === "pending") {
+                    markers.push(
+                      <Marker
+                        key={`pickup-${ride.id}`}
+                        coordinate={{
+                          latitude: ride.pickup?.lat || 0,
+                          longitude: ride.pickup?.lng || 0,
+                        }}
+                        title={`Pick up ${ride.studentName}`}
+                        description={ride.pickup?.name || "Pickup location"}
+                        pinColor="yellow"
+                      />
+                    );
+                  }
+
+                  // Dropoff marker
+                  if (ride.pickupStatus === "completed" && ride.dropoffStatus === "pending") {
+                    markers.push(
+                      <Marker
+                        key={`dropoff-${ride.id}`}
+                        coordinate={{
+                          latitude: ride.dropoff?.lat || 0,
+                          longitude: ride.dropoff?.lng || 0,
+                        }}
+                        title={`Drop off ${ride.studentName}`}
+                        description={ride.dropoff?.name || "Dropoff location"}
+                        pinColor="green"
+                      />
+                    );
+                  }
+
+                  return markers;
+                })}
+              </MapView>
+            </View>
+          </View>
+        )}
+
         {/* ── Empty States ────────────────────────────────────── */}
-        {!isOnline && (
+        {!isRiderOnline && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>You're Offline</Text>
             <Text style={styles.emptySub}>Turn on online status to receive ride requests</Text>
           </View>
         )}
 
-        {isOnline && rideRequests.length === 0 && activeRides.length === 0 && (
+        {isRiderOnline && rideRequests.length === 0 && activeRides.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No Active Requests</Text>
             <Text style={styles.emptySub}>Stay online to receive ride requests from students</Text>
@@ -562,6 +665,9 @@ const styles = StyleSheet.create({
   },
   activeStudent: { color: C.text, fontSize: 16, fontWeight: "600" },
   
+  passengerName:    { color: C.text, fontSize: 14, fontWeight: "600", marginBottom: 4 },
+  passengerDivider: { height: 1, backgroundColor: C.border, marginVertical: 8 },
+  
   statusDot:        { width: 8, height: 8, borderRadius: 4 },
   statusDotActive:  { backgroundColor: C.green },
   statusDotPending: { backgroundColor: C.orange },
@@ -588,4 +694,16 @@ const styles = StyleSheet.create({
     borderColor:     C.border,
   },
   logoutText: { color: C.error, fontWeight: "600" },
+
+  // Map styles
+  mapContainer: {
+    height:       200,
+    borderRadius: 12,
+    overflow:     "hidden",
+    borderWidth:  1,
+    borderColor:  C.border,
+  },
+  map: { 
+    flex: 1,
+  },
 });

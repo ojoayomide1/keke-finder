@@ -96,7 +96,7 @@ export function listenToRideRequests(riderId, callback) {
 }
 
 /**
- * Accept a ride request
+ * Accept a ride request and integrate into multi-stop queue
  */
 export async function acceptRideRequest(requestId, riderId) {
   try {
@@ -110,24 +110,104 @@ export async function acceptRideRequest(requestId, riderId) {
 
       const requestData = requestDoc.data();
       
-      // Create ride document
-      const rideRef = doc(collection(db, "rides"));
-      transaction.set(rideRef, {
-        requestId,
-        riderId,
-        studentId: requestData.studentId,
-        studentName: requestData.studentName,
-        pickup: requestData.pickup,
-        dropoff: requestData.dropoff,
-        status: "matched",
-        pickupStatus: "pending",
-        dropoffStatus: "pending",
-        fare: TOTAL_FARE_KOBO,
-        riderShare: RIDER_SHARE_KOBO,
-        adminShare: ADMIN_SHARE_KOBO,
-        createdAt: serverTimestamp(),
-        matchedAt: serverTimestamp(),
-      });
+      // Check if rider has an existing active ride to add stops to
+      const existingRidesQuery = query(
+        collection(db, "rides"),
+        where("riderId", "==", riderId),
+        where("status", "in", ["matched", "onTrip"])
+      );
+      
+      const existingRidesSnap = await getDocs(existingRidesQuery);
+      
+      let rideRef;
+      let rideData;
+      
+      if (existingRidesSnap.empty) {
+        // Create new ride with initial stop queue
+        rideRef = doc(collection(db, "rides"));
+        const stopQueue = [
+          {
+            stopId: generateId(),
+            type: "pickup",
+            passengerId: requestData.studentId,
+            passengerName: requestData.studentName,
+            location: requestData.pickup,
+            locationLabel: requestData.pickup.name || requestData.pickup.label,
+            status: "pending"
+          },
+          {
+            stopId: generateId(),
+            type: "dropoff", 
+            passengerId: requestData.studentId,
+            passengerName: requestData.studentName,
+            location: requestData.dropoff,
+            locationLabel: requestData.dropoff.name || requestData.dropoff.label,
+            status: "pending"
+          }
+        ];
+        
+        rideData = {
+          requestIds: [requestId],
+          riderId,
+          passengers: {
+            [requestData.studentId]: {
+              studentId: requestData.studentId,
+              studentName: requestData.studentName,
+              pickup: requestData.pickup,
+              dropoff: requestData.dropoff,
+              pickupStatus: "pending",
+              dropoffStatus: "pending",
+              fare: TOTAL_FARE_KOBO,
+            }
+          },
+          stopQueue,
+          status: "matched",
+          fare: TOTAL_FARE_KOBO,
+          riderShare: RIDER_SHARE_KOBO,
+          adminShare: ADMIN_SHARE_KOBO,
+          createdAt: serverTimestamp(),
+          matchedAt: serverTimestamp(),
+        };
+        
+        transaction.set(rideRef, rideData);
+      } else {
+        // Add to existing ride's stop queue
+        const existingRideDoc = existingRidesSnap.docs[0];
+        rideRef = existingRideDoc.ref;
+        const existingRide = existingRideDoc.data();
+        
+        // Use insertStopsIntoQueue logic (implemented below)
+        const newStops = insertStopsIntoQueue(existingRide.stopQueue || [], requestData);
+        
+        const updatedPassengers = {
+          ...existingRide.passengers,
+          [requestData.studentId]: {
+            studentId: requestData.studentId,
+            studentName: requestData.studentName,
+            pickup: requestData.pickup,
+            dropoff: requestData.dropoff,
+            pickupStatus: "pending",
+            dropoffStatus: "pending",
+            fare: TOTAL_FARE_KOBO,
+          }
+        };
+        
+        transaction.update(rideRef, {
+          requestIds: [...(existingRide.requestIds || []), requestId],
+          passengers: updatedPassengers,
+          stopQueue: newStops,
+          fare: existingRide.fare + TOTAL_FARE_KOBO,
+          riderShare: existingRide.riderShare + RIDER_SHARE_KOBO,
+          adminShare: existingRide.adminShare + ADMIN_SHARE_KOBO,
+          updatedAt: serverTimestamp(),
+        });
+        
+        rideData = {
+          ...existingRide,
+          passengers: updatedPassengers,
+          stopQueue: newStops,
+        };
+      }
 
       // Update request status
       transaction.update(requestRef, {
@@ -145,6 +225,51 @@ export async function acceptRideRequest(requestId, riderId) {
     console.error("Error accepting ride:", error);
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Generate unique ID for stops
+ */
+function generateId() {
+  return Math.random().toString(36).substr(2, 9);
+}
+
+/**
+ * Insert pickup/dropoff stops optimally into existing queue
+ * Ported from main branch ride-helpers.js
+ */
+function insertStopsIntoQueue(currentQueue, request) {
+  const pendingStops = currentQueue.filter(s => s.status === "pending");
+  const completedStops = currentQueue.filter(s => s.status === "completed");
+
+  const newPickup = {
+    stopId: generateId(),
+    type: "pickup",
+    passengerId: request.studentId,
+    passengerName: request.studentName,
+    location: request.pickup,
+    locationLabel: request.pickup.name || request.pickup.label,
+    status: "pending"
+  };
+
+  const newDropoff = {
+    stopId: generateId(),
+    type: "dropoff",
+    passengerId: request.studentId,
+    passengerName: request.studentName,
+    location: request.dropoff,
+    locationLabel: request.dropoff.name || request.dropoff.label,
+    status: "pending"
+  };
+
+  // Simple insertion: add pickup at best position, dropoff after
+  let bestCost = Infinity;
+  let bestPickupIndex = pendingStops.length;
+  let bestDropoffIndex = pendingStops.length + 1;
+
+  // For now, just append to end (can optimize later with distance calculations)
+  const result = [...pendingStops, newPickup, newDropoff];
+  return [...completedStops, ...result];
 }
 
 /**
@@ -191,26 +316,9 @@ export function listenToActiveRides(riderId, callback) {
 }
 
 /**
- * Mark pickup as completed
+ * Mark next stop as completed (pickup or dropoff)
  */
-export async function completePickup(rideId) {
-  try {
-    await updateDoc(doc(db, "rides", rideId), {
-      pickupStatus: "completed",
-      status: "onTrip",
-      pickedUpAt: serverTimestamp(),
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Error completing pickup:", error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Mark dropoff as completed
- */
-export async function completeDropoff(rideId) {
+export async function completeNextStop(rideId) {
   try {
     const result = await runTransaction(db, async (transaction) => {
       const rideRef = doc(db, "rides", rideId);
@@ -221,42 +329,94 @@ export async function completeDropoff(rideId) {
       }
 
       const rideData = rideDoc.data();
+      const stopQueue = rideData.stopQueue || [];
       
-      // Update ride status
-      transaction.update(rideRef, {
-        dropoffStatus: "completed", 
-        status: "completed",
-        completedAt: serverTimestamp(),
-      });
-
-      // Update rider earnings
-      const riderRef = doc(db, "users", rideData.riderId);
-      const riderDoc = await transaction.get(riderRef);
-      
-      if (riderDoc.exists()) {
-        const currentEarnings = riderDoc.data().earnings || { balance: 0, totalEarned: 0 };
-        transaction.update(riderRef, {
-          earnings: {
-            ...currentEarnings,
-            balance: currentEarnings.balance + rideData.riderShare,
-            totalEarned: currentEarnings.totalEarned + rideData.riderShare,
-            lastEarning: {
-              amount: rideData.riderShare,
-              rideId,
-              earnedAt: serverTimestamp(),
-            },
-          },
-        });
+      // Find next pending stop
+      const nextStop = stopQueue.find(s => s.status === "pending");
+      if (!nextStop) {
+        throw new Error("No pending stops");
       }
 
-      return rideData.riderShare;
+      // Mark stop as completed
+      const updatedQueue = stopQueue.map(s =>
+        s.stopId === nextStop.stopId ? { ...s, status: "completed" } : s
+      );
+
+      const updates = {
+        stopQueue: updatedQueue,
+        updatedAt: serverTimestamp()
+      };
+
+      // Update passenger status
+      if (nextStop.type === "pickup") {
+        updates[`passengers.${nextStop.passengerId}.pickupStatus`] = "completed";
+        updates.status = "onTrip";
+      } else if (nextStop.type === "dropoff") {
+        updates[`passengers.${nextStop.passengerId}.dropoffStatus`] = "completed";
+        
+        // Check if all stops are completed
+        const remainingStops = updatedQueue.filter(s => s.status === "pending");
+        if (remainingStops.length === 0) {
+          updates.status = "completed";
+          updates.completedAt = serverTimestamp();
+          
+          // Update rider earnings
+          const riderRef = doc(db, "users", rideData.riderId);
+          const riderDoc = await transaction.get(riderRef);
+          
+          if (riderDoc.exists()) {
+            const currentEarnings = riderDoc.data().earnings || { balance: 0, totalEarned: 0 };
+            transaction.update(riderRef, {
+              earnings: {
+                ...currentEarnings,
+                balance: currentEarnings.balance + rideData.riderShare,
+                totalEarned: currentEarnings.totalEarned + rideData.riderShare,
+                lastEarning: {
+                  amount: rideData.riderShare,
+                  rideId,
+                  earnedAt: serverTimestamp(),
+                },
+              },
+            });
+          }
+        }
+      }
+
+      transaction.update(rideRef, updates);
+
+      return {
+        stopType: nextStop.type,
+        passengerName: nextStop.passengerName,
+        isCompleted: updates.status === "completed",
+        earned: updates.status === "completed" ? rideData.riderShare : 0,
+      };
     });
 
-    return { success: true, earned: result };
+    return { success: true, ...result };
   } catch (error) {
-    console.error("Error completing dropoff:", error);
+    console.error("Error completing stop:", error);
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Get next action for current ride (what stop is next)
+ */
+export function getNextRideAction(ride) {
+  if (!ride || !ride.stopQueue) return null;
+  
+  const nextStop = ride.stopQueue.find(s => s.status === "pending");
+  if (!nextStop) return null;
+  
+  return {
+    type: nextStop.type,
+    label: nextStop.type === "pickup" 
+      ? `Pick up ${nextStop.passengerName}` 
+      : `Drop off ${nextStop.passengerName}`,
+    location: nextStop.location,
+    locationLabel: nextStop.locationLabel,
+    stopId: nextStop.stopId,
+  };
 }
 
 // ─── EARNINGS & STATS ────────────────────────────────────────────────────────
