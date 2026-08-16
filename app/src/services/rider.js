@@ -491,6 +491,103 @@ export function listenToRiderEarnings(riderId, callback) {
   });
 }
 
+/**
+ * Listen to rider transaction history (earnings)
+ */
+export function listenToRiderTransactions(riderId, callback) {
+  const q = query(
+    collection(db, "walletTransactions"),
+    where("userId", "==", riderId),
+    where("type", "in", ["earning", "withdrawal"])
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const transactions = [];
+    snapshot.forEach((doc) => {
+      transactions.push({ id: doc.id, ...doc.data() });
+    });
+    
+    // Sort by date (newest first)
+    transactions.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return bTime - aTime;
+    });
+    
+    callback(transactions);
+  });
+}
+
+/**
+ * Listen to rider withdrawal requests
+ */
+export function listenToRiderWithdrawals(riderId, callback) {
+  const q = query(
+    collection(db, "withdrawalRequests"),
+    where("riderId", "==", riderId)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const withdrawals = [];
+    snapshot.forEach((doc) => {
+      withdrawals.push({ id: doc.id, ...doc.data() });
+    });
+    
+    // Sort by date (newest first)
+    withdrawals.sort((a, b) => {
+      const aTime = a.requestedAt?.toMillis ? a.requestedAt.toMillis() : 0;
+      const bTime = b.requestedAt?.toMillis ? b.requestedAt.toMillis() : 0;
+      return bTime - aTime;
+    });
+    
+    callback(withdrawals);
+  });
+}
+
+/**
+ * Request withdrawal (ported from main branch riderWallet.js)
+ */
+export async function requestWithdrawal(riderId, amountNaira, bankDetails) {
+  try {
+    const amountKobo = Math.round(amountNaira * 100);
+    const riderRef = doc(db, "users", riderId);
+
+    await runTransaction(db, async (transaction) => {
+      const riderSnap = await transaction.get(riderRef);
+      const rider = riderSnap.data();
+      const balance = rider?.earnings?.balance || 0;
+
+      if (balance < amountKobo) {
+        throw new Error("Insufficient earnings balance");
+      }
+
+      // Deduct from rider balance
+      transaction.update(riderRef, {
+        "earnings.balance": balance - amountKobo
+      });
+
+      // Create withdrawal request
+      transaction.set(doc(collection(db, "withdrawalRequests")), {
+        riderId,
+        riderName: rider.name || rider.displayName || "Rider",
+        amount: amountKobo,
+        bankName: bankDetails.bankName,
+        accountNumber: bankDetails.accountNumber,
+        accountName: bankDetails.accountName,
+        status: "pending",
+        requestedAt: serverTimestamp(),
+        paidAt: null,
+        rejectedReason: null
+      });
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error requesting withdrawal:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 // ─── UTILITIES ───────────────────────────────────────────────────────────────
 
 /**

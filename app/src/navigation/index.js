@@ -15,11 +15,14 @@ import WalletScreen from "../screens/student/WalletScreen";
 import ProfileScreen from "../screens/student/ProfileScreen";
 import PathfinderScreen from "../screens/student/PathfinderScreen";
 import RiderHomeScreen from "../screens/rider/HomeScreen";
+import RiderEarningsScreen from "../screens/rider/EarningsScreen";
+import RiderMapScreen from "../screens/rider/MapScreen";
+import RiderProfileScreen from "../screens/rider/ProfileScreen";
 
 // ─── NAVIGATORS ──────────────────────────────────────────────────────────────
 const AuthStack = createNativeStackNavigator();
 const StudentTab = createBottomTabNavigator();
-const RiderStack = createNativeStackNavigator();
+const RiderTab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
 
 // Auth flow — shown when no user is signed in
@@ -35,6 +38,16 @@ function AuthNavigator() {
 // Plain emoji icons — no extra icon library needed.
 function TabIcon({ label, focused }) {
   const icons = { Home: "🛺", Wallet: "💳", Map: "🗺️", Profile: "👤" };
+  return (
+    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>
+      {icons[label] ?? "●"}
+    </Text>
+  );
+}
+
+// Rider tab icons with orange theme
+function RiderTabIcon({ label, focused }) {
+  const icons = { Home: "🏠", Earnings: "💰", Map: "🗺️", Profile: "👤" };
   return (
     <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>
       {icons[label] ?? "●"}
@@ -91,11 +104,48 @@ function StudentNavigator() {
 
 // Rider stack — shown when signed-in user has role === "rider"
 function RiderNavigator() {
+  const insets = useSafeAreaInsets();
+  
   return (
-    <RiderStack.Navigator screenOptions={{ headerShown: false }}>
-      <RiderStack.Screen name="RiderHome" component={RiderHomeScreen} />
-      {/* More rider screens added here */}
-    </RiderStack.Navigator>
+    <RiderTab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: "#0F0F13",
+          borderTopColor:  "#1e1e28",
+          paddingBottom:    insets.bottom + 6,
+          paddingTop:       6,
+          height:           insets.bottom + 60,
+        },
+        tabBarActiveTintColor:   "#FF5E1A", // Orange for riders
+        tabBarInactiveTintColor: "#555",
+        tabBarLabelStyle:        { fontSize: 11, fontWeight: "600" },
+        tabBarIcon:              ({ focused }) => (
+          <RiderTabIcon label={route.name} focused={focused} />
+        ),
+      })}
+    >
+      <RiderTab.Screen
+        name="Home"
+        component={RiderHomeScreen}
+        options={{ title: "Home" }}
+      />
+      <RiderTab.Screen
+        name="Earnings"
+        component={RiderEarningsScreen}
+        options={{ title: "Earnings" }}
+      />
+      <RiderTab.Screen
+        name="Map"
+        component={RiderMapScreen}
+        options={{ title: "Map" }}
+      />
+      <RiderTab.Screen
+        name="Profile"
+        component={RiderProfileScreen}
+        options={{ title: "Profile" }}
+      />
+    </RiderTab.Navigator>
   );
 }
 
