@@ -499,26 +499,3 @@ export function listenToRiderEarnings(riderId, callback) {
 export function formatNaira(kobo) {
   return `₦${(kobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 }
-
-/**
- * Get next action for a ride (pickup or dropoff)
- */
-export function getNextRideAction(ride) {
-  if (!ride) return null;
-  
-  if (ride.pickupStatus === "pending") {
-    return {
-      type: "pickup",
-      label: `Pick up ${ride.studentName}`,
-      location: ride.pickup,
-    };
-  } else if (ride.dropoffStatus === "pending") {
-    return {
-      type: "dropoff", 
-      label: `Drop off ${ride.studentName}`,
-      location: ride.dropoff,
-    };
-  }
-  
-  return null;
-}
