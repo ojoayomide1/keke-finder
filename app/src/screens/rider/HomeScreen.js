@@ -20,7 +20,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -32,7 +31,6 @@ import {
 import MapView, { Marker } from "react-native-maps";
 
 import useStore from "../../store";
-import { signOut, auth } from "../../config/firebase";
 import {
   setRiderStatus,
   getRiderStatus,
@@ -367,24 +365,6 @@ export default function RiderHomeScreen() {
     }
   }
 
-  // ── Logout ────────────────────────────────────────────────────────────────
-  async function handleLogout() {
-    Alert.alert(
-      "Log Out",
-      "Are you sure you want to log out?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Log Out",
-          style: "destructive",
-          onPress: async () => {
-            await signOut(auth);
-          },
-        },
-      ]
-    );
-  }
-
   // ── Render ────────────────────────────────────────────────────────────────
 
   const name = currentUser?.name || currentUser?.displayName || "Rider";
@@ -545,11 +525,6 @@ export default function RiderHomeScreen() {
         )}
 
       </ScrollView>
-
-      {/* ── Logout Button ──────────────────────────────────────── */}
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Log Out</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -684,16 +659,6 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { color: C.text, fontSize: 18, fontWeight: "600", marginBottom: 8 },
   emptySub:   { color: C.sub, fontSize: 14, textAlign: "center" },
-
-  logoutBtn: {
-    margin:          20,
-    paddingVertical: 14,
-    alignItems:      "center",
-    borderRadius:    12,
-    borderWidth:     1,
-    borderColor:     C.border,
-  },
-  logoutText: { color: C.error, fontWeight: "600" },
 
   // Map styles
   mapContainer: {
