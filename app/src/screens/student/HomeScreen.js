@@ -38,7 +38,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Marker, Polyline, UrlTile } from "react-native-maps";
 import * as Location from "expo-location";
 
 import useStore from "../../store";
@@ -924,11 +924,16 @@ export default function StudentHomeScreen() {
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
           initialRegion={mapRegion}
-          mapType="standard"
+          mapType="none"
           showsUserLocation
           showsMyLocationButton={false}
           onMapReady={() => setMapReady(true)}
         >
+          <UrlTile
+            urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            maximumZ={19}
+            flipY={false}
+          />
           {/* Campus location markers */}
           {locations.map(loc => {
             const meta = getCampusCategoryMeta(loc.category);

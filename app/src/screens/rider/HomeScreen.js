@@ -28,7 +28,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, UrlTile } from "react-native-maps";
 import * as Location from "expo-location";
 
 import useStore from "../../store";
@@ -529,15 +529,21 @@ export default function RiderHomeScreen() {
               <MapView
                 style={styles.map}
                 initialRegion={{
-                  latitude: 7.3775,   // Ibadan center
+                  latitude: 7.3775,
                   longitude: 3.9470,
                   latitudeDelta: 0.05,
                   longitudeDelta: 0.05,
                 }}
+                mapType="none"
                 showsUserLocation={true}
                 followsUserLocation={true}
                 showsMyLocationButton={true}
               >
+                <UrlTile
+                  urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  maximumZ={19}
+                  flipY={false}
+                />
                 {/* Pickup markers for pending requests */}
                 {rideRequests.map((request) => (
                   <Marker

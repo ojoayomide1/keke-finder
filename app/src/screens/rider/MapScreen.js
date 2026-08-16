@@ -26,7 +26,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, Polyline, UrlTile } from "react-native-maps";
 import * as Location from "expo-location";
 
 import useStore from "../../store";
@@ -280,14 +280,19 @@ export default function RiderMapScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
+        mapType="none"
         initialRegion={initialRegion}
         showsUserLocation={true}
         followsUserLocation={false}
         showsMyLocationButton={true}
         showsTraffic={false}
-        showsBuildings={true}
+        showsBuildings={false}
       >
+        <UrlTile
+          urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maximumZ={19}
+          flipY={false}
+        />
         {getAllMarkers()}
       </MapView>
 
