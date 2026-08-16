@@ -589,5 +589,10 @@ service cloud.firestore {
       allow get, list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow update, delete: if isAdmin();
     }
+
+    // Rider status collection - allows riders to update their online/offline status
+    match /riderStatus/{riderId} {
+      allow read, write: if isSignedIn() && request.auth.uid == riderId && isRider();
+    }
   }
 }

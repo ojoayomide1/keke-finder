@@ -67,6 +67,13 @@ const useStore = create((set, get) => ({
   setPathfinderDestination: (id) => set({ pathfinderDestinationId: id }),
   setPathfinderHasFitRoute: (val) => set({ pathfinderHasFitRoute: val }),
 
+  // ─── WALLET ──────────────────────────────────────────────────────────────
+  walletBalance: 0,        // in kobo — live-synced from Firestore
+  transactions: [],        // last 50 walletTransactions docs
+
+  setWalletBalance: (bal) => set({ walletBalance: bal }),
+  setTransactions: (txs)  => set({ transactions: txs }),
+
   // ─── UI ──────────────────────────────────────────────────────────────────
   toastMessage: null,      // { text, type: "success"|"error"|"info" }
   isLoading: false,

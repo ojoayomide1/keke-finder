@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { ActivityIndicator, View, StyleSheet } from "react-native";
+import { ActivityIndicator, Platform, Text, View, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { auth, onAuthStateChanged, db, doc, getDoc } from "../config/firebase";
 import useStore from "../store";
@@ -10,6 +11,9 @@ import useStore from "../store";
 // ─── SCREENS ─────────────────────────────────────────────────────────────────
 import LoginScreen from "../screens/auth/LoginScreen";
 import StudentHomeScreen from "../screens/student/HomeScreen";
+import WalletScreen from "../screens/student/WalletScreen";
+import ProfileScreen from "../screens/student/ProfileScreen";
+import PathfinderScreen from "../screens/student/PathfinderScreen";
 import RiderHomeScreen from "../screens/rider/HomeScreen";
 
 // ─── NAVIGATORS ──────────────────────────────────────────────────────────────
@@ -27,26 +31,60 @@ function AuthNavigator() {
   );
 }
 
+// ─── TAB ICON ────────────────────────────────────────────────────────────────
+// Plain emoji icons — no extra icon library needed.
+function TabIcon({ label, focused }) {
+  const icons = { Home: "🛺", Wallet: "💳", Map: "🗺️", Profile: "👤" };
+  return (
+    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>
+      {icons[label] ?? "●"}
+    </Text>
+  );
+}
+
 // Student tab flow — shown when signed-in user has role === "student"
 function StudentNavigator() {
+  const insets = useSafeAreaInsets();
+  
   return (
     <StudentTab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
           backgroundColor: "#0F0F13",
-          borderTopColor: "#1e1e28",
+          borderTopColor:  "#1e1e28",
+          paddingBottom:    insets.bottom + 6,
+          paddingTop:       6,
+          height:           insets.bottom + 60,
         },
-        tabBarActiveTintColor: "#00C48C",
+        tabBarActiveTintColor:   "#00C48C",
         tabBarInactiveTintColor: "#555",
-      }}
+        tabBarLabelStyle:        { fontSize: 11, fontWeight: "600" },
+        tabBarIcon:              ({ focused }) => (
+          <TabIcon label={route.name} focused={focused} />
+        ),
+      })}
     >
       <StudentTab.Screen
-        name="StudentHome"
+        name="Home"
         component={StudentHomeScreen}
-        options={{ title: "Home", tabBarIcon: () => null }}
+        options={{ title: "Home" }}
       />
-      {/* More student tabs added here as screens are built */}
+      <StudentTab.Screen
+        name="Wallet"
+        component={WalletScreen}
+        options={{ title: "Wallet" }}
+      />
+      <StudentTab.Screen
+        name="Map"
+        component={PathfinderScreen}
+        options={{ title: "Map" }}
+      />
+      <StudentTab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ title: "Profile" }}
+      />
     </StudentTab.Navigator>
   );
 }
