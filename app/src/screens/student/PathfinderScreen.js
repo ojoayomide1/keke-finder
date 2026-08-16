@@ -50,6 +50,8 @@ import {
   listenToCampusData,
   getCampusLocationsForMap,
   getCampusCategoryMeta,
+  getCampusPaths,
+  getCampusBuildings,
   CAMPUS_CATEGORY_META,
 } from "../../services/campus-data";
 import {
@@ -235,7 +237,9 @@ function LocationCard({ loc, onSetOrigin, onSetDest, isOrigin, isDest }) {
 export default function PathfinderScreen() {
   const mapRef = useRef(null);
 
-  const [locations,    setLocations]    = useState([]);
+  const [locations,       setLocations]       = useState([]);
+  const [campusPaths,     setCampusPaths]     = useState([]);
+  const [campusBuildings, setCampusBuildings] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
 
@@ -255,10 +259,14 @@ export default function PathfinderScreen() {
   useEffect(() => {
     loadCampusDataFromFirestore().then(() => {
       setLocations(getCampusLocationsForMap());
+      setCampusPaths(getCampusPaths());
+      setCampusBuildings(getCampusBuildings());
     });
 
     unsubCampusRef.current = listenToCampusData(() => {
       setLocations(getCampusLocationsForMap());
+      setCampusPaths(getCampusPaths());
+      setCampusBuildings(getCampusBuildings());
     });
 
     // User location for the recenter button
@@ -422,6 +430,26 @@ export default function PathfinderScreen() {
               lineDashPattern={route?.routed ? undefined : [8, 6]}
             />
           )}
+
+          {/* Campus roads/paths */}
+          {campusPaths.map((path, i) => (
+            <Polyline
+              key={`path-${i}`}
+              coordinates={path.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
+              strokeColor="#2a2a35"
+              strokeWidth={3}
+            />
+          ))}
+
+          {/* Campus buildings */}
+          {campusBuildings.map((building, i) => (
+            <Polyline
+              key={`building-${i}`}
+              coordinates={building.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
+              strokeColor="#3a3a45"
+              strokeWidth={1.5}
+            />
+          ))}
         </MapView>
 
         {/* Recenter button */}

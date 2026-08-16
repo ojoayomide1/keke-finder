@@ -49,6 +49,8 @@ import {
   getRideStops,
   getCampusLocationsForMap,
   getCampusCategoryMeta,
+  getCampusPaths,
+  getCampusBuildings,
 } from "../../services/campus-data";
 import {
   requestRide,
@@ -212,6 +214,8 @@ export default function StudentHomeScreen() {
   const [mapReady, setMapReady]         = useState(false);
   const [rideStops, setRideStops]       = useState([]);
   const [locations, setLocations]       = useState([]);
+  const [campusPaths, setCampusPaths]   = useState([]);
+  const [campusBuildings, setCampusBuildings] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   const [riderMarker, setRiderMarker]   = useState(null);
   // Real-time rider GPS location from rideLocations/{riderId}
@@ -253,11 +257,15 @@ export default function StudentHomeScreen() {
     loadCampusDataFromFirestore().then(() => {
       setRideStops(getRideStops());
       setLocations(getCampusLocationsForMap());
+      setCampusPaths(getCampusPaths());
+      setCampusBuildings(getCampusBuildings());
     });
 
     unsubCampusRef.current = listenToCampusData(() => {
       setRideStops(getRideStops());
       setLocations(getCampusLocationsForMap());
+      setCampusPaths(getCampusPaths());
+      setCampusBuildings(getCampusBuildings());
     });
 
     // Location permission + user marker
@@ -969,6 +977,26 @@ export default function StudentHomeScreen() {
               pinColor="blue"
             />
           )}
+
+          {/* Campus roads/paths */}
+          {campusPaths.map((path, i) => (
+            <Polyline
+              key={`path-${i}`}
+              coordinates={path.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
+              strokeColor="#2a2a35"
+              strokeWidth={3}
+            />
+          ))}
+
+          {/* Campus buildings */}
+          {campusBuildings.map((building, i) => (
+            <Polyline
+              key={`building-${i}`}
+              coordinates={building.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
+              strokeColor="#3a3a45"
+              strokeWidth={1.5}
+            />
+          ))}
         </MapView>
 
         {/* Recenter button */}

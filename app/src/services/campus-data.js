@@ -146,6 +146,20 @@ export function getRideStops() {
   return CAMPUS_MAP_DATA.rideStops.filter(hasCoordinates);
 }
 
+/** Returns campus paths/roads as arrays of {lat,lng} coordinates. */
+export function getCampusPaths() {
+  return (CAMPUS_MAP_DATA.paths || []).filter(
+    p => Array.isArray(p.points) && p.points.length >= 2
+  );
+}
+
+/** Returns campus buildings as arrays of {lat,lng} polygon coordinates. */
+export function getCampusBuildings() {
+  return (CAMPUS_MAP_DATA.buildings || []).filter(
+    b => Array.isArray(b.points) && b.points.length >= 3
+  );
+}
+
 /** Returns true if a map item has valid lat/lng. */
 export function hasCoordinates(item) {
   return Number.isFinite(item?.lat) && Number.isFinite(item?.lng);
