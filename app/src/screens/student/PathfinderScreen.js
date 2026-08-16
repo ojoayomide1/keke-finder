@@ -42,7 +42,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Polyline, UrlTile } from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import * as Location from "expo-location";
 
 import {
@@ -397,11 +397,6 @@ export default function PathfinderScreen() {
           showsUserLocation
           showsMyLocationButton={false}
         >
-          <UrlTile
-            urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maximumZ={19}
-            flipY={false}
-          />
           {/* Campus location markers */}
           {locations.map((loc) => {
             const meta     = getCampusCategoryMeta(loc.category);
@@ -588,7 +583,7 @@ const styles = StyleSheet.create({
   wordmarkRides: { color: C.green, fontWeight: "800", fontSize: 20 },
 
   // ── Map
-  mapContainer: { flex: 1 },
+  mapContainer: { flex: 1, backgroundColor: "#0F0F13" },
   recenterBtn: {
     position:        "absolute",
     bottom:          12,

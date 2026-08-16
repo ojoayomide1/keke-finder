@@ -26,7 +26,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Polyline, UrlTile } from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import * as Location from "expo-location";
 
 import useStore from "../../store";
@@ -288,11 +288,6 @@ export default function RiderMapScreen() {
         showsTraffic={false}
         showsBuildings={false}
       >
-        <UrlTile
-          urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          maximumZ={19}
-          flipY={false}
-        />
         {getAllMarkers()}
       </MapView>
 
@@ -330,7 +325,7 @@ export default function RiderMapScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  map:  { flex: 1 },
+  map:  { flex: 1, backgroundColor: C.bg },
 
   // Status panel (top)
   statusPanel: {

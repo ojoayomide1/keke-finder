@@ -28,7 +28,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, UrlTile } from "react-native-maps";
+import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 
 import useStore from "../../store";
@@ -539,11 +539,6 @@ export default function RiderHomeScreen() {
                 followsUserLocation={true}
                 showsMyLocationButton={true}
               >
-                <UrlTile
-                  urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  maximumZ={19}
-                  flipY={false}
-                />
                 {/* Pickup markers for pending requests */}
                 {rideRequests.map((request) => (
                   <Marker
@@ -754,11 +749,12 @@ const styles = StyleSheet.create({
 
   // Map styles
   mapContainer: {
-    height:       200,
-    borderRadius: 12,
-    overflow:     "hidden",
-    borderWidth:  1,
-    borderColor:  C.border,
+    height:          200,
+    borderRadius:    12,
+    overflow:        "hidden",
+    borderWidth:     1,
+    borderColor:     C.border,
+    backgroundColor: "#0F0F13",
   },
   map: { 
     flex: 1,
