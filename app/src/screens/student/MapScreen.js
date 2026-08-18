@@ -10,7 +10,7 @@
  *  - User location when walk route is active
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -141,6 +141,22 @@ export default function MapScreen() {
     };
   }, []);
 
+  // ── Auto-center on campus once data loads ───────────────────────────────
+  const hasCenteredRef = useRef(false);
+  useEffect(() => {
+    if (hasCenteredRef.current || !mapRef.current) return;
+    const valid = [...rideStops, ...locations].filter(l => l.lat && l.lng);
+    if (valid.length === 0) return;
+    hasCenteredRef.current = true;
+    const coords = valid.map(l => ({ latitude: l.lat, longitude: l.lng }));
+    setTimeout(() => {
+      mapRef.current?.fitToCoordinates(coords, {
+        edgePadding: { top: 60, right: 40, bottom: 160, left: 40 },
+        animated: true,
+      });
+    }, 800);
+  }, [locations.length, rideStops.length]);
+
   // ── Watch ride state from store ─────────────────────────────────────────
   useEffect(() => {
     if (latestRide) {
@@ -262,7 +278,7 @@ export default function MapScreen() {
   }
 
   // ── Map region ──────────────────────────────────────────────────────────
-  const mapRegion = React.useMemo(() => {
+  const mapRegion = useMemo(() => {
     const valid = [...rideStops, ...locations].filter(l => l.lat && l.lng);
     if (valid.length > 0) {
       const avgLat = valid.reduce((s, l) => s + l.lat, 0) / valid.length;
@@ -272,8 +288,63 @@ export default function MapScreen() {
     return { latitude: 6.9, longitude: 4.95, latitudeDelta: 0.012, longitudeDelta: 0.012 };
   }, [rideStops.length, locations.length]);
 
+  // Memoize static map layers so they don't re-render on every state change
+  const campusPathPolylines = useMemo(() =>
+    campusPaths.map((path, i) => (
+      <Polyline
+        key={`p-${i}`}
+        coordinates={path.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
+        strokeColor="#2a2a35"
+        strokeWidth={3}
+      />
+    )),
+    [campusPaths]
+  );
+
+  const campusBuildingPolylines = useMemo(() =>
+    campusBuildings.map((b, i) => {
+      const coords = b.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+      return (
+        <Polyline key={`b-${i}`} coordinates={[...coords, coords[0]]} strokeColor="#3a3a45" strokeWidth={1.5} />
+      );
+    }),
+    [campusBuildings]
+  );
+
+  const locationMarkers = useMemo(() =>
+    locations.map(loc => {
+      const meta = getCampusCategoryMeta(loc.category);
+      return (
+        <Marker key={loc.id} coordinate={{ latitude: loc.lat, longitude: loc.lng }} title={loc.name}>
+          <View style={styles.markerWrap}>
+            <View style={[styles.markerBubble, { backgroundColor: meta.color }]}>
+              <Text style={styles.markerEmoji}>{CATEGORY_EMOJI[loc.category] ?? "📍"}</Text>
+            </View>
+          </View>
+        </Marker>
+      );
+    }),
+    [locations]
+  );
+
+  const stopMarkers = useMemo(() =>
+    rideStops.map(stop => (
+      <Marker key={stop.id} coordinate={{ latitude: stop.lat, longitude: stop.lng }} title={stop.name}>
+        <View style={styles.markerWrap}>
+          <View style={[styles.markerBubble, { backgroundColor: C.green }]}>
+            <Text style={styles.markerEmoji}>🛺</Text>
+          </View>
+        </View>
+      </Marker>
+    )),
+    [rideStops]
+  );
+
   // Walk route polyline coords
-  const walkCoords = walkRoute?.points?.map(([lat, lng]) => ({ latitude: lat, longitude: lng })) ?? [];
+  const walkCoords = useMemo(
+    () => walkRoute?.points?.map(([lat, lng]) => ({ latitude: lat, longitude: lng })) ?? [],
+    [walkRoute]
+  );
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
@@ -290,58 +361,13 @@ export default function MapScreen() {
         showsMyLocationButton={false}
         onRegionChange={r => setZoomDelta(r.latitudeDelta)}
       >
-        {/* Campus roads */}
-        {campusPaths.map((path, i) => (
-          <Polyline
-            key={`p-${i}`}
-            coordinates={path.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
-            strokeColor="#2a2a35"
-            strokeWidth={3}
-          />
-        ))}
+        {/* Static campus layers - memoized */}
+        {campusPathPolylines}
+        {campusBuildingPolylines}
 
-        {/* Campus buildings */}
-        {campusBuildings.map((b, i) => {
-          const coords = b.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
-          return (
-            <Polyline key={`b-${i}`} coordinates={[...coords, coords[0]]} strokeColor="#3a3a45" strokeWidth={1.5} />
-          );
-        })}
-
-        {/* Location markers */}
-        {zoomDelta < 0.018 && locations.map(loc => {
-          const meta = getCampusCategoryMeta(loc.category);
-          return (
-            <Marker key={loc.id} coordinate={{ latitude: loc.lat, longitude: loc.lng }} title={loc.name}>
-              <View style={styles.markerWrap}>
-                <View style={[styles.markerBubble, { backgroundColor: meta.color }]}>
-                  <Text style={styles.markerEmoji}>{CATEGORY_EMOJI[loc.category] ?? "📍"}</Text>
-                </View>
-                {zoomDelta < 0.009 && (
-                  <Text style={styles.markerLabel} numberOfLines={1}>
-                    {loc.name.length > 14 ? loc.name.slice(0, 14) + "…" : loc.name}
-                  </Text>
-                )}
-              </View>
-            </Marker>
-          );
-        })}
-
-        {/* Ride stop markers */}
-        {zoomDelta < 0.018 && rideStops.map(stop => (
-          <Marker key={stop.id} coordinate={{ latitude: stop.lat, longitude: stop.lng }} title={stop.name}>
-            <View style={styles.markerWrap}>
-              <View style={[styles.markerBubble, { backgroundColor: C.green }]}>
-                <Text style={styles.markerEmoji}>🛺</Text>
-              </View>
-              {zoomDelta < 0.012 && (
-                <Text style={[styles.markerLabel, { backgroundColor: "rgba(0,196,140,0.85)" }]} numberOfLines={1}>
-                  {stop.name.length > 14 ? stop.name.slice(0, 14) + "…" : stop.name}
-                </Text>
-              )}
-            </View>
-          </Marker>
-        ))}
+        {/* Markers - zoom gated + memoized */}
+        {zoomDelta < 0.018 && locationMarkers}
+        {zoomDelta < 0.018 && stopMarkers}
 
         {/* Live rider marker */}
         {riderLocation && (

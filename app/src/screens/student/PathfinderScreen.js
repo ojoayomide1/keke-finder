@@ -1,14 +1,14 @@
 /**
  * PathfinderScreen.js — Campus walking route finder (full page)
  *
- * Select From + To → calculates walking route → View on Map
- * "View on Map" sets walk route in store and switches to Map tab
+ * Tap a location → "Go" to set as destination from current location
+ * Or tap "From here" to set as origin, then tap Go on destination
+ * Auto-navigates to Map tab after 10s countdown when route is found
  */
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Platform,
   ScrollView,
   StyleSheet,
@@ -36,6 +36,7 @@ const C = {
   border:  "#2a2a35",
   green:   "#00C48C",
   orange:  "#FF5E1A",
+  red:     "#ef4444",
   text:    "#FFFFFF",
   sub:     "#888",
 };
@@ -64,6 +65,39 @@ function formatWalkTime(m) {
   return mins < 1 ? "< 1 min" : `${mins} min`;
 }
 
+// ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
+
+const LocationCard = React.memo(function LocationCard({ loc, isOrigin, isDest, onGo, onSetOrigin }) {
+  const meta = getCampusCategoryMeta(loc.category);
+  return (
+    <View style={styles.locCard}>
+      <View style={[styles.locDot, { backgroundColor: meta.color }]} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.locName}>{loc.name}</Text>
+        <Text style={styles.locCat}>{meta.label}</Text>
+      </View>
+      <View style={styles.locActions}>
+        <TouchableOpacity
+          style={[styles.locBtn, isOrigin && styles.locBtnActiveGreen]}
+          onPress={() => onSetOrigin(isOrigin ? null : loc.id)}
+        >
+          <Text style={[styles.locBtnText, isOrigin && { color: C.green }]}>
+            {isOrigin ? "From ✓" : "From"}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.goBtn, isDest && styles.goBtnActive]}
+          onPress={() => onGo(loc.id)}
+        >
+          <Text style={[styles.goBtnText, isDest && styles.goBtnTextActive]}>
+            {isDest ? "Going" : "Go"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 
 export default function PathfinderScreen({ navigation }) {
@@ -76,8 +110,10 @@ export default function PathfinderScreen({ navigation }) {
   const [route,        setRoute]        = useState(null);
   const [routing,      setRouting]      = useState(false);
   const [filter,       setFilter]       = useState("all");
+  const [countdown,    setCountdown]    = useState(null); // null | number
 
-  const unsubCampusRef = useRef(null);
+  const countdownRef    = useRef(null);
+  const unsubCampusRef  = useRef(null);
 
   // ── Load data ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -92,12 +128,15 @@ export default function PathfinderScreen({ navigation }) {
       }
     })();
 
-    return () => unsubCampusRef.current?.();
+    return () => {
+      unsubCampusRef.current?.();
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
   }, []);
 
-  // ── Calculate route ─────────────────────────────────────────────────────
+  // ── Calculate route when origin+dest change ─────────────────────────────
   useEffect(() => {
-    if (!destId) { setRoute(null); return; }
+    if (!destId) { setRoute(null); cancelCountdown(); return; }
 
     const originLoc = originId === null
       ? (userLocation ? { ...userLocation, id: "_current", name: "Current Location" } : null)
@@ -107,10 +146,12 @@ export default function PathfinderScreen({ navigation }) {
     if (!originLoc || !destLoc) return;
 
     setRouting(true);
+    cancelCountdown();
     const id = setTimeout(() => {
       try {
         const result = calculateCampusRoute(originLoc, destLoc);
         setRoute({ ...result, originName: originLoc.name, destName: destLoc.name });
+        startCountdown();
       } catch {
         setRoute({ points: [], distance: null, routed: false, originName: originLoc.name, destName: destLoc.name });
       } finally {
@@ -121,25 +162,83 @@ export default function PathfinderScreen({ navigation }) {
     return () => clearTimeout(id);
   }, [originId, destId, locations, userLocation]);
 
-  // ── View on Map ─────────────────────────────────────────────────────────
-  function handleViewOnMap() {
+  // ── Countdown then navigate to map ─────────────────────────────────────
+  function startCountdown() {
+    setCountdown(10);
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownRef.current);
+          countdownRef.current = null;
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  function cancelCountdown() {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    setCountdown(null);
+  }
+
+  // When countdown reaches null after starting, navigate to map
+  const didStartCountdown = useRef(false);
+  useEffect(() => {
+    if (route && countdown === null && didStartCountdown.current) {
+      navigateToMap();
+      didStartCountdown.current = false;
+    }
+    if (route && countdown !== null) {
+      didStartCountdown.current = true;
+    }
+  }, [countdown, route]);
+
+  function navigateToMap() {
     if (!route) return;
     setWalkOriginId(originId);
     setWalkRoute(route);
     navigation.navigate("Map");
   }
 
-  // ── Derived ─────────────────────────────────────────────────────────────
+  function handleGoNow() {
+    cancelCountdown();
+    navigateToMap();
+  }
+
+  function handleCancelRoute() {
+    cancelCountdown();
+    setDestId(null);
+    setOriginId(null);
+    setRoute(null);
+    clearWalkRoute();
+  }
+
+  // ── Handle Go tap on a location card ───────────────────────────────────
+  const handleGo = useCallback((locId) => {
+    if (locId === destId) {
+      // Tapping Go again on the same dest = go now
+      handleGoNow();
+    } else {
+      setDestId(locId);
+    }
+  }, [destId, route]);
+
+  const handleSetOrigin = useCallback((locId) => {
+    setOriginId(locId);
+  }, []);
+
+  // ── Filtered locations ──────────────────────────────────────────────────
   const filteredLocations = useMemo(() =>
     filter === "all" ? locations : locations.filter(l => l.category === filter),
     [locations, filter]
   );
 
-  const originName = originId === null
-    ? "Current Location"
+  const originName = originId === null ? "Current Location"
     : locations.find(l => l.id === originId)?.name ?? "Select origin";
-
-  const destName = locations.find(l => l.id === destId)?.name ?? null;
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
@@ -147,149 +246,94 @@ export default function PathfinderScreen({ navigation }) {
     <View style={styles.root}>
       {/* ── Header ────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Pathfinder</Text>
-        <Text style={styles.headerSub}>Find your way around campus</Text>
+        <View>
+          <Text style={styles.headerTitle}>Pathfinder</Text>
+          <Text style={styles.headerSub}>Find your way around campus</Text>
+        </View>
+        {originId !== null && (
+          <TouchableOpacity style={styles.currentLocBtn} onPress={() => setOriginId(null)}>
+            <Text style={styles.currentLocBtnText}>Use Current Location</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-
-        {/* ── Route pickers ───────────────────────────────────────── */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>From</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-            <TouchableOpacity
-              style={[styles.chip, originId === null && styles.chipActive]}
-              onPress={() => setOriginId(null)}
-            >
-              <Text style={[styles.chipText, originId === null && styles.chipTextActive]}>
-                Current Location
-              </Text>
-            </TouchableOpacity>
-            {locations.map(loc => (
-              <TouchableOpacity
-                key={loc.id}
-                style={[styles.chip, originId === loc.id && styles.chipActive]}
-                onPress={() => setOriginId(loc.id)}
-              >
-                <Text style={[styles.chipText, originId === loc.id && styles.chipTextActive]}>
-                  {CATEGORY_EMOJI[loc.category] ?? "📍"} {loc.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          <View style={styles.divider} />
-
-          <Text style={styles.cardLabel}>To</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-            {locations.map(loc => (
-              <TouchableOpacity
-                key={loc.id}
-                style={[styles.chip, styles.destChip, destId === loc.id && styles.destChipActive]}
-                onPress={() => setDestId(loc.id)}
-              >
-                <Text style={[styles.chipText, destId === loc.id && styles.destChipTextActive]}>
-                  {CATEGORY_EMOJI[loc.category] ?? "📍"} {loc.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Swap button */}
-          {originId !== null && destId && (
-            <TouchableOpacity
-              style={styles.swapBtn}
-              onPress={() => { const tmp = originId; setOriginId(destId); setDestId(tmp); }}
-            >
-              <Text style={styles.swapBtnText}>Swap</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ── Route result ────────────────────────────────────────── */}
-        {routing && (
-          <View style={styles.card}>
-            <ActivityIndicator color={C.green} />
-            <Text style={[styles.cardLabel, { marginTop: 8 }]}>Calculating route...</Text>
-          </View>
-        )}
-
-        {route && !routing && (
-          <View style={styles.card}>
-            <Text style={styles.routeTitle}>
-              {originName} → {destName}
+      {/* ── Active route banner ─────────────────────────────────── */}
+      {route && (
+        <View style={styles.routeBanner}>
+          <View style={styles.routeBannerInfo}>
+            <Text style={styles.routeBannerTitle} numberOfLines={1}>
+              {originName} → {route.destName}
             </Text>
+            <Text style={styles.routeBannerStats}>
+              {formatDistance(route.distance)}  ·  {formatWalkTime(route.distance)}  ·  {route.routed ? "Mapped" : "Straight line"}
+            </Text>
+          </View>
 
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{formatDistance(route.distance)}</Text>
-                <Text style={styles.statLabel}>Distance</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{formatWalkTime(route.distance)}</Text>
-                <Text style={styles.statLabel}>Walk time</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: route.routed ? C.green : C.orange }]}>
-                  {route.routed ? "Mapped" : "Straight"}
-                </Text>
-                <Text style={styles.statLabel}>Route type</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.viewMapBtn} onPress={handleViewOnMap}>
-              <Text style={styles.viewMapBtnText}>View on Map</Text>
+          <View style={styles.routeBannerActions}>
+            {countdown !== null ? (
+              <TouchableOpacity style={styles.goNowBtn} onPress={handleGoNow}>
+                <Text style={styles.goNowBtnText}>Map ({countdown}s)</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.goNowBtn} onPress={handleGoNow}>
+                <Text style={styles.goNowBtnText}>View Map</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.cancelRouteBtn} onPress={handleCancelRoute}>
+              <Text style={styles.cancelRouteBtnText}>✕</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      )}
+
+      {routing && (
+        <View style={styles.routingBar}>
+          <ActivityIndicator size="small" color={C.green} />
+          <Text style={styles.routingText}>Calculating...</Text>
+        </View>
+      )}
+
+      {/* ── Category filter ─────────────────────────────────────── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterRow}
+        contentContainerStyle={styles.filterContent}
+      >
+        {[["all", "All"], ...Object.entries(CAMPUS_CATEGORY_META).map(([id, m]) => [id, m.label])].map(([id, label]) => (
+          <TouchableOpacity
+            key={id}
+            style={[styles.filterChip, filter === id && styles.filterChipActive]}
+            onPress={() => setFilter(id)}
+          >
+            <Text style={[styles.filterChipText, filter === id && styles.filterChipTextActive]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* ── Location list ───────────────────────────────────────── */}
+      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+        {originId === null && (
+          <View style={styles.currentLocCard}>
+            <Text style={styles.currentLocLabel}>Starting from your current location</Text>
+            <Text style={styles.currentLocSub}>Tap "From" on any location below to change the starting point</Text>
+          </View>
         )}
-
-        {/* ── Category filter ─────────────────────────────────────── */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
-          {[["all", "All"], ...Object.entries(CAMPUS_CATEGORY_META).map(([id, m]) => [id, m.label])].map(([id, label]) => (
-            <TouchableOpacity
-              key={id}
-              style={[styles.filterChip, filter === id && styles.filterChipActive]}
-              onPress={() => setFilter(id)}
-            >
-              <Text style={[styles.filterChipText, filter === id && styles.filterChipTextActive]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* ── Location list ───────────────────────────────────────── */}
-        {filteredLocations.map(loc => {
-          const meta     = getCampusCategoryMeta(loc.category);
-          const isOrigin = loc.id === originId;
-          const isDest   = loc.id === destId;
-          return (
-            <View key={loc.id} style={styles.locCard}>
-              <View style={[styles.locDot, { backgroundColor: meta.color }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.locName}>{loc.name}</Text>
-                <Text style={styles.locCat}>{meta.label}</Text>
-              </View>
-              <View style={styles.locActions}>
-                <TouchableOpacity
-                  style={[styles.locBtn, isOrigin && styles.locBtnActiveGreen]}
-                  onPress={() => setOriginId(loc.id)}
-                >
-                  <Text style={[styles.locBtnText, isOrigin && { color: C.green }]}>From</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.locBtn, isDest && styles.locBtnActiveOrange]}
-                  onPress={() => setDestId(loc.id)}
-                >
-                  <Text style={[styles.locBtnText, isDest && { color: C.orange }]}>To</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })}
-
+        {filteredLocations.map(loc => (
+          <LocationCard
+            key={loc.id}
+            loc={loc}
+            isOrigin={loc.id === originId}
+            isDest={loc.id === destId}
+            onGo={handleGo}
+            onSetOrigin={handleSetOrigin}
+          />
+        ))}
+        {filteredLocations.length === 0 && (
+          <Text style={styles.emptyText}>No locations in this category.</Text>
+        )}
       </ScrollView>
     </View>
   );
@@ -298,77 +342,84 @@ export default function PathfinderScreen({ navigation }) {
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: C.bg },
-  scroll: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 40 },
+  root: { flex: 1, backgroundColor: C.bg },
 
   header: {
-    paddingHorizontal: 20,
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "space-between",
+    paddingHorizontal: 16,
     paddingTop:        Platform.OS === "ios" ? 56 : 44,
-    paddingBottom:     16,
+    paddingBottom:     12,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
   headerTitle: { color: C.text, fontSize: 22, fontWeight: "700" },
   headerSub:   { color: C.sub, fontSize: 13, marginTop: 2 },
 
-  card: {
-    backgroundColor: C.surface,
-    borderRadius:    16,
-    padding:         16,
-    marginBottom:    16,
-    borderWidth:     1,
-    borderColor:     C.border,
+  currentLocBtn:     { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: C.green },
+  currentLocBtnText: { color: C.green, fontSize: 12, fontWeight: "600" },
+
+  // Route banner
+  routeBanner: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    paddingHorizontal: 16,
+    paddingVertical:   12,
+    backgroundColor:   "rgba(0,196,140,0.08)",
+    borderBottomWidth: 1,
+    borderBottomColor: C.green,
   },
-  cardLabel: { color: C.sub, fontSize: 12, fontWeight: "600", marginBottom: 8, textTransform: "uppercase" },
+  routeBannerInfo:   { flex: 1 },
+  routeBannerTitle:  { color: C.text, fontSize: 14, fontWeight: "600" },
+  routeBannerStats:  { color: C.sub, fontSize: 12, marginTop: 2 },
+  routeBannerActions:{ flexDirection: "row", alignItems: "center", gap: 8, marginLeft: 8 },
+  goNowBtn:          { backgroundColor: C.green, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12 },
+  goNowBtnText:      { color: "#0F0F13", fontWeight: "700", fontSize: 13 },
+  cancelRouteBtn:    { width: 30, height: 30, borderRadius: 15, backgroundColor: C.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.border },
+  cancelRouteBtnText:{ color: C.sub, fontSize: 14 },
 
-  chipRow: { flexGrow: 0, marginBottom: 4 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical:   7,
-    borderRadius:      20,
-    backgroundColor:   C.bg,
-    borderWidth:       1,
-    borderColor:       C.border,
-    marginRight:       8,
-  },
-  chipActive:     { borderColor: C.green, backgroundColor: "rgba(0,196,140,0.1)" },
-  chipText:       { color: C.sub, fontSize: 13, fontWeight: "600" },
-  chipTextActive: { color: C.green },
+  routingBar: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border },
+  routingText:{ color: C.sub, fontSize: 13 },
 
-  destChip:          { },
-  destChipActive:    { borderColor: C.orange, backgroundColor: "rgba(255,94,26,0.1)" },
-  destChipTextActive:{ color: C.orange },
-
-  divider: { height: 1, backgroundColor: C.border, marginVertical: 12 },
-
-  swapBtn:     { alignSelf: "flex-start", marginTop: 10, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: C.border },
-  swapBtnText: { color: C.sub, fontSize: 12 },
-
-  routeTitle: { color: C.text, fontSize: 15, fontWeight: "600", marginBottom: 12 },
-
-  statsRow:    { flexDirection: "row", backgroundColor: C.bg, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.border, marginBottom: 12 },
-  statItem:    { flex: 1, alignItems: "center" },
-  statValue:   { color: C.text, fontSize: 16, fontWeight: "700", marginBottom: 2 },
-  statLabel:   { color: C.sub, fontSize: 11 },
-  statDivider: { width: 1, backgroundColor: C.border, marginHorizontal: 8 },
-
-  viewMapBtn:     { backgroundColor: C.green, borderRadius: 12, paddingVertical: 13, alignItems: "center" },
-  viewMapBtnText: { color: "#0F0F13", fontWeight: "700", fontSize: 15 },
-
-  filterRow: { flexGrow: 0, marginBottom: 12 },
-  filterChip:          { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, marginRight: 8 },
+  // Category filter
+  filterRow:    { flexGrow: 0, maxHeight: 48, borderBottomWidth: 1, borderBottomColor: C.border },
+  filterContent:{ paddingHorizontal: 16, gap: 8, alignItems: "center" },
+  filterChip:          { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
   filterChipActive:    { borderColor: C.green, backgroundColor: "rgba(0,196,140,0.1)" },
   filterChipText:      { color: C.sub, fontSize: 12, fontWeight: "600" },
   filterChipTextActive:{ color: C.green },
+
+  // Location list
+  list:        { flex: 1 },
+  listContent: { padding: 16, paddingBottom: 40 },
+
+  currentLocCard: {
+    backgroundColor: C.surface,
+    borderRadius:    12,
+    padding:         12,
+    marginBottom:    12,
+    borderWidth:     1,
+    borderColor:     C.green,
+    borderStyle:     "dashed",
+  },
+  currentLocLabel: { color: C.green, fontWeight: "600", fontSize: 13 },
+  currentLocSub:   { color: C.sub, fontSize: 12, marginTop: 2 },
 
   locCard:    { flexDirection: "row", alignItems: "center", backgroundColor: C.surface, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.border, gap: 10 },
   locDot:     { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   locName:    { color: C.text, fontSize: 13, fontWeight: "600" },
   locCat:     { color: C.sub, fontSize: 11, marginTop: 1 },
   locActions: { flexDirection: "row", gap: 6 },
-  locBtn:             { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: C.border },
-  locBtnActiveGreen:  { borderColor: C.green, backgroundColor: "rgba(0,196,140,0.08)" },
-  locBtnActiveOrange: { borderColor: C.orange, backgroundColor: "rgba(255,94,26,0.08)" },
-  locBtnText:         { color: C.sub, fontSize: 12, fontWeight: "600" },
+
+  locBtn:            { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: C.border },
+  locBtnActiveGreen: { borderColor: C.green, backgroundColor: "rgba(0,196,140,0.08)" },
+  locBtnText:        { color: C.sub, fontSize: 11, fontWeight: "600" },
+
+  goBtn:         { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 8, backgroundColor: C.surface, borderWidth: 1, borderColor: C.green },
+  goBtnActive:   { backgroundColor: C.green },
+  goBtnText:     { color: C.green, fontSize: 12, fontWeight: "700" },
+  goBtnTextActive:{ color: "#0F0F13" },
+
+  emptyText: { color: C.sub, textAlign: "center", paddingTop: 30 },
 });
