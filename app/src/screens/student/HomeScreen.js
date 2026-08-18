@@ -52,6 +52,20 @@ import {
   getCampusPaths,
   getCampusBuildings,
 } from "../../services/campus-data";
+
+// Emoji icon per category — mirrors the FontAwesome icons used in the main branch
+const CATEGORY_EMOJI = {
+  boys_hostel:  "🛏️",
+  girls_hostel: "🛏️",
+  faculty:      "🎓",
+  block:        "🏢",
+  hall:         "🏛️",
+  restaurant:   "🍽️",
+  gate:         "🚧",
+  sport:        "⚽",
+  service:      "ℹ️",
+  pickup:       "🛺",
+};
 import {
   requestRide,
   cancelRide,
@@ -224,6 +238,7 @@ export default function StudentHomeScreen() {
   // ── sheet + tab state
   const [activeTab, setActiveTab] = useState("home");
   const sheetAnim = useRef(new Animated.Value(0)).current; // 0 = compact, 1 = expanded
+  const [zoomDelta, setZoomDelta] = useState(0.01); // track zoom level via latitudeDelta
 
   // ── request form
   const [pickupId,  setPickupId]  = useState(null);
@@ -610,12 +625,13 @@ export default function StudentHomeScreen() {
 
   /** Map region based on first ride stop or a fallback campus centre */
   const mapRegion = React.useMemo(() => {
-    const firstStop = rideStops[0];
-    if (firstStop) {
-      return { latitude: firstStop.lat, longitude: firstStop.lng, latitudeDelta: 0.008, longitudeDelta: 0.008 };
+    const stops = rideStops.filter(s => s.lat && s.lng);
+    if (stops.length > 0) {
+      const avgLat = stops.reduce((s, p) => s + p.lat, 0) / stops.length;
+      const avgLng = stops.reduce((s, p) => s + p.lng, 0) / stops.length;
+      return { latitude: avgLat, longitude: avgLng, latitudeDelta: 0.012, longitudeDelta: 0.012 };
     }
-    // Fallback: rough centre — admin will populate real coords
-    return { latitude: 6.9, longitude: 4.95, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+    return { latitude: 6.9, longitude: 4.95, latitudeDelta: 0.012, longitudeDelta: 0.012 };
   }, [rideStops]);
 
   // ─── TAB: HOME ─────────────────────────────────────────────────────────────
@@ -936,39 +952,47 @@ export default function StudentHomeScreen() {
           showsUserLocation
           showsMyLocationButton={false}
           onMapReady={() => setMapReady(true)}
+          onRegionChange={(r) => setZoomDelta(r.latitudeDelta)}
         >
-          {/* Campus location markers */}
-          {locations.map(loc => {
+          {/* Campus location markers - only show when zoomed in enough */}
+          {zoomDelta < 0.018 && locations.map(loc => {
             const meta = getCampusCategoryMeta(loc.category);
             return (
               <Marker
                 key={loc.id}
                 coordinate={{ latitude: loc.lat, longitude: loc.lng }}
                 title={loc.name}
-                tracksViewChanges={false}
               >
-                <View style={[styles.customMarker, { backgroundColor: meta.color }]}>
-                  <Text style={styles.customMarkerText} numberOfLines={1}>
-                    {loc.name.length > 12 ? loc.name.slice(0, 12) + "…" : loc.name}
-                  </Text>
+                <View style={styles.markerWrap}>
+                  <View style={[styles.markerBubble, { backgroundColor: meta.color }]}>
+                    <Text style={styles.markerEmoji}>{CATEGORY_EMOJI[loc.category] ?? "📍"}</Text>
+                  </View>
+                  {zoomDelta < 0.009 && (
+                    <Text style={styles.markerLabel} numberOfLines={1}>
+                      {loc.name.length > 14 ? loc.name.slice(0, 14) + "…" : loc.name}
+                    </Text>
+                  )}
                 </View>
               </Marker>
             );
           })}
 
-          {/* Ride stop markers */}
+          {/* Ride stop markers - always visible */}
           {rideStops.map(stop => (
             <Marker
               key={stop.id}
               coordinate={{ latitude: stop.lat, longitude: stop.lng }}
               title={stop.name}
-              tracksViewChanges={false}
             >
-              <View style={styles.stopMarker}>
-                <View style={styles.stopMarkerDot} />
-                <Text style={styles.stopMarkerText} numberOfLines={1}>
-                  {stop.name.length > 14 ? stop.name.slice(0, 14) + "…" : stop.name}
-                </Text>
+              <View style={styles.markerWrap}>
+                <View style={styles.stopBubble}>
+                  <Text style={styles.markerEmoji}>🛺</Text>
+                </View>
+                {zoomDelta < 0.012 && (
+                  <Text style={styles.stopLabel} numberOfLines={1}>
+                    {stop.name.length > 14 ? stop.name.slice(0, 14) + "…" : stop.name}
+                  </Text>
+                )}
               </View>
             </Marker>
           ))}
@@ -1128,38 +1152,55 @@ const styles = StyleSheet.create({
   // ── Map
   mapContainer: { flex: 1, backgroundColor: "#0F0F13" },
 
-  // Custom map markers
-  customMarker: {
-    paddingHorizontal: 8,
-    paddingVertical:   4,
-    borderRadius:      8,
-    maxWidth:          120,
-  },
-  customMarkerText: {
-    color:      "#FFFFFF",
-    fontSize:   11,
-    fontWeight: "700",
-  },
-  stopMarker: {
+  // Map markers
+  markerWrap: {
     alignItems: "center",
-    gap:        3,
   },
-  stopMarkerDot: {
-    width:           12,
-    height:          12,
-    borderRadius:    6,
+  markerBubble: {
+    width:        32,
+    height:       32,
+    borderRadius: 16,
+    alignItems:   "center",
+    justifyContent: "center",
+    borderWidth:  2,
+    borderColor:  "rgba(255,255,255,0.4)",
+  },
+  stopBubble: {
+    width:           32,
+    height:          32,
+    borderRadius:    16,
     backgroundColor: "#00C48C",
+    alignItems:      "center",
+    justifyContent:  "center",
     borderWidth:     2,
-    borderColor:     "#FFFFFF",
+    borderColor:     "rgba(255,255,255,0.6)",
   },
-  stopMarkerText: {
+  markerEmoji: {
+    fontSize: 16,
+  },
+  markerLabel: {
     color:           "#FFFFFF",
     fontSize:        10,
     fontWeight:      "700",
-    backgroundColor: "rgba(0,196,140,0.85)",
-    paddingHorizontal: 5,
-    paddingVertical:   2,
-    borderRadius:    6,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 4,
+    paddingVertical:   1,
+    borderRadius:    4,
+    marginTop:       2,
+    maxWidth:        100,
+    textAlign:       "center",
+  },
+  stopLabel: {
+    color:           "#0F0F13",
+    fontSize:        10,
+    fontWeight:      "700",
+    backgroundColor: "#00C48C",
+    paddingHorizontal: 4,
+    paddingVertical:   1,
+    borderRadius:    4,
+    marginTop:       2,
+    maxWidth:        100,
+    textAlign:       "center",
   },
   recenterBtn: {
     position:        "absolute",

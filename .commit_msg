@@ -1,0 +1,12 @@
+fix: Close building polygons, custom markers, and update package versions
+
+Map fixes:
+- Fix buildings showing incomplete by repeating first point to close polygon
+- Replace plain pinColor markers with custom label markers (colored pill + name)
+- StudentHome: category-colored markers with name labels, stop markers with green dot
+- PathfinderScreen: origin/dest show "From"/"To" with white border highlight
+- Add tracksViewChanges=false for better marker rendering performance
+
+Package updates:
+- expo 54.0.36 -> ~54.0.37
+- expo-local-authentication 17.0.8 -> ~17.0.9

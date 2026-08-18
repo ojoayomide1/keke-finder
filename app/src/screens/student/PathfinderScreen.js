@@ -2,39 +2,17 @@
  * PathfinderScreen.js
  *
  * Campus walking-route map for students.
- * Mirrors the map/pathfinder view from the main branch, built for React Native.
- *
- * Layout
- * ──────
- *  ┌──────────────────────────────┐
- *  │  Header                      │
- *  │  MapView (full screen)       │
- *  │    ├─ All campus markers     │
- *  │    └─ Route polyline         │
- *  │  Bottom panel                │
- *  │    ├─ Category filter chips  │
- *  │    ├─ Origin / Dest pickers  │
- *  │    ├─ Route info row         │
- *  │    └─ Location list          │
- *  └──────────────────────────────┘
- *
- * Route drawing
- * ─────────────
- *  Select any two locations → calculateCampusRoute() → draw Polyline on map.
- *  Falls back to a straight dashed line if no admin paths are mapped yet.
+ * - Emoji markers per category, zoom-based visibility
+ * - PanResponder drag on bottom sheet (same as HomeScreen)
+ * - Route from current location as origin
+ * - Simplified UI
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
-  FlatList,
+  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -59,199 +37,65 @@ import {
   getDistanceMeters,
 } from "../../services/campus-router";
 
-// ─── COLOURS ─────────────────────────────────────────────────────────────────
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
 const C = {
-  bg:        "#0F0F13",
-  surface:   "#1A1A22",
-  border:    "#2a2a35",
-  green:     "#00C48C",
-  greenMute: "rgba(0,196,140,0.12)",
-  text:      "#FFFFFF",
-  sub:       "#888",
-  orange:    "#f59e0b",
-  blue:      "#3b82f6",
+  bg:      "#0F0F13",
+  surface: "#1A1A22",
+  border:  "#2a2a35",
+  green:   "#00C48C",
+  orange:  "#FF5E1A",
+  text:    "#FFFFFF",
+  sub:     "#888",
+};
+
+const SHEET_COLLAPSED = 100; // px - just handle + pickers visible
+const SHEET_EXPANDED  = 420; // px - full panel
+
+const CATEGORY_EMOJI = {
+  boys_hostel:  "🛏️",
+  girls_hostel: "🛏️",
+  faculty:      "🎓",
+  block:        "🏢",
+  hall:         "🏛️",
+  restaurant:   "🍽️",
+  gate:         "🚧",
+  sport:        "⚽",
+  service:      "ℹ️",
+  pickup:       "🛺",
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
-function formatDistance(metres) {
-  if (!Number.isFinite(metres)) return "—";
-  if (metres < 1000) return `${Math.round(metres)} m`;
-  return `${(metres / 1000).toFixed(2)} km`;
+function formatDistance(m) {
+  if (!m && m !== 0) return "—";
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
 }
 
-function formatWalkTime(metres) {
-  if (!Number.isFinite(metres)) return "—";
-  // Average walking speed ≈ 1.4 m/s (5 km/h)
-  const seconds = metres / 1.4;
-  const minutes = Math.ceil(seconds / 60);
-  return minutes <= 1 ? "~1 min" : `~${minutes} min`;
-}
-
-// ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
-
-/** Horizontal scrolling category filter chips */
-function CategoryFilters({ active, onChange }) {
-  const allOption = { id: "all", label: "All" };
-  const categories = [
-    allOption,
-    ...Object.entries(CAMPUS_CATEGORY_META).map(([id, meta]) => ({
-      id,
-      label: meta.label,
-    })),
-  ];
-
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filtersContent}
-      style={styles.filters}
-    >
-      {categories.map((cat) => (
-        <TouchableOpacity
-          key={cat.id}
-          style={[
-            styles.filterChip,
-            active === cat.id && styles.filterChipActive,
-          ]}
-          onPress={() => onChange(cat.id)}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.filterChipText,
-              active === cat.id && styles.filterChipTextActive,
-            ]}
-          >
-            {cat.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-}
-
-/** A dropdown-style location picker */
-function LocationPicker({ label, value, locations, onSelect, accentColor }) {
-  const [open, setOpen] = useState(false);
-  const selected = locations.find((l) => l.id === value);
-
-  return (
-    <View style={styles.pickerWrap}>
-      <Text style={[styles.pickerLabel, accentColor && { color: accentColor }]}>
-        {label}
-      </Text>
-      <TouchableOpacity
-        style={[
-          styles.pickerBtn,
-          accentColor && open && { borderColor: accentColor },
-        ]}
-        onPress={() => setOpen((v) => !v)}
-        activeOpacity={0.7}
-      >
-        <Text
-          style={[styles.pickerBtnText, !selected && { color: C.sub }]}
-          numberOfLines={1}
-        >
-          {selected ? selected.name : `Select ${label}`}
-        </Text>
-        <Text style={{ color: C.sub, fontSize: 12 }}>{open ? "▲" : "▼"}</Text>
-      </TouchableOpacity>
-
-      {open && (
-        <View style={styles.pickerDropdown}>
-          <TouchableOpacity
-            style={styles.pickerOption}
-            onPress={() => { onSelect(null); setOpen(false); }}
-          >
-            <Text style={[styles.pickerOptionText, { color: C.sub }]}>
-              — Clear —
-            </Text>
-          </TouchableOpacity>
-          {locations.map((loc) => (
-            <TouchableOpacity
-              key={loc.id}
-              style={[
-                styles.pickerOption,
-                value === loc.id && styles.pickerOptionActive,
-              ]}
-              onPress={() => { onSelect(loc.id); setOpen(false); }}
-            >
-              <Text
-                style={[
-                  styles.pickerOptionText,
-                  value === loc.id && { color: C.green },
-                ]}
-                numberOfLines={1}
-              >
-                {loc.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
-
-/** A single location card in the list */
-function LocationCard({ loc, onSetOrigin, onSetDest, isOrigin, isDest }) {
-  const meta = getCampusCategoryMeta(loc.category);
-  return (
-    <View style={styles.locCard}>
-      <View style={styles.locCardLeft}>
-        <View style={[styles.locDot, { backgroundColor: meta.color }]} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.locName} numberOfLines={1}>{loc.name}</Text>
-          <Text style={styles.locCategory}>{meta.label}</Text>
-        </View>
-      </View>
-      <View style={styles.locCardActions}>
-        <TouchableOpacity
-          style={[styles.locAction, isOrigin && styles.locActionActive]}
-          onPress={() => onSetOrigin(loc.id)}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.locActionText, isOrigin && { color: C.green }]}>
-            From
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.locAction, isDest && styles.locActionActive]}
-          onPress={() => onSetDest(loc.id)}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.locActionText, isDest && { color: C.green }]}>
-            To
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+function formatWalkTime(m) {
+  if (!m && m !== 0) return "—";
+  const mins = Math.round(m / 80); // ~80m/min walking pace
+  return mins < 1 ? "< 1 min" : `${mins} min`;
 }
 
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 
 export default function PathfinderScreen() {
-  const mapRef = useRef(null);
+  const mapRef  = useRef(null);
+  const sheetAnim = useRef(new Animated.Value(0)).current; // 0=collapsed, 1=expanded
 
+  // Data
   const [locations,       setLocations]       = useState([]);
   const [campusPaths,     setCampusPaths]     = useState([]);
   const [campusBuildings, setCampusBuildings] = useState([]);
-  const [userLocation, setUserLocation] = useState(null);
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [userLocation,    setUserLocation]    = useState(null);
+  const [zoomDelta,       setZoomDelta]       = useState(0.012);
 
-  // Route state
-  const [originId, setOriginId]   = useState(null);
-  const [destId,   setDestId]     = useState(null);
-  const [route,    setRoute]      = useState(null);   // { points, distance, routed, reason }
-  const [routing,  setRouting]    = useState(false);
-
-  // Panel expand
-  const panelAnim = useRef(new Animated.Value(0)).current;
-  const [panelExpanded, setPanelExpanded] = useState(false);
+  // Route
+  const [originId,  setOriginId]  = useState(null); // null = "current location"
+  const [destId,    setDestId]    = useState(null);
+  const [route,     setRoute]     = useState(null);
+  const [routing,   setRouting]   = useState(false);
 
   const unsubCampusRef = useRef(null);
 
@@ -269,56 +113,64 @@ export default function PathfinderScreen() {
       setCampusBuildings(getCampusBuildings());
     });
 
-    // User location for the recenter button
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === "granted") {
         const loc = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
-        setUserLocation({
-          lat: loc.coords.latitude,
-          lng: loc.coords.longitude,
-        });
+        setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
       }
     })();
 
     return () => unsubCampusRef.current?.();
   }, []);
 
-  // ── Calculate route whenever origin or dest changes ─────────────────────
+  // ── Center map on campus once locations load ────────────────────────────
   useEffect(() => {
-    if (!originId || !destId) {
-      setRoute(null);
-      return;
-    }
-    const originLoc = locations.find((l) => l.id === originId);
-    const destLoc   = locations.find((l) => l.id === destId);
+    if (locations.length === 0 || !mapRef.current) return;
+    const coords = locations.map(l => ({ latitude: l.lat, longitude: l.lng }));
+    setTimeout(() => {
+      mapRef.current?.fitToCoordinates(coords, {
+        edgePadding: { top: 80, right: 40, bottom: SHEET_COLLAPSED + 40, left: 40 },
+        animated: true,
+      });
+    }, 600);
+  }, [locations.length > 0]);
+
+  // ── Calculate route ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!destId) { setRoute(null); return; }
+
+    // If originId is null, use current location
+    const originLoc = originId === null
+      ? (userLocation ? { lat: userLocation.lat, lng: userLocation.lng, id: "_current" } : null)
+      : locations.find(l => l.id === originId);
+
+    const destLoc = locations.find(l => l.id === destId);
     if (!originLoc || !destLoc) return;
 
     setRouting(true);
-    // setTimeout keeps the UI from blocking during graph construction
     const id = setTimeout(() => {
       try {
-        const result = calculateCampusRoute(
-          { lat: originLoc.lat, lng: originLoc.lng },
-          { lat: destLoc.lat,   lng: destLoc.lng   }
-        );
+        // For current location origin, create a synthetic location object
+        const from = originId === null
+          ? { ...originLoc, name: "Current Location" }
+          : originLoc;
+
+        const result = calculateCampusRoute(from, destLoc);
         setRoute(result);
 
-        // Fit the map to the route bounds
-        if (result.points.length >= 2 && mapRef.current) {
-          const coords = result.points.map(([lat, lng]) => ({
-            latitude:  lat,
-            longitude: lng,
-          }));
+        if (result?.points?.length >= 2 && mapRef.current) {
+          const coords = result.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+          // Add dest coords to make sure it's in view
+          coords.push({ latitude: destLoc.lat, longitude: destLoc.lng });
           mapRef.current.fitToCoordinates(coords, {
-            edgePadding: { top: 60, right: 40, bottom: 260, left: 40 },
-            animated:    true,
+            edgePadding: { top: 80, right: 40, bottom: SHEET_COLLAPSED + 60, left: 40 },
+            animated: true,
           });
         }
       } catch (err) {
-        console.warn("[Pathfinder] Route error:", err);
         setRoute({ points: [], distance: null, routed: false, reason: "Routing failed" });
       } finally {
         setRouting(false);
@@ -326,76 +178,72 @@ export default function PathfinderScreen() {
     }, 50);
 
     return () => clearTimeout(id);
-  }, [originId, destId, locations]);
+  }, [originId, destId, locations, userLocation]);
 
-  // ── Panel animation ──────────────────────────────────────────────────────
-  function togglePanel() {
-    const next = !panelExpanded;
-    setPanelExpanded(next);
-    Animated.spring(panelAnim, {
-      toValue:        next ? 1 : 0,
-      useNativeDriver: false,
-    }).start();
-  }
+  // ── PanResponder drag for bottom sheet ─────────────────────────────────
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 10,
+      onPanResponderGrant: () => {
+        sheetAnim.setOffset(sheetAnim._value);
+        sheetAnim.setValue(0);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const drag = -gestureState.dy / (SHEET_EXPANDED - SHEET_COLLAPSED);
+        sheetAnim.setValue(drag);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        sheetAnim.flattenOffset();
+        const velocity = gestureState.vy;
+        const current  = sheetAnim._value;
+        let toValue;
+        if (velocity > 0.5)       toValue = 0;
+        else if (velocity < -0.5) toValue = 1;
+        else                      toValue = current > 0.5 ? 1 : 0;
 
-  const panelHeight = panelAnim.interpolate({
+        Animated.spring(sheetAnim, {
+          toValue,
+          useNativeDriver: false,
+          tension: 200,
+          friction: 8,
+        }).start();
+      },
+    })
+  ).current;
+
+  const sheetHeight = sheetAnim.interpolate({
     inputRange:  [0, 1],
-    outputRange: [220, 480],
+    outputRange: [SHEET_COLLAPSED, SHEET_EXPANDED],
   });
 
-  // ── Derived data ─────────────────────────────────────────────────────────
-  const filteredLocations = useMemo(
-    () =>
-      categoryFilter === "all"
-        ? locations
-        : locations.filter((l) => l.category === categoryFilter),
-    [locations, categoryFilter]
-  );
-
+  // ── Derived data ───────────────────────────────────────────────────────
   const mapRegion = useMemo(() => {
-    const first = locations[0];
-    if (first) {
-      return {
-        latitude:       first.lat,
-        longitude:      first.lng,
-        latitudeDelta:  0.012,
-        longitudeDelta: 0.012,
-      };
+    const valid = locations.filter(l => l.lat && l.lng);
+    if (valid.length > 0) {
+      const avgLat = valid.reduce((s, l) => s + l.lat, 0) / valid.length;
+      const avgLng = valid.reduce((s, l) => s + l.lng, 0) / valid.length;
+      return { latitude: avgLat, longitude: avgLng, latitudeDelta: 0.012, longitudeDelta: 0.012 };
     }
-    return {
-      latitude:       6.9,
-      longitude:      4.95,
-      latitudeDelta:  0.015,
-      longitudeDelta: 0.015,
-    };
+    return { latitude: 6.9, longitude: 4.95, latitudeDelta: 0.012, longitudeDelta: 0.012 };
   }, [locations]);
 
   const routeCoords = useMemo(
-    () =>
-      route?.points?.map(([lat, lng]) => ({
-        latitude:  lat,
-        longitude: lng,
-      })) ?? [],
+    () => route?.points?.map(([lat, lng]) => ({ latitude: lat, longitude: lng })) ?? [],
     [route]
   );
 
-  // ─── RENDER ──────────────────────────────────────────────────────────────
+  const originLabel = originId === null
+    ? "Current Location"
+    : locations.find(l => l.id === originId)?.name ?? "Select origin";
+
+  const destLabel = locations.find(l => l.id === destId)?.name ?? "Select destination";
+
+  // ─── RENDER ─────────────────────────────────────────────────────────────
 
   return (
     <View style={styles.root}>
-      {/* ── HEADER ──────────────────────────────────────────────── */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Pathfinder</Text>
-          <Text style={styles.headerSub}>Find your way around campus</Text>
-        </View>
-        <View style={styles.wordmark}>
-          <Text style={styles.wordmarkOp}>OP</Text>
-          <Text style={styles.wordmarkRides}>rides</Text>
-        </View>
-      </View>
 
-      {/* ── MAP ─────────────────────────────────────────────────── */}
+      {/* ── MAP ──────────────────────────────────────────────────── */}
       <View style={styles.mapContainer}>
         <MapView
           ref={mapRef}
@@ -404,9 +252,33 @@ export default function PathfinderScreen() {
           mapType="none"
           showsUserLocation
           showsMyLocationButton={false}
+          onRegionChange={r => setZoomDelta(r.latitudeDelta)}
         >
-          {/* Campus location markers */}
-          {locations.map((loc) => {
+          {/* Campus roads */}
+          {campusPaths.map((path, i) => (
+            <Polyline
+              key={`path-${i}`}
+              coordinates={path.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
+              strokeColor="#2a2a35"
+              strokeWidth={3}
+            />
+          ))}
+
+          {/* Campus buildings */}
+          {campusBuildings.map((building, i) => {
+            const coords = building.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+            return (
+              <Polyline
+                key={`building-${i}`}
+                coordinates={[...coords, coords[0]]}
+                strokeColor="#3a3a45"
+                strokeWidth={1.5}
+              />
+            );
+          })}
+
+          {/* Location markers — show at medium zoom */}
+          {zoomDelta < 0.018 && locations.map(loc => {
             const meta     = getCampusCategoryMeta(loc.category);
             const isOrigin = loc.id === originId;
             const isDest   = loc.id === destId;
@@ -416,12 +288,18 @@ export default function PathfinderScreen() {
                 key={loc.id}
                 coordinate={{ latitude: loc.lat, longitude: loc.lng }}
                 title={loc.name}
-                tracksViewChanges={false}
               >
-                <View style={[styles.customMarker, { backgroundColor: color, borderWidth: isOrigin || isDest ? 2 : 0, borderColor: "#FFFFFF" }]}>
-                  <Text style={styles.customMarkerText} numberOfLines={1}>
-                    {isOrigin ? "From" : isDest ? "To" : (loc.name.length > 12 ? loc.name.slice(0, 12) + "…" : loc.name)}
-                  </Text>
+                <View style={styles.markerWrap}>
+                  <View style={[styles.markerBubble, { backgroundColor: color, borderColor: (isOrigin || isDest) ? "#FFFFFF" : "rgba(255,255,255,0.3)" }]}>
+                    <Text style={styles.markerEmoji}>
+                      {isOrigin ? "📍" : isDest ? "🏁" : (CATEGORY_EMOJI[loc.category] ?? "📍")}
+                    </Text>
+                  </View>
+                  {zoomDelta < 0.009 && (
+                    <Text style={styles.markerLabel} numberOfLines={1}>
+                      {loc.name.length > 14 ? loc.name.slice(0, 14) + "…" : loc.name}
+                    </Text>
+                  )}
                 </View>
               </Marker>
             );
@@ -436,164 +314,142 @@ export default function PathfinderScreen() {
               lineDashPattern={route?.routed ? undefined : [8, 6]}
             />
           )}
-
-          {/* Campus roads/paths */}
-          {campusPaths.map((path, i) => (
-            <Polyline
-              key={`path-${i}`}
-              coordinates={path.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
-              strokeColor="#2a2a35"
-              strokeWidth={3}
-            />
-          ))}
-
-          {/* Campus buildings - close polygon by repeating first point */}
-          {campusBuildings.map((building, i) => {
-            const coords = building.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
-            const closed = coords.length > 0 ? [...coords, coords[0]] : coords;
-            return (
-              <Polyline
-                key={`building-${i}`}
-                coordinates={closed}
-                strokeColor="#3a3a45"
-                strokeWidth={1.5}
-              />
-            );
-          })}
         </MapView>
 
         {/* Recenter button */}
         {userLocation && (
           <TouchableOpacity
             style={styles.recenterBtn}
-            onPress={() =>
-              mapRef.current?.animateToRegion(
-                {
-                  latitude:       userLocation.lat,
-                  longitude:      userLocation.lng,
-                  latitudeDelta:  0.005,
-                  longitudeDelta: 0.005,
-                },
-                600
-              )
-            }
+            onPress={() => mapRef.current?.animateToRegion({
+              latitude:       userLocation.lat,
+              longitude:      userLocation.lng,
+              latitudeDelta:  0.005,
+              longitudeDelta: 0.005,
+            }, 600)}
           >
             <Text style={styles.recenterIcon}>⊕</Text>
           </TouchableOpacity>
         )}
 
-        {/* Route calculating spinner */}
         {routing && (
           <View style={styles.routingBadge}>
             <ActivityIndicator size="small" color={C.green} />
-            <Text style={styles.routingText}>Calculating route…</Text>
+            <Text style={styles.routingText}>Calculating…</Text>
           </View>
         )}
       </View>
 
-      {/* ── BOTTOM PANEL ────────────────────────────────────────── */}
-      <Animated.View style={[styles.panel, { height: panelHeight }]}>
-        {/* Drag handle */}
+      {/* ── BOTTOM SHEET ─────────────────────────────────────────── */}
+      <Animated.View style={[styles.sheet, { height: sheetHeight }]}>
+
+        {/* Drag handle area */}
         <TouchableOpacity
-          style={styles.handleWrap}
-          onPress={togglePanel}
+          style={styles.handleArea}
+          onPress={() => {
+            const toValue = sheetAnim._value > 0.5 ? 0 : 1;
+            Animated.spring(sheetAnim, { toValue, useNativeDriver: false, tension: 200, friction: 8 }).start();
+          }}
           activeOpacity={1}
+          {...panResponder.panHandlers}
         >
           <View style={styles.handle} />
         </TouchableOpacity>
 
-        {/* Category filters */}
-        <CategoryFilters active={categoryFilter} onChange={setCategoryFilter} />
-
-        {/* Route pickers */}
+        {/* Origin / Dest row — always visible */}
         <View style={styles.routeRow}>
-          <View style={{ flex: 1 }}>
-            <LocationPicker
-              label="From"
-              value={originId}
-              locations={filteredLocations}
-              onSelect={setOriginId}
-              accentColor={C.green}
-            />
+          {/* Origin picker */}
+          <View style={styles.routePicker}>
+            <Text style={styles.routePickerLabel}>From</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.originScroll}>
+              {/* Current location option */}
+              <TouchableOpacity
+                style={[styles.originChip, originId === null && styles.originChipActive]}
+                onPress={() => setOriginId(null)}
+              >
+                <Text style={[styles.originChipText, originId === null && styles.originChipTextActive]}>
+                  📍 Current Location
+                </Text>
+              </TouchableOpacity>
+              {/* Location options */}
+              {locations.map(loc => (
+                <TouchableOpacity
+                  key={loc.id}
+                  style={[styles.originChip, originId === loc.id && styles.originChipActive]}
+                  onPress={() => setOriginId(loc.id)}
+                >
+                  <Text style={[styles.originChipText, originId === loc.id && styles.originChipTextActive]}>
+                    {CATEGORY_EMOJI[loc.category] ?? "📍"} {loc.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
+
+          {/* Swap */}
           <TouchableOpacity
             style={styles.swapBtn}
             onPress={() => {
-              setOriginId(destId);
-              setDestId(originId);
+              if (originId !== null) {
+                setOriginId(destId);
+                setDestId(originId);
+              }
             }}
-            activeOpacity={0.7}
           >
             <Text style={styles.swapIcon}>⇄</Text>
           </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <LocationPicker
-              label="To"
-              value={destId}
-              locations={filteredLocations}
-              onSelect={setDestId}
-              accentColor={C.orange}
-            />
+
+          {/* Dest picker */}
+          <View style={styles.routePicker}>
+            <Text style={styles.routePickerLabel}>To</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.originScroll}>
+              {locations.map(loc => (
+                <TouchableOpacity
+                  key={loc.id}
+                  style={[styles.destChip, destId === loc.id && styles.destChipActive]}
+                  onPress={() => setDestId(loc.id)}
+                >
+                  <Text style={[styles.destChipText, destId === loc.id && styles.destChipTextActive]}>
+                    {CATEGORY_EMOJI[loc.category] ?? "📍"} {loc.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </View>
 
-        {/* Route info row */}
+        {/* Route summary — shown when expanded and route exists */}
         {route && (
-          <View style={styles.routeInfo}>
-            <View style={styles.routeInfoItem}>
-              <Text style={styles.routeInfoLabel}>Distance</Text>
-              <Text style={styles.routeInfoValue}>
-                {formatDistance(route.distance)}
-              </Text>
+          <View style={styles.routeSummary}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{formatDistance(route.distance)}</Text>
+              <Text style={styles.summaryLabel}>Distance</Text>
             </View>
-            <View style={styles.routeInfoDivider} />
-            <View style={styles.routeInfoItem}>
-              <Text style={styles.routeInfoLabel}>Walk time</Text>
-              <Text style={styles.routeInfoValue}>
-                {formatWalkTime(route.distance)}
-              </Text>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{formatWalkTime(route.distance)}</Text>
+              <Text style={styles.summaryLabel}>Walk time</Text>
             </View>
-            <View style={styles.routeInfoDivider} />
-            <View style={styles.routeInfoItem}>
-              <Text style={styles.routeInfoLabel}>Type</Text>
-              <Text
-                style={[
-                  styles.routeInfoValue,
-                  { color: route.routed ? C.green : C.orange },
-                ]}
-              >
-                {route.routed ? "Path route" : "Straight line"}
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={[styles.summaryValue, { color: route.routed ? C.green : C.orange }]}>
+                {route.routed ? "Mapped" : "Straight line"}
               </Text>
+              <Text style={styles.summaryLabel}>Route type</Text>
             </View>
           </View>
         )}
 
-        {/* Location list — only visible when panel is expanded */}
-        {panelExpanded && (
-          <FlatList
-            data={filteredLocations}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.locList}
-            nestedScrollEnabled
-            renderItem={({ item }) => (
-              <LocationCard
-                loc={item}
-                onSetOrigin={(id) => { setOriginId(id); togglePanel(); }}
-                onSetDest={(id)   => { setDestId(id);   togglePanel(); }}
-                isOrigin={item.id === originId}
-                isDest={item.id === destId}
-              />
-            )}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                {locations.length === 0
-                  ? "No campus locations mapped yet."
-                  : "No locations in this category."}
-              </Text>
-            }
-          />
+        {/* Clear button */}
+        {(originId || destId) && (
+          <TouchableOpacity
+            style={styles.clearBtn}
+            onPress={() => { setOriginId(null); setDestId(null); setRoute(null); }}
+          >
+            <Text style={styles.clearBtnText}>Clear Route</Text>
+          </TouchableOpacity>
         )}
       </Animated.View>
+
     </View>
   );
 }
@@ -603,157 +459,148 @@ export default function PathfinderScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
 
-  // ── Header
-  header: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    justifyContent:    "space-between",
-    paddingHorizontal: 20,
-    paddingTop:        Platform.OS === "ios" ? 56 : 44,
-    paddingBottom:     12,
-    backgroundColor:   C.bg,
-    zIndex:            10,
-  },
-  headerTitle:   { color: C.text, fontWeight: "800", fontSize: 20 },
-  headerSub:     { color: C.sub, fontSize: 12, marginTop: 1 },
-  wordmark:      { flexDirection: "row" },
-  wordmarkOp:    { color: C.text, fontWeight: "800", fontSize: 20 },
-  wordmarkRides: { color: C.green, fontWeight: "800", fontSize: 20 },
+  mapContainer: { flex: 1, backgroundColor: C.bg },
 
-  // ── Map
-  mapContainer: { flex: 1, backgroundColor: "#0F0F13" },
+  // Markers
+  markerWrap:   { alignItems: "center" },
+  markerBubble: {
+    width:          30,
+    height:         30,
+    borderRadius:   15,
+    alignItems:     "center",
+    justifyContent: "center",
+    borderWidth:    2,
+  },
+  markerEmoji:  { fontSize: 14 },
+  markerLabel:  {
+    color:             "#FFFFFF",
+    fontSize:          9,
+    fontWeight:        "700",
+    backgroundColor:   "rgba(0,0,0,0.75)",
+    paddingHorizontal: 3,
+    paddingVertical:   1,
+    borderRadius:      3,
+    marginTop:         2,
+    maxWidth:          90,
+    textAlign:         "center",
+  },
 
-  // Custom map markers
-  customMarker: {
-    paddingHorizontal: 8,
-    paddingVertical:   4,
-    borderRadius:      8,
-    maxWidth:          120,
-  },
-  customMarkerText: {
-    color:      "#FFFFFF",
-    fontSize:   11,
-    fontWeight: "700",
-  },
+  // Overlay buttons
   recenterBtn: {
     position:        "absolute",
-    bottom:          12,
-    right:           12,
+    top:             16,
+    right:           16,
     backgroundColor: C.surface,
+    borderRadius:    20,
     width:           40,
     height:          40,
-    borderRadius:    20,
     alignItems:      "center",
     justifyContent:  "center",
     borderWidth:     1,
     borderColor:     C.border,
   },
-  recenterIcon: { color: C.green, fontSize: 22, lineHeight: 26 },
+  recenterIcon: { fontSize: 20, color: C.text },
 
   routingBadge: {
     position:        "absolute",
-    top:             12,
-    alignSelf:       "center",
+    top:             16,
+    left:            16,
+    backgroundColor: C.surface,
+    borderRadius:    12,
+    paddingHorizontal: 12,
+    paddingVertical:   6,
     flexDirection:   "row",
     alignItems:      "center",
     gap:             8,
-    backgroundColor: C.surface,
-    borderRadius:    20,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
     borderWidth:     1,
     borderColor:     C.border,
   },
-  routingText: { color: C.sub, fontSize: 12 },
+  routingText: { color: C.text, fontSize: 13 },
 
-  // ── Bottom panel
-  panel: {
-    backgroundColor:      C.surface,
+  // Bottom sheet
+  sheet: {
+    position:        "absolute",
+    bottom:          0,
+    left:            0,
+    right:           0,
+    backgroundColor: C.surface,
     borderTopLeftRadius:  20,
     borderTopRightRadius: 20,
-    borderTopWidth:       1,
-    borderColor:          C.border,
-    overflow:             "hidden",
+    borderWidth:     1,
+    borderColor:     C.border,
+    paddingHorizontal: 16,
+    paddingBottom:    Platform.OS === "ios" ? 24 : 12,
   },
-  handleWrap: { alignItems: "center", paddingVertical: 10 },
-  handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border },
+  handleArea: {
+    alignItems:     "center",
+    paddingVertical: 12,
+  },
+  handle: {
+    width:           40,
+    height:          4,
+    borderRadius:    2,
+    backgroundColor: C.border,
+  },
 
-  // ── Category filters
-  filters:        { maxHeight: 44, marginBottom: 4 },
-  filtersContent: { paddingHorizontal: 16, gap: 8, alignItems: "center" },
-  filterChip:     { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg },
-  filterChipActive:     { backgroundColor: C.greenMute, borderColor: C.green },
-  filterChipText:       { color: C.sub, fontSize: 12, fontWeight: "600" },
-  filterChipTextActive: { color: C.green },
-
-  // ── Route pickers row
+  // Route row
   routeRow: {
-    flexDirection:     "row",
-    alignItems:        "flex-end",
-    gap:               6,
-    paddingHorizontal: 12,
-    marginBottom:      4,
+    flexDirection: "row",
+    alignItems:    "flex-start",
+    gap:           8,
+    marginBottom:  12,
   },
-  swapBtn:  { paddingBottom: 10, paddingHorizontal: 4 },
+  routePicker: { flex: 1 },
+  routePickerLabel: {
+    color:        C.sub,
+    fontSize:     11,
+    fontWeight:   "600",
+    marginBottom: 6,
+    textTransform: "uppercase",
+  },
+  originScroll: { flexGrow: 0 },
+  originChip: {
+    paddingHorizontal: 10,
+    paddingVertical:   6,
+    borderRadius:      20,
+    backgroundColor:   C.bg,
+    borderWidth:       1,
+    borderColor:       C.border,
+    marginRight:       6,
+  },
+  originChipActive:    { borderColor: C.green, backgroundColor: "rgba(0,196,140,0.1)" },
+  originChipText:      { color: C.sub,   fontSize: 12, fontWeight: "600" },
+  originChipTextActive:{ color: C.green, fontSize: 12, fontWeight: "600" },
+
+  destChip:          { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, marginRight: 6 },
+  destChipActive:    { borderColor: C.orange, backgroundColor: "rgba(255,94,26,0.1)" },
+  destChipText:      { color: C.sub,    fontSize: 12, fontWeight: "600" },
+  destChipTextActive:{ color: C.orange, fontSize: 12, fontWeight: "600" },
+
+  swapBtn:  { paddingTop: 22, paddingHorizontal: 4 },
   swapIcon: { color: C.sub, fontSize: 20 },
 
-  pickerWrap:  { marginBottom: 6 },
-  pickerLabel: { color: C.sub, fontSize: 10, marginBottom: 3, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4 },
-  pickerBtn: {
-    flexDirection:     "row",
-    justifyContent:    "space-between",
-    alignItems:        "center",
-    backgroundColor:   C.bg,
-    borderRadius:      10,
-    borderWidth:       1,
-    borderColor:       C.border,
-    paddingHorizontal: 10,
-    paddingVertical:   9,
-  },
-  pickerBtnText:      { color: C.text, fontSize: 12, flex: 1 },
-  pickerDropdown:     { backgroundColor: C.bg, borderRadius: 10, borderWidth: 1, borderColor: C.border, marginTop: 3, maxHeight: 180, overflow: "hidden" },
-  pickerOption:       { paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  pickerOptionActive: { backgroundColor: C.greenMute },
-  pickerOptionText:   { color: C.text, fontSize: 12 },
-
-  // ── Route info
-  routeInfo: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    backgroundColor:   C.bg,
-    borderRadius:      12,
-    marginHorizontal:  12,
-    marginBottom:      8,
-    paddingVertical:   10,
-    borderWidth:       1,
-    borderColor:       C.border,
-  },
-  routeInfoItem:    { flex: 1, alignItems: "center" },
-  routeInfoLabel:   { color: C.sub, fontSize: 10, marginBottom: 3 },
-  routeInfoValue:   { color: C.text, fontWeight: "700", fontSize: 13 },
-  routeInfoDivider: { width: 1, height: 30, backgroundColor: C.border },
-
-  // ── Location list
-  locList: { paddingHorizontal: 12, paddingBottom: 20 },
-  locCard: {
-    flexDirection:   "row",
-    alignItems:      "center",
-    justifyContent:  "space-between",
+  // Route summary
+  routeSummary: {
+    flexDirection:  "row",
     backgroundColor: C.bg,
+    borderRadius:   12,
+    padding:        12,
+    marginBottom:   12,
+    borderWidth:    1,
+    borderColor:    C.border,
+  },
+  summaryItem:    { flex: 1, alignItems: "center" },
+  summaryValue:   { color: C.text, fontSize: 15, fontWeight: "700", marginBottom: 2 },
+  summaryLabel:   { color: C.sub,  fontSize: 11 },
+  summaryDivider: { width: 1, backgroundColor: C.border, marginHorizontal: 8 },
+
+  // Clear button
+  clearBtn: {
+    alignItems:      "center",
+    paddingVertical: 10,
     borderRadius:    12,
     borderWidth:     1,
     borderColor:     C.border,
-    padding:         10,
-    marginBottom:    8,
   },
-  locCardLeft:    { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
-  locDot:         { width: 10, height: 10, borderRadius: 5 },
-  locName:        { color: C.text, fontSize: 13, fontWeight: "600" },
-  locCategory:    { color: C.sub, fontSize: 11 },
-  locCardActions: { flexDirection: "row", gap: 6 },
-  locAction:      { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: C.border },
-  locActionActive:{ backgroundColor: C.greenMute, borderColor: C.green },
-  locActionText:  { color: C.sub, fontSize: 12, fontWeight: "600" },
-
-  emptyText: { color: C.sub, textAlign: "center", paddingTop: 20, fontSize: 13 },
+  clearBtnText: { color: C.sub, fontSize: 13, fontWeight: "600" },
 });
