@@ -410,14 +410,20 @@ export default function PathfinderScreen() {
             const meta     = getCampusCategoryMeta(loc.category);
             const isOrigin = loc.id === originId;
             const isDest   = loc.id === destId;
+            const color    = isOrigin ? C.green : isDest ? C.orange : meta.color;
             return (
               <Marker
                 key={loc.id}
                 coordinate={{ latitude: loc.lat, longitude: loc.lng }}
                 title={loc.name}
-                description={meta.label}
-                pinColor={isOrigin ? C.green : isDest ? C.orange : meta.color}
-              />
+                tracksViewChanges={false}
+              >
+                <View style={[styles.customMarker, { backgroundColor: color, borderWidth: isOrigin || isDest ? 2 : 0, borderColor: "#FFFFFF" }]}>
+                  <Text style={styles.customMarkerText} numberOfLines={1}>
+                    {isOrigin ? "From" : isDest ? "To" : (loc.name.length > 12 ? loc.name.slice(0, 12) + "…" : loc.name)}
+                  </Text>
+                </View>
+              </Marker>
             );
           })}
 
@@ -441,15 +447,19 @@ export default function PathfinderScreen() {
             />
           ))}
 
-          {/* Campus buildings */}
-          {campusBuildings.map((building, i) => (
-            <Polyline
-              key={`building-${i}`}
-              coordinates={building.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
-              strokeColor="#3a3a45"
-              strokeWidth={1.5}
-            />
-          ))}
+          {/* Campus buildings - close polygon by repeating first point */}
+          {campusBuildings.map((building, i) => {
+            const coords = building.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+            const closed = coords.length > 0 ? [...coords, coords[0]] : coords;
+            return (
+              <Polyline
+                key={`building-${i}`}
+                coordinates={closed}
+                strokeColor="#3a3a45"
+                strokeWidth={1.5}
+              />
+            );
+          })}
         </MapView>
 
         {/* Recenter button */}
@@ -612,6 +622,19 @@ const styles = StyleSheet.create({
 
   // ── Map
   mapContainer: { flex: 1, backgroundColor: "#0F0F13" },
+
+  // Custom map markers
+  customMarker: {
+    paddingHorizontal: 8,
+    paddingVertical:   4,
+    borderRadius:      8,
+    maxWidth:          120,
+  },
+  customMarkerText: {
+    color:      "#FFFFFF",
+    fontSize:   11,
+    fontWeight: "700",
+  },
   recenterBtn: {
     position:        "absolute",
     bottom:          12,

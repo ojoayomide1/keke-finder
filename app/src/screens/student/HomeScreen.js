@@ -945,8 +945,14 @@ export default function StudentHomeScreen() {
                 key={loc.id}
                 coordinate={{ latitude: loc.lat, longitude: loc.lng }}
                 title={loc.name}
-                pinColor={meta.color}
-              />
+                tracksViewChanges={false}
+              >
+                <View style={[styles.customMarker, { backgroundColor: meta.color }]}>
+                  <Text style={styles.customMarkerText} numberOfLines={1}>
+                    {loc.name.length > 12 ? loc.name.slice(0, 12) + "…" : loc.name}
+                  </Text>
+                </View>
+              </Marker>
             );
           })}
 
@@ -956,8 +962,15 @@ export default function StudentHomeScreen() {
               key={stop.id}
               coordinate={{ latitude: stop.lat, longitude: stop.lng }}
               title={stop.name}
-              pinColor={C.green}
-            />
+              tracksViewChanges={false}
+            >
+              <View style={styles.stopMarker}>
+                <View style={styles.stopMarkerDot} />
+                <Text style={styles.stopMarkerText} numberOfLines={1}>
+                  {stop.name.length > 14 ? stop.name.slice(0, 14) + "…" : stop.name}
+                </Text>
+              </View>
+            </Marker>
           ))}
 
           {/* Live rider marker */}
@@ -988,15 +1001,19 @@ export default function StudentHomeScreen() {
             />
           ))}
 
-          {/* Campus buildings */}
-          {campusBuildings.map((building, i) => (
-            <Polyline
-              key={`building-${i}`}
-              coordinates={building.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
-              strokeColor="#3a3a45"
-              strokeWidth={1.5}
-            />
-          ))}
+          {/* Campus buildings - close the polygon by repeating first point */}
+          {campusBuildings.map((building, i) => {
+            const coords = building.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+            const closed = coords.length > 0 ? [...coords, coords[0]] : coords;
+            return (
+              <Polyline
+                key={`building-${i}`}
+                coordinates={closed}
+                strokeColor="#3a3a45"
+                strokeWidth={1.5}
+              />
+            );
+          })}
         </MapView>
 
         {/* Recenter button */}
@@ -1110,6 +1127,40 @@ const styles = StyleSheet.create({
 
   // ── Map
   mapContainer: { flex: 1, backgroundColor: "#0F0F13" },
+
+  // Custom map markers
+  customMarker: {
+    paddingHorizontal: 8,
+    paddingVertical:   4,
+    borderRadius:      8,
+    maxWidth:          120,
+  },
+  customMarkerText: {
+    color:      "#FFFFFF",
+    fontSize:   11,
+    fontWeight: "700",
+  },
+  stopMarker: {
+    alignItems: "center",
+    gap:        3,
+  },
+  stopMarkerDot: {
+    width:           12,
+    height:          12,
+    borderRadius:    6,
+    backgroundColor: "#00C48C",
+    borderWidth:     2,
+    borderColor:     "#FFFFFF",
+  },
+  stopMarkerText: {
+    color:           "#FFFFFF",
+    fontSize:        10,
+    fontWeight:      "700",
+    backgroundColor: "rgba(0,196,140,0.85)",
+    paddingHorizontal: 5,
+    paddingVertical:   2,
+    borderRadius:    6,
+  },
   recenterBtn: {
     position:        "absolute",
     bottom:          12,
