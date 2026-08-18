@@ -1,36 +1,22 @@
 /**
- * StudentHomeScreen.js
+ * HomeScreen.js — Student Home (full page, no bottom sheet)
  *
- * The main student-facing screen. Mirrors the student dashboard from main
- * branch but redesigned for React Native / mobile UX.
+ * Sections (switch based on ridePhase):
+ *  idle       → Request form
+ *  searching  → Searching spinner + cancel
+ *  queued     → Queue position + cancel
+ *  matched    → Ride info + cancel  (auto-switches to Map tab)
+ *  onTrip     → On trip info + pay
+ *  arrived    → Completion card
  *
- * Layout
- * ──────
- *  ┌──────────────────────────────┐
- *  │  Header  (greeting + wallet) │
- *  │  MapView  (campus map)       │
- *  │  BottomSheet                 │
- *  │   ├─ TAB: Home  (request)    │
- *  │   ├─ TAB: Live  (tracking)   │
- *  │   └─ TAB: History            │
- *  └──────────────────────────────┘
- *
- * State machine for the "Live" tab
- * ──────────────────────────────────
- *  idle  →  searching  →  queued
- *                      ↓
- *                   matched  →  onTrip  →  arrived
- *                      ↑
- *                  cancelled
+ * History always visible at the bottom when idle.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Animated,
   FlatList,
-  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -38,34 +24,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
-import * as Location from "expo-location";
 
 import useStore from "../../store";
-import { db, doc, onSnapshot } from "../../config/firebase";
 import {
   loadCampusDataFromFirestore,
   listenToCampusData,
   getRideStops,
-  getCampusLocationsForMap,
-  getCampusCategoryMeta,
-  getCampusPaths,
-  getCampusBuildings,
 } from "../../services/campus-data";
-
-// Emoji icon per category — mirrors the FontAwesome icons used in the main branch
-const CATEGORY_EMOJI = {
-  boys_hostel:  "🛏️",
-  girls_hostel: "🛏️",
-  faculty:      "🎓",
-  block:        "🏢",
-  hall:         "🏛️",
-  restaurant:   "🍽️",
-  gate:         "🚧",
-  sport:        "⚽",
-  service:      "ℹ️",
-  pickup:       "🛺",
-};
 import {
   requestRide,
   cancelRide,
@@ -79,19 +44,16 @@ import {
 import { formatNaira } from "../../services/ride-helpers";
 import { sendLocalNotification } from "../../services/notifications";
 
-// ─── COLOURS / TOKENS ────────────────────────────────────────────────────────
+// ─── COLOURS ─────────────────────────────────────────────────────────────────
 
 const C = {
-  bg:        "#0F0F13",
-  surface:   "#1A1A22",
-  border:    "#2a2a35",
-  green:     "#00C48C",
-  greenMute: "rgba(0,196,140,0.12)",
-  red:       "#ef4444",
-  redMute:   "rgba(239,68,68,0.12)",
-  orange:    "#FF5E1A",
-  text:      "#FFFFFF",
-  sub:       "#888",
+  bg:      "#0F0F13",
+  surface: "#1A1A22",
+  border:  "#2a2a35",
+  green:   "#00C48C",
+  red:     "#ef4444",
+  text:    "#FFFFFF",
+  sub:     "#888",
   pill: {
     searching: "#f59e0b",
     matched:   "#00C48C",
@@ -104,13 +66,8 @@ const C = {
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 function getInitials(name = "") {
-  return name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(p => p[0].toUpperCase())
-    .join("") || "ST";
+  return name.trim().split(/\s+/).filter(Boolean)
+    .slice(0, 2).map(p => p[0].toUpperCase()).join("") || "ST";
 }
 
 function tsToDate(ts) {
@@ -126,18 +83,15 @@ function formatRelative(ts) {
   const diff = Date.now() - date.getTime();
   const m = 60000, h = 3600000, d = 86400000;
   if (diff < m) return "Just now";
-  if (diff < h)  return `${Math.floor(diff / m)}m ago`;
-  if (diff < d)  return `${Math.floor(diff / h)}h ago`;
+  if (diff < h) return `${Math.floor(diff / m)}m ago`;
+  if (diff < d) return `${Math.floor(diff / h)}h ago`;
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-function statusColor(status) {
-  return C.pill[status] ?? C.sub;
-}
+function statusColor(status) { return C.pill[status] ?? C.sub; }
 
 // ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
 
-/** Small coloured pill for ride status */
 function StatusPill({ status }) {
   return (
     <View style={[styles.pill, { backgroundColor: statusColor(status) + "22", borderColor: statusColor(status) }]}>
@@ -148,67 +102,43 @@ function StatusPill({ status }) {
   );
 }
 
-/** Tab bar inside the bottom sheet */
-function SheetTabs({ active, onChange, hasLive }) {
-  const tabs = [
-    { id: "home",    label: "Home" },
-    { id: "live",    label: "Live" },
-    { id: "history", label: "History" },
-  ];
+function InfoRow({ label, value }) {
   return (
-    <View style={styles.sheetTabs}>
-      {tabs.map(t => (
-        <TouchableOpacity
-          key={t.id}
-          style={[styles.sheetTab, active === t.id && styles.sheetTabActive]}
-          onPress={() => onChange(t.id)}
-        >
-          <Text style={[styles.sheetTabText, active === t.id && styles.sheetTabTextActive]}>
-            {t.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <View style={styles.infoValue}>{typeof value === "string" ? <Text style={styles.infoValueText}>{value}</Text> : value}</View>
     </View>
   );
 }
 
-/** Pickup / Drop-off location picker */
 function StopPicker({ label, value, stops, onSelect }) {
   const [open, setOpen] = useState(false);
-
   const selected = stops.find(s => s.id === value);
-
   return (
     <View style={styles.pickerWrap}>
       <Text style={styles.pickerLabel}>{label}</Text>
-      <TouchableOpacity
-        style={styles.pickerBtn}
-        onPress={() => setOpen(o => !o)}
-        activeOpacity={0.7}
-      >
+      <TouchableOpacity style={styles.pickerBtn} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
         <Text style={[styles.pickerBtnText, !selected && { color: C.sub }]}>
           {selected ? selected.name : `Select ${label}`}
         </Text>
         <Text style={{ color: C.sub, fontSize: 12 }}>{open ? "▲" : "▼"}</Text>
       </TouchableOpacity>
-
       {open && (
         <View style={styles.pickerDropdown}>
-          {stops.length === 0 ? (
-            <Text style={styles.pickerEmpty}>No stops available yet</Text>
-          ) : (
-            stops.map(stop => (
-              <TouchableOpacity
-                key={stop.id}
-                style={[styles.pickerOption, value === stop.id && styles.pickerOptionActive]}
-                onPress={() => { onSelect(stop.id); setOpen(false); }}
-              >
-                <Text style={[styles.pickerOptionText, value === stop.id && { color: C.green }]}>
-                  {stop.name}
-                </Text>
-              </TouchableOpacity>
-            ))
-          )}
+          {stops.length === 0
+            ? <Text style={styles.pickerEmpty}>No stops available yet</Text>
+            : stops.map(stop => (
+                <TouchableOpacity
+                  key={stop.id}
+                  style={[styles.pickerOption, value === stop.id && styles.pickerOptionActive]}
+                  onPress={() => { onSelect(stop.id); setOpen(false); }}
+                >
+                  <Text style={[styles.pickerOptionText, value === stop.id && { color: C.green }]}>
+                    {stop.name}
+                  </Text>
+                </TouchableOpacity>
+              ))
+          }
         </View>
       )}
     </View>
@@ -217,135 +147,80 @@ function StopPicker({ label, value, stops, onSelect }) {
 
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 
-export default function StudentHomeScreen() {
-  const { currentUser, currentRequestId, currentRideId, latestRide,
-          setCurrentRequestId, setCurrentRideId, setLatestRide,
-          walletBalance,
-          clearRideState, showToast } = useStore();
+export default function StudentHomeScreen({ navigation }) {
+  const {
+    currentUser, walletBalance,
+    currentRequestId, currentRideId, latestRide,
+    setCurrentRequestId, setCurrentRideId, setLatestRide,
+    clearRideState, showToast,
+  } = useStore();
 
-  // ── map state
-  const mapRef          = useRef(null);
-  const [mapReady, setMapReady]         = useState(false);
-  const [rideStops, setRideStops]       = useState([]);
-  const [locations, setLocations]       = useState([]);
-  const [campusPaths, setCampusPaths]   = useState([]);
-  const [campusBuildings, setCampusBuildings] = useState([]);
-  const [userLocation, setUserLocation] = useState(null);
-  const [riderMarker, setRiderMarker]   = useState(null);
-  // Real-time rider GPS location from rideLocations/{riderId}
-  const [riderLocation, setRiderLocation] = useState(null); // { lat, lng }
-
-  // ── sheet + tab state
-  const [activeTab, setActiveTab] = useState("home");
-  const sheetAnim = useRef(new Animated.Value(0)).current; // 0 = compact, 1 = expanded
-  const [zoomDelta, setZoomDelta] = useState(0.01); // track zoom level via latitudeDelta
-
-  // ── request form
-  const [pickupId,  setPickupId]  = useState(null);
-  const [dropoffId, setDropoffId] = useState(null);
+  const [rideStops,  setRideStops]  = useState([]);
+  const [pickupId,   setPickupId]   = useState(null);
+  const [dropoffId,  setDropoffId]  = useState(null);
   const [requesting, setRequesting] = useState(false);
 
-  // ── live ride state
-  const [ridePhase, setRidePhase]     = useState("idle");
-  //  idle | searching | queued | matched | onTrip | arrived
+  const [ridePhase,   setRidePhase]   = useState("idle");
   const [liveSummary, setLiveSummary] = useState(null);
   const [queueInfo,   setQueueInfo]   = useState(null);
   const [payingNow,   setPayingNow]   = useState(false);
   const [cancelling,  setCancelling]  = useState(false);
+  const [history,     setHistory]     = useState([]);
+
   const notifiedArrivingRef = useRef(false);
+  const unsubRequestRef     = useRef(null);
+  const unsubRideRef        = useRef(null);
+  const unsubQueueRef       = useRef(null);
+  const unsubHistoryRef     = useRef(null);
+  const unsubCampusRef      = useRef(null);
 
-  // ── history
-  const [history, setHistory] = useState([]);
-
-  // ── listener cleanup refs
-  const unsubRequestRef = useRef(null);
-  const unsubRideRef    = useRef(null);
-  const unsubQueueRef   = useRef(null);
-  const unsubHistoryRef = useRef(null);
-  const unsubCampusRef  = useRef(null);
-  const unsubRiderLocationRef = useRef(null);
-
-  // ─── INIT ──────────────────────────────────────────────────────────────────
-
+  // ── Load campus data ────────────────────────────────────────────────────
   useEffect(() => {
-    // Load campus data
-    loadCampusDataFromFirestore().then(() => {
-      setRideStops(getRideStops());
-      setLocations(getCampusLocationsForMap());
-      setCampusPaths(getCampusPaths());
-      setCampusBuildings(getCampusBuildings());
-    });
-
-    unsubCampusRef.current = listenToCampusData(() => {
-      setRideStops(getRideStops());
-      setLocations(getCampusLocationsForMap());
-      setCampusPaths(getCampusPaths());
-      setCampusBuildings(getCampusBuildings());
-    });
-
-    // Location permission + user marker
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === "granted") {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-      }
-    })();
-
-    // Ride history
+    loadCampusDataFromFirestore().then(() => setRideStops(getRideStops()));
+    unsubCampusRef.current = listenToCampusData(() => setRideStops(getRideStops()));
     if (currentUser?.uid) {
       unsubHistoryRef.current = listenToRideHistory(currentUser.uid, setHistory);
     }
-
     return () => {
       unsubCampusRef.current?.();
       unsubHistoryRef.current?.();
       unsubRequestRef.current?.();
       unsubRideRef.current?.();
       unsubQueueRef.current?.();
-      unsubRiderLocationRef.current?.();
     };
   }, []);
 
-  // ─── RIDER LOCATION LISTENER ───────────────────────────────────────────────
-  // When matched or onTrip, subscribe to real-time rider GPS from Firestore.
-  // The riderId comes from latestRide.riderId written by the rider's GPS watcher.
-  useEffect(() => {
-    const riderId = latestRide?.riderId;
-    const isActive = ridePhase === "matched" || ridePhase === "onTrip";
+  // ── Listeners ───────────────────────────────────────────────────────────
+  const attachRideListener = useCallback((rideId) => {
+    unsubRideRef.current?.();
+    unsubRideRef.current = listenToRide(rideId, currentUser.uid, (summary) => {
+      if (!summary) return;
+      setLatestRide(summary);
+      setLiveSummary(summary);
 
-    // Tear down any existing listener first
-    unsubRiderLocationRef.current?.();
-    unsubRiderLocationRef.current = null;
-
-    if (!riderId || !isActive) {
-      // Clear stale location when ride ends or no rider yet
-      setRiderLocation(null);
-      return;
-    }
-
-    unsubRiderLocationRef.current = onSnapshot(
-      doc(db, "rideLocations", riderId),
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setRiderLocation({ lat: data.lat, lng: data.lng });
-        } else {
-          setRiderLocation(null);
-        }
-      },
-      (err) => {
-        console.warn("[StudentHome] riderLocation listener error:", err);
+      if (summary.pickupStatus === "completed" && ridePhase !== "onTrip") {
+        setRidePhase("onTrip");
+        notifiedArrivingRef.current = false;
+        sendLocalNotification("Picked Up!", "You're on your way.");
       }
-    );
 
-    return () => {
-      unsubRiderLocationRef.current?.();
-      unsubRiderLocationRef.current = null;
-    };
-  }, [latestRide?.riderId, ridePhase]);
+      if (summary.isCompleted) {
+        setRidePhase("arrived");
+        clearRideState();
+        showToast("You have arrived! Thanks for riding OpRides.", "success");
+      }
 
-  // ─── LISTEN TO REQUEST ─────────────────────────────────────────────────────
+      if (
+        summary.pickupStatus !== "completed" &&
+        summary.distanceToPickup !== null &&
+        summary.distanceToPickup <= 50 &&
+        !notifiedArrivingRef.current
+      ) {
+        notifiedArrivingRef.current = true;
+        showToast("Your keke is arriving!", "info");
+      }
+    });
+  }, [currentUser?.uid, ridePhase]);
 
   const attachRequestListener = useCallback((requestId) => {
     unsubRequestRef.current?.();
@@ -357,11 +232,9 @@ export default function StudentHomeScreen() {
         setRidePhase("matched");
         attachRideListener(request.matchedRideId);
         showToast("Ride matched! Your keke is on the way.", "success");
-        sendLocalNotification(
-          "Ride Matched!",
-          "Your keke is on the way. Track it live on the map.",
-          { type: "matched", rideId: request.matchedRideId }
-        );
+        sendLocalNotification("Ride Matched!", "Your keke is on the way.", { rideId: request.matchedRideId });
+        // Auto-switch to Map tab
+        navigation.navigate("Map");
       }
 
       if (request.status === "queued") {
@@ -372,84 +245,32 @@ export default function StudentHomeScreen() {
       if (request.status === "cancelled") {
         setRidePhase("idle");
         clearRideState();
-        setActiveTab("home");
         showToast("Ride request cancelled.", "info");
         notifiedArrivingRef.current = false;
       }
     });
-  }, []);
-
-  // ─── LISTEN TO RIDE ────────────────────────────────────────────────────────
-
-  const attachRideListener = useCallback((rideId) => {
-    unsubRideRef.current?.();
-    unsubRideRef.current = listenToRide(rideId, currentUser.uid, (summary) => {
-      if (!summary) return;
-
-      setLatestRide(summary);
-      setLiveSummary(summary);
-      setRiderMarker(summary.currentLocation ?? null);
-
-      if (summary.pickupStatus === "completed" && ridePhase !== "onTrip") {
-        setRidePhase("onTrip");
-        notifiedArrivingRef.current = false;
-        sendLocalNotification(
-          "Picked Up!",
-          "You're on your way. Enjoy the ride!",
-          { type: "onTrip" }
-        );
-      }
-
-      if (summary.isCompleted && summary.passenger) {
-        setRidePhase("arrived");
-        clearRideState();
-        showToast("You have arrived! Thanks for riding OpRides.", "success");
-      }
-
-      // "Arriving" alert when keke is within 50m of pickup
-      if (
-        summary.pickupStatus !== "completed" &&
-        summary.distanceToPickup !== null &&
-        summary.distanceToPickup <= 50 &&
-        !notifiedArrivingRef.current
-      ) {
-        notifiedArrivingRef.current = true;
-        showToast("Your keke is arriving! Get ready to board.", "info");
-      }
-      if (summary.distanceToPickup !== null && summary.distanceToPickup > 50) {
-        notifiedArrivingRef.current = false;
-      }
-    });
-  }, [currentUser?.uid, ridePhase]);
-
-  // ─── LISTEN TO QUEUE ───────────────────────────────────────────────────────
+  }, [attachRideListener]);
 
   const attachQueueListener = useCallback((queueDocId) => {
     unsubQueueRef.current?.();
-    unsubQueueRef.current = listenToQueue(queueDocId, (info) => {
-      setQueueInfo(info);
-    });
+    unsubQueueRef.current = listenToQueue(queueDocId, setQueueInfo);
   }, []);
 
-  // ─── REQUEST RIDE ──────────────────────────────────────────────────────────
-
+  // ── Request ride ────────────────────────────────────────────────────────
   async function handleRequestRide() {
     if (requesting || ridePhase !== "idle") return;
     setRequesting(true);
-
     try {
       const { requestId } = await requestRide({
-        studentId:     currentUser.uid,
-        studentName:   currentUser.name ?? currentUser.displayName ?? "Student",
+        studentId:    currentUser.uid,
+        studentName:  currentUser.name ?? currentUser.displayName ?? "Student",
         pickupId,
         dropoffId,
         walletBalance,
         debt: currentUser.debt,
       });
-
       setCurrentRequestId(requestId);
       setRidePhase("searching");
-      setActiveTab("live");
       attachRequestListener(requestId);
       showToast("Looking for your keke...", "info");
     } catch (err) {
@@ -458,479 +279,105 @@ export default function StudentHomeScreen() {
         showToast(`Outstanding balance of ${formatNaira(amount)}. Top up to continue.`, "error");
       } else if (err.message === "SAME_STOP") {
         showToast("Pickup and drop-off cannot be the same stop.", "error");
-      } else if (err.message === "STOP_NOT_FOUND") {
-        showToast("That stop still needs coordinates from the admin.", "error");
       } else {
-        showToast("Failed to request ride. Please try again.", "error");
-        console.error("[StudentHome] requestRide error:", err);
+        showToast("Failed to request ride. Try again.", "error");
       }
     } finally {
       setRequesting(false);
     }
   }
 
-  // ─── CANCEL RIDE ───────────────────────────────────────────────────────────
-
-  async function handleCancel() {
+  // ── Cancel ride ─────────────────────────────────────────────────────────
+  function handleCancel() {
     if (cancelling) return;
-
-    Alert.alert(
-      "Cancel Ride",
-      "Are you sure you want to cancel your current request?",
-      [
-        { text: "Keep Ride", style: "cancel" },
-        {
-          text: "Cancel Ride",
-          style: "destructive",
-          onPress: async () => {
-            setCancelling(true);
-            try {
-              await cancelRide({
-                requestId: currentRequestId,
-                rideId:    currentRideId,
-                studentId: currentUser.uid,
-              });
-              unsubRequestRef.current?.();
-              unsubRideRef.current?.();
-              unsubQueueRef.current?.();
-              clearRideState();
-              setRidePhase("idle");
-              setLiveSummary(null);
-              setQueueInfo(null);
-              setActiveTab("home");
-              notifiedArrivingRef.current = false;
-              showToast("Ride cancelled.", "info");
-            } catch (err) {
-              if (err.message === "ALREADY_PICKED_UP") {
-                showToast("You cannot cancel after you have been picked up.", "error");
-              } else {
-                showToast("Failed to cancel ride.", "error");
-                console.error("[StudentHome] cancelRide error:", err);
-              }
-            } finally {
-              setCancelling(false);
+    Alert.alert("Cancel Ride", "Are you sure?", [
+      { text: "Keep Ride", style: "cancel" },
+      {
+        text: "Cancel",
+        style: "destructive",
+        onPress: async () => {
+          setCancelling(true);
+          try {
+            await cancelRide({
+              requestId: currentRequestId,
+              rideId:    currentRideId,
+              studentId: currentUser.uid,
+            });
+            unsubRequestRef.current?.();
+            unsubRideRef.current?.();
+            unsubQueueRef.current?.();
+            setRidePhase("idle");
+            clearRideState();
+            setLiveSummary(null);
+            setQueueInfo(null);
+            notifiedArrivingRef.current = false;
+            showToast("Ride cancelled.", "info");
+          } catch (err) {
+            if (err.message === "ALREADY_PICKED_UP") {
+              showToast("Cannot cancel after pickup.", "error");
+            } else {
+              showToast("Cancel failed. Try again.", "error");
             }
-          },
+          } finally {
+            setCancelling(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   }
 
-  // ─── PAY FOR RIDE ──────────────────────────────────────────────────────────
-
+  // ── Pay for ride ────────────────────────────────────────────────────────
   async function handlePay() {
-    if (payingNow || !currentRideId) return;
+    if (payingNow) return;
     setPayingNow(true);
     try {
       await payForRide({ rideId: currentRideId, studentId: currentUser.uid });
       showToast("Payment successful!", "success");
     } catch (err) {
       if (err.message === "INSUFFICIENT_BALANCE") {
-        showToast("Insufficient wallet balance. Please top up.", "error");
-      } else if (err.message === "ALREADY_PAID") {
-        showToast("You have already paid for this ride.", "info");
+        showToast("Insufficient wallet balance. Top up and try again.", "error");
       } else {
-        showToast("Payment failed. Please try again.", "error");
-        console.error("[StudentHome] payForRide error:", err);
+        showToast(err.message || "Payment failed.", "error");
       }
     } finally {
       setPayingNow(false);
     }
   }
 
-  // ─── DELETE HISTORY ITEM ───────────────────────────────────────────────────
-
+  // ── Delete history ──────────────────────────────────────────────────────
   function handleDeleteHistory(requestId) {
-    Alert.alert(
-      "Delete Record",
-      "Remove this ride from your history?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteRideRecord(requestId);
-              showToast("Record removed.", "info");
-            } catch {
-              showToast("Could not remove record.", "error");
-            }
-          },
-        },
-      ]
-    );
-  }
-
-  // ─── SHEET EXPAND / COLLAPSE ───────────────────────────────────────────────
-
-  function expandSheet() {
-    Animated.spring(sheetAnim, { toValue: 1, useNativeDriver: false }).start();
-  }
-  function collapseSheet() {
-    Animated.spring(sheetAnim, { toValue: 0, useNativeDriver: false }).start();
-  }
-
-  const sheetHeight = sheetAnim.interpolate({
-    inputRange:  [0, 1],
-    outputRange: [180, 560],
-  });
-
-  // ─── DRAG GESTURE ──────────────────────────────────────────────────────────
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        return Math.abs(gestureState.dy) > 10;
-      },
-      onPanResponderGrant: () => {
-        // Remember start position
-        sheetAnim.setOffset(sheetAnim._value);
-        sheetAnim.setValue(0);
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        // Convert pixel movement to 0-1 range
-        const dragProgress = -gestureState.dy / 380; // 380px is the expand range (560-180)
-        sheetAnim.setValue(dragProgress);
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        sheetAnim.flattenOffset();
-        
-        const velocity = gestureState.vy;
-        const currentValue = sheetAnim._value;
-        
-        // Decide whether to snap to expanded or collapsed based on velocity and position
-        let toValue;
-        if (velocity > 0.5) {
-          // Fast downward swipe - collapse
-          toValue = 0;
-        } else if (velocity < -0.5) {
-          // Fast upward swipe - expand  
-          toValue = 1;
-        } else {
-          // Slow drag - snap to nearest
-          toValue = currentValue > 0.5 ? 1 : 0;
-        }
-        
-        Animated.spring(sheetAnim, {
-          toValue,
-          useNativeDriver: false,
-          tension: 200,
-          friction: 8,
-        }).start();
-      },
-    })
-  ).current;
-
-  // ─── RENDER HELPERS ────────────────────────────────────────────────────────
-
-  /** Map region based on first ride stop or a fallback campus centre */
-  const mapRegion = React.useMemo(() => {
-    const stops = rideStops.filter(s => s.lat && s.lng);
-    if (stops.length > 0) {
-      const avgLat = stops.reduce((s, p) => s + p.lat, 0) / stops.length;
-      const avgLng = stops.reduce((s, p) => s + p.lng, 0) / stops.length;
-      return { latitude: avgLat, longitude: avgLng, latitudeDelta: 0.012, longitudeDelta: 0.012 };
-    }
-    return { latitude: 6.9, longitude: 4.95, latitudeDelta: 0.012, longitudeDelta: 0.012 };
-  }, [rideStops]);
-
-  // ─── TAB: HOME ─────────────────────────────────────────────────────────────
-
-  function renderHomeTab() {
-    const canRequest = ridePhase === "idle" && pickupId && dropoffId && pickupId !== dropoffId;
-
-    return (
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.tabContent}
-        keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled
-        onScrollBeginDrag={expandSheet}
-      >
-        <Text style={styles.sectionTitle}>Request a Ride</Text>
-
-        <StopPicker
-          label="Pickup"
-          value={pickupId}
-          stops={rideStops}
-          onSelect={setPickupId}
-        />
-        <StopPicker
-          label="Drop-off"
-          value={dropoffId}
-          stops={rideStops}
-          onSelect={setDropoffId}
-        />
-
-        {rideStops.length === 0 && (
-          <Text style={styles.noStopsNote}>
-            No ride stops available yet. The admin needs to set coordinates first.
-          </Text>
-        )}
-
-        <TouchableOpacity
-          style={[
-            styles.primaryBtn,
-            (!canRequest || requesting) && styles.primaryBtnDisabled,
-          ]}
-          onPress={handleRequestRide}
-          disabled={!canRequest || requesting}
-          activeOpacity={0.8}
-        >
-          {requesting
-            ? <ActivityIndicator color="#0F0F13" />
-            : <Text style={styles.primaryBtnText}>Request Keke</Text>
+    Alert.alert("Delete Record", "Remove this ride from your history?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteRideRecord(requestId);
+            showToast("Record removed.", "info");
+          } catch {
+            showToast("Failed to remove record.", "error");
           }
-        </TouchableOpacity>
-      </ScrollView>
-    );
+        },
+      },
+    ]);
   }
 
-  // ─── TAB: LIVE ──────────────────────────────────────────────────────────────
-
-  function renderLiveTab() {
-    // ── IDLE
-    if (ridePhase === "idle") {
-      return (
-        <View style={[styles.tabContent, styles.centreContent]}>
-          <Text style={styles.liveIdleIcon}>🛺</Text>
-          <Text style={styles.liveIdleTitle}>No active ride</Text>
-          <Text style={styles.liveIdleSub}>
-            Go to Home to request a keke.
-          </Text>
-          <TouchableOpacity
-            style={[styles.primaryBtn, { marginTop: 20 }]}
-            onPress={() => setActiveTab("home")}
-          >
-            <Text style={styles.primaryBtnText}>Request a Ride</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    // ── ARRIVED
-    if (ridePhase === "arrived") {
-      return (
-        <View style={[styles.tabContent, styles.centreContent]}>
-          <Text style={styles.liveIdleTitle}>You've Arrived!</Text>
-          <Text style={styles.liveIdleSub}>Thanks for riding with OpRides.</Text>
-          <TouchableOpacity
-            style={[styles.primaryBtn, { marginTop: 20 }]}
-            onPress={() => { setRidePhase("idle"); setActiveTab("home"); }}
-          >
-            <Text style={styles.primaryBtnText}>Back to Home</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    // ── SEARCHING
-    if (ridePhase === "searching") {
-      return (
-        <View style={[styles.tabContent, styles.centreContent]}>
-          <ActivityIndicator size="large" color={C.green} style={{ marginBottom: 16 }} />
-          <Text style={styles.liveIdleTitle}>Finding your keke...</Text>
-          <Text style={styles.liveIdleSub}>We're matching you to the closest available rider.</Text>
-          <TouchableOpacity
-            style={[styles.dangerBtn, { marginTop: 24 }]}
-            onPress={handleCancel}
-            disabled={cancelling}
-          >
-            {cancelling
-              ? <ActivityIndicator color={C.red} />
-              : <Text style={styles.dangerBtnText}>Cancel Request</Text>
-            }
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    // ── QUEUED
-    if (ridePhase === "queued") {
-      return (
-        <View style={[styles.tabContent, styles.centreContent]}>
-          <Text style={styles.liveIdleTitle}>In Queue</Text>
-          {queueInfo ? (
-            <View style={styles.queueCard}>
-              <Text style={styles.queuePos}>Position #{queueInfo.position}</Text>
-              <Text style={styles.queueEta}>Est. wait: {queueInfo.estimatedWait}</Text>
-            </View>
-          ) : (
-            <Text style={styles.liveIdleSub}>Waiting for position info...</Text>
-          )}
-          <TouchableOpacity
-            style={[styles.dangerBtn, { marginTop: 24 }]}
-            onPress={handleCancel}
-            disabled={cancelling}
-          >
-            {cancelling
-              ? <ActivityIndicator color={C.red} />
-              : <Text style={styles.dangerBtnText}>Leave Queue</Text>
-            }
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    // ── MATCHED / ON TRIP
-    const summary = liveSummary;
-    if (!summary) return <ActivityIndicator color={C.green} style={{ marginTop: 40 }} />;
-
-    const onTrip       = ridePhase === "onTrip";
-    const alreadyPaid  = summary.paid;
-    const fare         = summary.fare;
-
-    return (
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tabContent} nestedScrollEnabled>
-        {/* Status Banner */}
-        <View style={[styles.liveBanner, { borderColor: onTrip ? C.green : C.pill.matched }]}>
-          <Text style={[styles.liveBannerTitle, { color: onTrip ? C.green : C.pill.matched }]}>
-            {onTrip ? "🚀 On Trip" : "🛺 Keke is on the way!"}
-          </Text>
-          <Text style={styles.liveBannerSub}>
-            {onTrip
-              ? `Heading to ${summary.dropoffLabel ?? "Destination"}`
-              : `${summary.stopsAway} stop${summary.stopsAway !== 1 ? "s" : ""} away`
-            }
-          </Text>
-        </View>
-
-        {/* Ride Details */}
-        <View style={styles.liveDetails}>
-          <LiveRow label="Rider"  value={summary.riderName  ?? "—"} />
-          <LiveRow label="Seats"  value={`${summary.seats?.occupied ?? 0}/${summary.seats?.total ?? 0}`} />
-          <LiveRow label="Fare"   value={formatNaira(fare)} />
-          <LiveRow label="Status" value={
-            <StatusPill status={alreadyPaid ? "completed" : (onTrip ? "matched" : "matched")} />
-          } />
-          {summary.distanceToPickup !== null && !onTrip && (
-            <LiveRow
-              label="Distance"
-              value={
-                summary.distanceToPickup <= 50
-                  ? "🔔 Arriving now!"
-                  : `${Math.round(summary.distanceToPickup)}m away`
-              }
-            />
-          )}
-        </View>
-
-        {/* Actions */}
-        <View style={styles.liveActions}>
-          {onTrip ? (
-            alreadyPaid ? (
-              <View style={[styles.primaryBtn, styles.primaryBtnDisabled]}>
-                <Text style={styles.primaryBtnText}>✅ Paid {formatNaira(fare)}</Text>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.primaryBtn, payingNow && styles.primaryBtnDisabled]}
-                onPress={handlePay}
-                disabled={payingNow}
-                activeOpacity={0.8}
-              >
-                {payingNow
-                  ? <ActivityIndicator color="#0F0F13" />
-                  : <Text style={styles.primaryBtnText}>Pay Now {formatNaira(fare)}</Text>
-                }
-              </TouchableOpacity>
-            )
-          ) : (
-            <TouchableOpacity
-              style={[styles.dangerBtn, cancelling && { opacity: 0.6 }]}
-              onPress={handleCancel}
-              disabled={cancelling}
-              activeOpacity={0.8}
-            >
-              {cancelling
-                ? <ActivityIndicator color={C.red} />
-                : <Text style={styles.dangerBtnText}>Cancel Ride</Text>
-              }
-            </TouchableOpacity>
-          )}
-        </View>
-      </ScrollView>
-    );
-  }
-
-  // ─── TAB: HISTORY ──────────────────────────────────────────────────────────
-
-  function renderHistoryTab() {
-    if (history.length === 0) {
-      return (
-        <View style={[styles.tabContent, styles.centreContent]}>
-          <Text style={styles.liveIdleTitle}>No rides yet</Text>
-          <Text style={styles.liveIdleSub}>Your completed rides will appear here.</Text>
-        </View>
-      );
-    }
-
-    return (
-      <FlatList
-        data={history}
-        keyExtractor={item => item.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
-        nestedScrollEnabled
-        renderItem={({ item }) => {
-          const isActive = ["searching", "matched", "queued"].includes(item.status);
-          return (
-            <View style={styles.historyCard}>
-              <View style={styles.historyHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.historyDest} numberOfLines={1}>
-                    → {item.dropoff?.label ?? "Unknown destination"}
-                  </Text>
-                  <Text style={styles.historyTime}>{formatRelative(item.requestedAt)}</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => handleDeleteHistory(item.id)}
-                  hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                >
-                  <Text style={{ color: C.red, fontSize: 16 }}>✕</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.historyFooter}>
-                <StatusPill status={item.status} />
-                {isActive && (
-                  <TouchableOpacity
-                    style={styles.visitBtn}
-                    onPress={() => {
-                      setCurrentRequestId(item.id);
-                      setRidePhase(item.status === "matched" ? "matched" : item.status);
-                      if (item.matchedRideId) {
-                        setCurrentRideId(item.matchedRideId);
-                        attachRideListener(item.matchedRideId);
-                      }
-                      attachRequestListener(item.id);
-                      setActiveTab("live");
-                    }}
-                  >
-                    <Text style={styles.visitBtnText}>View Live</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          );
-        }}
-      />
-    );
-  }
-
-  // ─── MAIN RENDER ───────────────────────────────────────────────────────────
+  // ─── RENDER ──────────────────────────────────────────────────────────────
 
   const name = currentUser?.name ?? currentUser?.displayName ?? "Student";
+  const canRequest = ridePhase === "idle" && pickupId && dropoffId && pickupId !== dropoffId;
 
   return (
     <View style={styles.root}>
-
-      {/* ── HEADER ─────────────────────────────────────────────────── */}
+      {/* ── Header ────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{getInitials(name)}</Text>
           </View>
           <View>
-            <Text style={styles.greeting}>Hello, {name.split(" ")[0]} 👋</Text>
+            <Text style={styles.greeting}>Hello, {name.split(" ")[0]}</Text>
             <Text style={styles.walletText}>
               Wallet: <Text style={{ color: C.green }}>{formatNaira(walletBalance)}</Text>
             </Text>
@@ -942,184 +389,190 @@ export default function StudentHomeScreen() {
         </View>
       </View>
 
-      {/* ── MAP ────────────────────────────────────────────────────── */}
-      <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
-          style={StyleSheet.absoluteFillObject}
-          initialRegion={mapRegion}
-          mapType="none"
-          showsUserLocation
-          showsMyLocationButton={false}
-          onMapReady={() => setMapReady(true)}
-          onRegionChange={(r) => setZoomDelta(r.latitudeDelta)}
-        >
-          {/* Campus location markers - only show when zoomed in enough */}
-          {zoomDelta < 0.018 && locations.map(loc => {
-            const meta = getCampusCategoryMeta(loc.category);
-            return (
-              <Marker
-                key={loc.id}
-                coordinate={{ latitude: loc.lat, longitude: loc.lng }}
-                title={loc.name}
-              >
-                <View style={styles.markerWrap}>
-                  <View style={[styles.markerBubble, { backgroundColor: meta.color }]}>
-                    <Text style={styles.markerEmoji}>{CATEGORY_EMOJI[loc.category] ?? "📍"}</Text>
-                  </View>
-                  {zoomDelta < 0.009 && (
-                    <Text style={styles.markerLabel} numberOfLines={1}>
-                      {loc.name.length > 14 ? loc.name.slice(0, 14) + "…" : loc.name}
-                    </Text>
-                  )}
-                </View>
-              </Marker>
-            );
-          })}
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
 
-          {/* Ride stop markers - always visible */}
-          {rideStops.map(stop => (
-            <Marker
-              key={stop.id}
-              coordinate={{ latitude: stop.lat, longitude: stop.lng }}
-              title={stop.name}
+        {/* ── IDLE: Request form ───────────────────────────────────── */}
+        {ridePhase === "idle" && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Request a Ride</Text>
+            <StopPicker label="Pickup"   value={pickupId}  stops={rideStops} onSelect={setPickupId} />
+            <StopPicker label="Drop-off" value={dropoffId} stops={rideStops} onSelect={setDropoffId} />
+            {rideStops.length === 0 && (
+              <Text style={styles.note}>No stops available yet. Admin needs to add coordinates.</Text>
+            )}
+            <TouchableOpacity
+              style={[styles.primaryBtn, (!canRequest || requesting) && styles.primaryBtnDisabled]}
+              onPress={handleRequestRide}
+              disabled={!canRequest || requesting}
             >
-              <View style={styles.markerWrap}>
-                <View style={styles.stopBubble}>
-                  <Text style={styles.markerEmoji}>🛺</Text>
-                </View>
-                {zoomDelta < 0.012 && (
-                  <Text style={styles.stopLabel} numberOfLines={1}>
-                    {stop.name.length > 14 ? stop.name.slice(0, 14) + "…" : stop.name}
-                  </Text>
-                )}
-              </View>
-            </Marker>
-          ))}
-
-          {/* Live rider marker */}
-          {riderMarker && (
-            <Marker
-              coordinate={{ latitude: riderMarker.lat, longitude: riderMarker.lng }}
-              title="Your Keke"
-              pinColor={C.orange}
-            />
-          )}
-
-          {/* Real-time rider GPS marker (from rideLocations collection) */}
-          {riderLocation && (
-            <Marker
-              coordinate={{ latitude: riderLocation.lat, longitude: riderLocation.lng }}
-              title="Your Rider"
-              pinColor="blue"
-            />
-          )}
-
-          {/* Campus roads/paths */}
-          {campusPaths.map((path, i) => (
-            <Polyline
-              key={`path-${i}`}
-              coordinates={path.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
-              strokeColor="#2a2a35"
-              strokeWidth={3}
-            />
-          ))}
-
-          {/* Campus buildings - close the polygon by repeating first point */}
-          {campusBuildings.map((building, i) => {
-            const coords = building.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
-            const closed = coords.length > 0 ? [...coords, coords[0]] : coords;
-            return (
-              <Polyline
-                key={`building-${i}`}
-                coordinates={closed}
-                strokeColor="#3a3a45"
-                strokeWidth={1.5}
-              />
-            );
-          })}
-        </MapView>
-
-        {/* Recenter button */}
-        {userLocation && (
-          <TouchableOpacity
-            style={styles.recenterBtn}
-            onPress={() => {
-              mapRef.current?.animateToRegion({
-                latitude:       userLocation.lat,
-                longitude:      userLocation.lng,
-                latitudeDelta:  0.004,
-                longitudeDelta: 0.004,
-              }, 600);
-            }}
-          >
-            <Text style={styles.recenterIcon}>⊕</Text>
-          </TouchableOpacity>
+              {requesting
+                ? <ActivityIndicator color="#0F0F13" />
+                : <Text style={styles.primaryBtnText}>Request Keke</Text>
+              }
+            </TouchableOpacity>
+          </View>
         )}
-      </View>
 
-      {/* ── BOTTOM SHEET ───────────────────────────────────────────── */}
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={[styles.sheet, { height: sheetHeight }]}
-      >
-        {/* Tappable header area (handle + tabs) for expand/collapse */}
-        <TouchableOpacity
-          style={styles.headerArea}
-          onPress={() => {
-            if (sheetAnim._value > 0.5) collapseSheet();
-            else expandSheet();
-          }}
-          activeOpacity={1}
-        >
-          {/* Drag handle */}
-          <View style={styles.handle} />
-          <SheetTabs
-            active={activeTab}
-            onChange={(t) => { setActiveTab(t); expandSheet(); }}
-            hasLive={ridePhase !== "idle"}
-          />
-        </TouchableOpacity>
+        {/* ── SEARCHING ───────────────────────────────────────────── */}
+        {ridePhase === "searching" && (
+          <View style={styles.card}>
+            <ActivityIndicator size="large" color={C.green} style={{ marginBottom: 16 }} />
+            <Text style={styles.cardTitle}>Finding your keke...</Text>
+            <Text style={styles.cardSub}>Matching you to the nearest available rider.</Text>
+            <TouchableOpacity
+              style={[styles.dangerBtn, { marginTop: 20 }]}
+              onPress={handleCancel}
+              disabled={cancelling}
+            >
+              {cancelling ? <ActivityIndicator color={C.red} /> : <Text style={styles.dangerBtnText}>Cancel Request</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
 
-        <View style={{ flex: 1 }}>
-          {activeTab === "home"    && renderHomeTab()}
-          {activeTab === "live"    && renderLiveTab()}
-          {activeTab === "history" && renderHistoryTab()}
-        </View>
-      </Animated.View>
+        {/* ── QUEUED ──────────────────────────────────────────────── */}
+        {ridePhase === "queued" && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>In Queue</Text>
+            {queueInfo ? (
+              <View style={styles.queueCard}>
+                <Text style={styles.queuePos}>Position #{queueInfo.position}</Text>
+                <Text style={styles.queueEta}>Est. wait: {queueInfo.estimatedWait}</Text>
+              </View>
+            ) : (
+              <Text style={styles.cardSub}>Waiting for position info...</Text>
+            )}
+            <TouchableOpacity
+              style={[styles.dangerBtn, { marginTop: 20 }]}
+              onPress={handleCancel}
+              disabled={cancelling}
+            >
+              {cancelling ? <ActivityIndicator color={C.red} /> : <Text style={styles.dangerBtnText}>Leave Queue</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {/* ── TOAST ─────────────────────────────────────────────────── */}
-      <ToastOverlay />
-    </View>
-  );
-}
+        {/* ── MATCHED ─────────────────────────────────────────────── */}
+        {(ridePhase === "matched" || ridePhase === "onTrip") && liveSummary && (
+          <View style={styles.card}>
+            <View style={styles.liveBanner}>
+              <Text style={styles.liveBannerTitle}>
+                {ridePhase === "onTrip" ? "On Trip" : "Keke is on the way!"}
+              </Text>
+              <Text style={styles.liveBannerSub}>
+                {ridePhase === "onTrip"
+                  ? `Heading to ${liveSummary.dropoffLabel ?? "destination"}`
+                  : `${liveSummary.stopsAway} stop${liveSummary.stopsAway !== 1 ? "s" : ""} away`
+                }
+              </Text>
+            </View>
 
-// ─── TOAST OVERLAY ───────────────────────────────────────────────────────────
+            <InfoRow label="Rider"  value={liveSummary.riderName ?? "—"} />
+            <InfoRow label="Fare"   value={formatNaira(liveSummary.fare)} />
+            <InfoRow label="Status" value={<StatusPill status={liveSummary.paid ? "completed" : "matched"} />} />
+            {liveSummary.distanceToPickup !== null && ridePhase !== "onTrip" && (
+              <InfoRow
+                label="Distance"
+                value={liveSummary.distanceToPickup <= 50 ? "Arriving now!" : `${Math.round(liveSummary.distanceToPickup)}m away`}
+              />
+            )}
 
-function ToastOverlay() {
-  const { toastMessage } = useStore();
-  if (!toastMessage) return null;
+            <TouchableOpacity
+              style={styles.mapBtn}
+              onPress={() => navigation.navigate("Map")}
+            >
+              <Text style={styles.mapBtnText}>View on Map</Text>
+            </TouchableOpacity>
 
-  const bgMap = { success: "#10b981", error: C.red, info: "#6366f1" };
-  const bg    = bgMap[toastMessage.type] ?? "#333";
+            {ridePhase === "onTrip" ? (
+              liveSummary.paid ? (
+                <View style={[styles.primaryBtn, styles.primaryBtnDisabled]}>
+                  <Text style={styles.primaryBtnText}>Paid {formatNaira(liveSummary.fare)}</Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.primaryBtn, payingNow && styles.primaryBtnDisabled]}
+                  onPress={handlePay}
+                  disabled={payingNow}
+                >
+                  {payingNow ? <ActivityIndicator color="#0F0F13" /> : <Text style={styles.primaryBtnText}>Pay Now {formatNaira(liveSummary.fare)}</Text>}
+                </TouchableOpacity>
+              )
+            ) : (
+              <TouchableOpacity
+                style={[styles.dangerBtn, cancelling && { opacity: 0.6 }]}
+                onPress={handleCancel}
+                disabled={cancelling}
+              >
+                {cancelling ? <ActivityIndicator color={C.red} /> : <Text style={styles.dangerBtnText}>Cancel Ride</Text>}
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
-  return (
-    <View style={[styles.toast, { backgroundColor: bg }]} pointerEvents="none">
-      <Text style={styles.toastText}>{toastMessage.text}</Text>
-    </View>
-  );
-}
+        {/* ── ARRIVED ─────────────────────────────────────────────── */}
+        {ridePhase === "arrived" && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>You've Arrived!</Text>
+            <Text style={styles.cardSub}>Thanks for riding with OpRides.</Text>
+            <TouchableOpacity
+              style={[styles.primaryBtn, { marginTop: 20 }]}
+              onPress={() => setRidePhase("idle")}
+            >
+              <Text style={styles.primaryBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-// ─── LIVE ROW ─────────────────────────────────────────────────────────────────
+        {/* ── History ─────────────────────────────────────────────── */}
+        {ridePhase === "idle" && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Ride History</Text>
+            {history.length === 0 ? (
+              <Text style={styles.emptyText}>No rides yet.</Text>
+            ) : (
+              history.map(item => {
+                const isActive = ["searching", "matched", "queued"].includes(item.status);
+                return (
+                  <View key={item.id} style={styles.historyCard}>
+                    <View style={styles.historyRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.historyDest} numberOfLines={1}>
+                          To: {item.dropoff?.label ?? "Unknown"}
+                        </Text>
+                        <Text style={styles.historyTime}>{formatRelative(item.requestedAt)}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => handleDeleteHistory(item.id)} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                        <Text style={{ color: C.red, fontSize: 16 }}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.historyFooter}>
+                      <StatusPill status={item.status} />
+                      {isActive && (
+                        <TouchableOpacity
+                          style={styles.visitBtn}
+                          onPress={() => {
+                            setCurrentRequestId(item.id);
+                            setRidePhase(item.status === "matched" ? "matched" : item.status);
+                            if (item.matchedRideId) {
+                              setCurrentRideId(item.matchedRideId);
+                              attachRideListener(item.matchedRideId);
+                            }
+                            attachRequestListener(item.id);
+                            navigation.navigate("Map");
+                          }}
+                        >
+                          <Text style={styles.visitBtnText}>View Live</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </View>
+        )}
 
-function LiveRow({ label, value }) {
-  return (
-    <View style={styles.liveRow}>
-      <Text style={styles.liveRowLabel}>{label}</Text>
-      {typeof value === "string" || typeof value === "number"
-        ? <Text style={styles.liveRowValue}>{value}</Text>
-        : value
-      }
+      </ScrollView>
     </View>
   );
 }
@@ -1127,222 +580,98 @@ function LiveRow({ label, value }) {
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root:   { flex: 1, backgroundColor: C.bg },
+  scroll: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 40 },
 
-  // ── Header
   header: {
-    flexDirection:    "row",
-    alignItems:       "center",
-    justifyContent:   "space-between",
+    flexDirection:     "row",
+    alignItems:        "center",
+    justifyContent:    "space-between",
     paddingHorizontal: 20,
-    paddingTop:       Platform.OS === "ios" ? 56 : 44,
-    paddingBottom:    12,
-    backgroundColor:  C.bg,
-    zIndex:           10,
+    paddingTop:        Platform.OS === "ios" ? 56 : 44,
+    paddingBottom:     16,
+    backgroundColor:   C.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
   },
   headerLeft:   { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar:       { width: 40, height: 40, borderRadius: 20, backgroundColor: C.green, alignItems: "center", justifyContent: "center" },
-  avatarText:   { color: "#0F0F13", fontWeight: "800", fontSize: 15 },
-  greeting:     { color: C.text, fontWeight: "600", fontSize: 15 },
+  avatar:       { width: 40, height: 40, borderRadius: 20, backgroundColor: "#00C48C22", alignItems: "center", justifyContent: "center" },
+  avatarText:   { color: C.green, fontWeight: "700", fontSize: 14 },
+  greeting:     { color: C.text, fontSize: 16, fontWeight: "600" },
   walletText:   { color: C.sub, fontSize: 12, marginTop: 1 },
   wordmark:     { flexDirection: "row" },
-  wordmarkOp:   { color: C.text, fontWeight: "800", fontSize: 22 },
-  wordmarkRides:{ color: C.green, fontWeight: "800", fontSize: 22 },
+  wordmarkOp:   { color: C.text,  fontWeight: "800", fontSize: 20 },
+  wordmarkRides:{ color: C.green, fontWeight: "800", fontSize: 20 },
 
-  // ── Map
-  mapContainer: { flex: 1, backgroundColor: "#0F0F13" },
-
-  // Map markers
-  markerWrap: {
-    alignItems: "center",
-  },
-  markerBubble: {
-    width:        32,
-    height:       32,
-    borderRadius: 16,
-    alignItems:   "center",
-    justifyContent: "center",
-    borderWidth:  2,
-    borderColor:  "rgba(255,255,255,0.4)",
-  },
-  stopBubble: {
-    width:           32,
-    height:          32,
-    borderRadius:    16,
-    backgroundColor: "#00C48C",
-    alignItems:      "center",
-    justifyContent:  "center",
-    borderWidth:     2,
-    borderColor:     "rgba(255,255,255,0.6)",
-  },
-  markerEmoji: {
-    fontSize: 16,
-  },
-  markerLabel: {
-    color:           "#FFFFFF",
-    fontSize:        10,
-    fontWeight:      "700",
-    backgroundColor: "rgba(0,0,0,0.7)",
-    paddingHorizontal: 4,
-    paddingVertical:   1,
-    borderRadius:    4,
-    marginTop:       2,
-    maxWidth:        100,
-    textAlign:       "center",
-  },
-  stopLabel: {
-    color:           "#0F0F13",
-    fontSize:        10,
-    fontWeight:      "700",
-    backgroundColor: "#00C48C",
-    paddingHorizontal: 4,
-    paddingVertical:   1,
-    borderRadius:    4,
-    marginTop:       2,
-    maxWidth:        100,
-    textAlign:       "center",
-  },
-  recenterBtn: {
-    position:        "absolute",
-    bottom:          12,
-    right:           12,
+  card: {
     backgroundColor: C.surface,
-    width:           40,
-    height:          40,
-    borderRadius:    20,
-    alignItems:      "center",
-    justifyContent:  "center",
+    borderRadius:    16,
+    padding:         16,
+    marginBottom:    16,
     borderWidth:     1,
     borderColor:     C.border,
   },
-  recenterIcon: { color: C.green, fontSize: 22, lineHeight: 26 },
+  cardTitle: { color: C.text, fontSize: 17, fontWeight: "700", marginBottom: 4 },
+  cardSub:   { color: C.sub,  fontSize: 14, marginBottom: 8 },
 
-  // ── Sheet
-  sheet: {
-    backgroundColor:    C.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderTopWidth:     1,
-    borderColor:        C.border,
-    overflow:           "hidden",
+  note: { color: C.sub, fontSize: 12, marginTop: 8, textAlign: "center" },
+
+  pickerWrap: { marginBottom: 12 },
+  pickerLabel:{ color: C.sub, fontSize: 12, marginBottom: 4, fontWeight: "600" },
+  pickerBtn:  {
+    flexDirection:     "row",
+    justifyContent:    "space-between",
+    alignItems:        "center",
+    backgroundColor:   C.bg,
+    borderRadius:      10,
+    borderWidth:       1,
+    borderColor:       C.border,
+    paddingHorizontal: 12,
+    paddingVertical:   11,
   },
-  headerArea: { alignItems: "center", paddingVertical: 16 },
-  handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border },
+  pickerBtnText:      { color: C.text, fontSize: 14, flex: 1 },
+  pickerDropdown:     { backgroundColor: C.bg, borderRadius: 10, borderWidth: 1, borderColor: C.border, marginTop: 4, maxHeight: 200, overflow: "hidden" },
+  pickerOption:       { paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+  pickerOptionActive: { backgroundColor: "rgba(0,196,140,0.08)" },
+  pickerOptionText:   { color: C.text, fontSize: 13 },
+  pickerEmpty:        { color: C.sub, padding: 12, textAlign: "center" },
 
-  // ── Sheet Tabs
-  sheetTabs:        { flexDirection: "row", paddingHorizontal: 16, gap: 8, marginBottom: 4 },
-  sheetTab:         { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: "transparent" },
-  sheetTabActive:   { backgroundColor: C.greenMute, borderColor: C.green },
-  sheetTabText:     { color: C.sub, fontWeight: "600", fontSize: 13 },
-  sheetTabTextActive: { color: C.green },
-
-  // ── Shared tab layout
-  tabContent:   { padding: 16, paddingBottom: 40 },
-  centreContent:{ alignItems: "center", justifyContent: "center", paddingTop: 24 },
-  sectionTitle: { color: C.text, fontWeight: "700", fontSize: 16, marginBottom: 14 },
-
-  // ── Pickers
-  pickerWrap:   { marginBottom: 12 },
-  pickerLabel:  { color: C.sub, fontSize: 12, marginBottom: 4, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
-  pickerBtn: {
-    flexDirection:  "row",
-    justifyContent: "space-between",
-    alignItems:     "center",
-    backgroundColor: C.bg,
-    borderRadius:   12,
-    borderWidth:    1,
-    borderColor:    C.border,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-  },
-  pickerBtnText: { color: C.text, fontSize: 14, flex: 1 },
-  pickerDropdown: {
-    backgroundColor: C.bg,
-    borderRadius:    12,
-    borderWidth:     1,
-    borderColor:     C.border,
-    marginTop:       4,
-    overflow:        "hidden",
-  },
-  pickerOption:       { paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: C.border },
-  pickerOptionActive: { backgroundColor: C.greenMute },
-  pickerOptionText:   { color: C.text, fontSize: 14 },
-  pickerEmpty:        { color: C.sub, padding: 14, fontSize: 13 },
-
-  noStopsNote: { color: C.sub, fontSize: 12, textAlign: "center", marginVertical: 8 },
-
-  // ── Buttons
-  primaryBtn: {
-    backgroundColor: C.green,
-    borderRadius:    14,
-    paddingVertical: 15,
-    alignItems:      "center",
-    marginTop:       8,
-  },
-  primaryBtnDisabled: { opacity: 0.45 },
+  primaryBtn:         { backgroundColor: C.green, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 },
+  primaryBtnDisabled: { opacity: 0.5 },
   primaryBtnText:     { color: "#0F0F13", fontWeight: "700", fontSize: 15 },
 
-  dangerBtn: {
-    borderRadius:    14,
-    paddingVertical: 14,
-    alignItems:      "center",
-    marginTop:       8,
-    borderWidth:     1,
-    borderColor:     C.red,
-    backgroundColor: C.redMute,
-  },
-  dangerBtnText: { color: C.red, fontWeight: "700", fontSize: 15 },
+  dangerBtn:     { borderRadius: 12, paddingVertical: 14, alignItems: "center", borderWidth: 1, borderColor: C.red, backgroundColor: "rgba(239,68,68,0.08)" },
+  dangerBtnText: { color: C.red, fontWeight: "600", fontSize: 15 },
 
-  // logout moved to ProfileScreen
+  mapBtn:     { borderRadius: 12, paddingVertical: 12, alignItems: "center", borderWidth: 1, borderColor: C.green, marginBottom: 8, marginTop: 8 },
+  mapBtnText: { color: C.green, fontWeight: "600", fontSize: 14 },
 
-  // ── Live tab
-  liveIdleIcon:  { fontSize: 48, textAlign: "center", marginBottom: 12 },
-  liveIdleTitle: { color: C.text, fontWeight: "700", fontSize: 18, textAlign: "center", marginBottom: 6 },
-  liveIdleSub:   { color: C.sub, textAlign: "center", fontSize: 13, paddingHorizontal: 24 },
+  liveBanner:     { backgroundColor: "rgba(0,196,140,0.08)", borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: C.green },
+  liveBannerTitle:{ color: C.green, fontWeight: "700", fontSize: 16, marginBottom: 2 },
+  liveBannerSub:  { color: C.sub, fontSize: 13 },
 
-  liveBanner: {
-    borderRadius:  14,
-    borderWidth:   1,
-    padding:       16,
-    marginBottom:  16,
-    backgroundColor: "rgba(0,0,0,0.2)",
-  },
-  liveBannerTitle: { fontWeight: "700", fontSize: 17, marginBottom: 4 },
-  liveBannerSub:   { color: C.sub, fontSize: 13 },
+  infoRow:      { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border },
+  infoLabel:    { color: C.sub, fontSize: 13 },
+  infoValue:    { flex: 1, alignItems: "flex-end" },
+  infoValueText:{ color: C.text, fontSize: 13, fontWeight: "600", textAlign: "right" },
 
-  liveDetails:   { gap: 2, marginBottom: 16 },
-  liveRow:       { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.border },
-  liveRowLabel:  { color: C.sub, fontSize: 13 },
-  liveRowValue:  { color: C.text, fontSize: 13, fontWeight: "600" },
-  liveActions:   { gap: 10 },
+  pill:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
+  pillText: { fontSize: 10, fontWeight: "700" },
 
-  queueCard:  { marginTop: 12, backgroundColor: C.bg, borderRadius: 14, padding: 20, alignItems: "center", borderWidth: 1, borderColor: C.border },
-  queuePos:   { color: C.text, fontWeight: "700", fontSize: 22, marginBottom: 4 },
-  queueEta:   { color: C.sub, fontSize: 13 },
+  queueCard: { backgroundColor: C.bg, borderRadius: 12, padding: 16, marginTop: 8, alignItems: "center", borderWidth: 1, borderColor: C.border },
+  queuePos:  { color: C.green, fontSize: 22, fontWeight: "800", marginBottom: 4 },
+  queueEta:  { color: C.sub,   fontSize: 13 },
 
-  // ── History
-  historyCard:   { backgroundColor: C.bg, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.border },
-  historyHeader: { flexDirection: "row", alignItems: "flex-start", marginBottom: 8 },
-  historyDest:   { color: C.text, fontWeight: "600", fontSize: 14 },
+  section:      { marginBottom: 16 },
+  sectionTitle: { color: C.text, fontSize: 16, fontWeight: "700", marginBottom: 12 },
+  emptyText:    { color: C.sub, textAlign: "center", paddingVertical: 20 },
+
+  historyCard:   { backgroundColor: C.surface, borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: C.border },
+  historyRow:    { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  historyDest:   { color: C.text, fontSize: 14, fontWeight: "600" },
   historyTime:   { color: C.sub, fontSize: 12, marginTop: 2 },
-  historyFooter: { flexDirection: "row", alignItems: "center", gap: 8 },
-  visitBtn:      { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: C.greenMute, borderWidth: 1, borderColor: C.green },
+  historyFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  visitBtn:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: C.green },
   visitBtnText:  { color: C.green, fontSize: 12, fontWeight: "600" },
-
-  // ── Status pill
-  pill:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
-  pillText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
-
-  // ── Toast
-  toast: {
-    position:     "absolute",
-    bottom:       80,
-    left:         20,
-    right:        20,
-    borderRadius: 12,
-    padding:      14,
-    alignItems:   "center",
-    zIndex:       999,
-  },
-  toastText: { color: "#fff", fontWeight: "600", fontSize: 14, textAlign: "center" },
 });

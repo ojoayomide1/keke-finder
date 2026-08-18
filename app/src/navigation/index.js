@@ -15,6 +15,7 @@ import StudentHomeScreen from "../screens/student/HomeScreen";
 import WalletScreen from "../screens/student/WalletScreen";
 import ProfileScreen from "../screens/student/ProfileScreen";
 import PathfinderScreen from "../screens/student/PathfinderScreen";
+import MapScreen from "../screens/student/MapScreen";
 import RiderHomeScreen from "../screens/rider/HomeScreen";
 import RiderEarningsScreen from "../screens/rider/EarningsScreen";
 import RiderMapScreen from "../screens/rider/MapScreen";
@@ -36,9 +37,8 @@ function AuthNavigator() {
 }
 
 // ─── TAB ICON ────────────────────────────────────────────────────────────────
-// Plain emoji icons — no extra icon library needed.
 function TabIcon({ label, focused }) {
-  const icons = { Home: "🛺", Wallet: "💳", Map: "🗺️", Profile: "👤" };
+  const icons = { Home: "🏠", Wallet: "💳", Map: "🗺️", Pathfinder: "🧭", Profile: "👤" };
   return (
     <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>
       {icons[label] ?? "●"}
@@ -91,8 +91,13 @@ function StudentNavigator() {
       />
       <StudentTab.Screen
         name="Map"
-        component={PathfinderScreen}
+        component={MapScreen}
         options={{ title: "Map" }}
+      />
+      <StudentTab.Screen
+        name="Pathfinder"
+        component={PathfinderScreen}
+        options={{ title: "Pathfinder" }}
       />
       <StudentTab.Screen
         name="Profile"

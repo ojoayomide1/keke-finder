@@ -111,13 +111,18 @@ const useStore = create((set, get) => ({
   }),
 
   // ─── MAP ─────────────────────────────────────────────────────────────────
-  // On React Native maps are controlled via refs, not stored in state.
-  // We store derived data that screens need to react to.
   pathfinderDestinationId: null,
   pathfinderHasFitRoute: false,
 
+  // Walk route — set by PathfinderScreen, read by MapScreen
+  walkRoute: null,     // { originId, destId, points, distance, routed }
+  walkOriginId: null,  // null = current location
+
   setPathfinderDestination: (id) => set({ pathfinderDestinationId: id }),
   setPathfinderHasFitRoute: (val) => set({ pathfinderHasFitRoute: val }),
+  setWalkRoute: (route) => set({ walkRoute: route }),
+  setWalkOriginId: (id) => set({ walkOriginId: id }),
+  clearWalkRoute: () => set({ walkRoute: null, walkOriginId: null }),
 
   // ─── WALLET ──────────────────────────────────────────────────────────────
   walletBalance: 0,        // in kobo — live-synced from Firestore
