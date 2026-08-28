@@ -280,7 +280,7 @@ export default function RiderMapScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        mapType="none"
+        mapType="standard"
         initialRegion={initialRegion}
         showsUserLocation={true}
         followsUserLocation={false}

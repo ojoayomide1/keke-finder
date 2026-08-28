@@ -100,28 +100,33 @@ export default function LoginScreen() {
   const [name,        setName]        = useState("");
   const [email,       setEmail]       = useState("");
   const [password,    setPassword]    = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [phone,       setPhone]       = useState("");
   const [matric,      setMatric]      = useState("");
   const [plate,       setPlate]       = useState("");
   const [vehicleType, setVehicleType] = useState("keke");
 
   // ── Check biometric state on mount ────────────────────────────────────────
+  // Run all three checks in parallel so we don't wait 3× as long.
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      const available = await isBiometricsAvailable();
-      const enabled   = await isBiometricsEnabled();
-      const label     = await getBiometricLabel();
+      const [available, enabled, label] = await Promise.all([
+        isBiometricsAvailable(),
+        isBiometricsEnabled(),
+        getBiometricLabel(),
+      ]);
+      if (cancelled) return;
       setBioAvailable(available);
       setBioEnabled(enabled);
       setBioLabel(label);
 
-      // Auto-trigger biometric login if available and enabled
+      // Auto-trigger immediately — no artificial delay
       if (available && enabled && mode === "login") {
-        setTimeout(() => {
-          handleBiometricLogin();
-        }, 800); // Small delay to let UI settle
+        handleBiometricLogin();
       }
     })();
+    return () => { cancelled = true; };
   }, [mode]); // Re-run when mode changes
 
   // ── Biometric quick-login ─────────────────────────────────────────────────
@@ -251,7 +256,8 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "android" ? 0 : 0}
     >
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -342,14 +348,23 @@ export default function LoginScreen() {
             autoCapitalize="none"
           />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#666"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[styles.input, styles.passwordInput]}
+              placeholder="Password"
+              placeholderTextColor="#666"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setShowPassword(v => !v)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.eyeText}>{showPassword ? "🙈" : "👁️"}</Text>
+            </TouchableOpacity>
+          </View>
 
           {mode === "signup" && (
             <TextInput
@@ -470,6 +485,24 @@ const styles = StyleSheet.create({
     borderWidth:       1,
     borderColor:       "#2a2a35",
   },
+
+  // Password field with eye toggle
+  passwordRow: {
+    position:  "relative",
+    justifyContent: "center",
+  },
+  passwordInput: {
+    paddingRight: 50,  // make room for eye icon
+  },
+  eyeBtn: {
+    position:   "absolute",
+    right:      14,
+    top:        0,
+    bottom:     0,
+    justifyContent: "center",
+    alignItems:     "center",
+  },
+  eyeText: { fontSize: 18 },
 
   vehicleRow:          { flexDirection: "row", gap: 10 },
   vehicleBtn:          { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: "#2a2a35" },

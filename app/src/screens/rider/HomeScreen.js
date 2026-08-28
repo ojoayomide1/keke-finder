@@ -46,6 +46,8 @@ import {
   formatNaira,
   getNextRideAction,
 } from "../../services/rider";
+import { listenToCampusActivity } from "../../services/campus-data";
+
 import { db, doc, setDoc, serverTimestamp } from "../../config/firebase";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
@@ -229,12 +231,16 @@ export default function RiderHomeScreen() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [queuedStudentsCount, setQueuedStudentsCount] = useState(0);
+
 
   // Refs for cleanup
   const requestsUnsubscribe = useRef(null);
   const ridesUnsubscribe = useRef(null);
   const earningsUnsubscribe = useRef(null);
+  const activityUnsubscribe = useRef(null);
   const locationWatcherRef = useRef(null);
+
   const prevRequestCountRef = useRef(0);
 
   const riderId = currentUser?.uid;
@@ -344,13 +350,20 @@ export default function RiderHomeScreen() {
     ridesUnsubscribe.current = listenToActiveRides(riderId, setActiveRides);
     earningsUnsubscribe.current = listenToRiderEarnings(riderId, setRiderEarnings);
 
+    // Live campus activity (queue count) listener
+    activityUnsubscribe.current = listenToCampusActivity((counts) => {
+      setQueuedStudentsCount(counts.studentsInQueue);
+    });
+
     // Cleanup
     return () => {
       requestsUnsubscribe.current?.();
       ridesUnsubscribe.current?.();
       earningsUnsubscribe.current?.();
+      activityUnsubscribe.current?.();
     };
   }, [riderId, isRiderOnline]);
+
 
   // ── Status toggle ─────────────────────────────────────────────────────────
   async function handleStatusToggle() {
@@ -466,8 +479,16 @@ export default function RiderHomeScreen() {
             <Text style={styles.greeting}>Hello, {name}</Text>
             <Text style={styles.plateText}>Plate: {plateNo}</Text>
           </View>
-          <StatusBadge isOnline={isRiderOnline} />
+          <View style={styles.headerRight}>
+            {queuedStudentsCount > 0 && (
+              <View style={styles.queueBadgeContainer}>
+                <Text style={styles.queueBadgeText}>{queuedStudentsCount} waiting</Text>
+              </View>
+            )}
+            <StatusBadge isOnline={isRiderOnline} />
+          </View>
         </View>
+
 
         {/* ── Online Toggle ───────────────────────────────────── */}
         <View style={styles.toggleCard}>
@@ -637,6 +658,26 @@ const styles = StyleSheet.create({
   statusText:         { fontSize: 11, fontWeight: "700", letterSpacing: 1 },
   statusTextOnline:   { color: C.green },
   statusTextOffline:  { color: C.orange },
+
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  queueBadgeContainer: {
+    backgroundColor: C.orangeMute,
+    borderColor: C.orange,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  queueBadgeText: {
+    color: C.orange,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
 
   toggleCard: {
     flexDirection:  "row",

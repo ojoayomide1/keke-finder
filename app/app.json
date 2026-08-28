@@ -1,15 +1,17 @@
 {
   "expo": {
-    "name": "OpRides",
-    "slug": "oprides",
+    "name": "NavCamp",
+    "slug": "navcamp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.navcamp.app"
     },
     "android": {
+      "package": "com.navcamp.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -19,6 +21,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c4785082-e5ed-4f6e-b59d-32db581a49ad"
+      }
+    },
+    "owner": "madaraffx"
   }
 }

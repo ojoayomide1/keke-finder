@@ -6,7 +6,8 @@
  * All DOM-specific code is stripped — this is pure data + Firebase.
  */
 
-import { db, doc, getDoc, onSnapshot, setDoc, serverTimestamp } from "../config/firebase";
+import { db, doc, getDoc, onSnapshot, setDoc, serverTimestamp, collection, query, where } from "../config/firebase";
+
 
 // ─── CATEGORY META ───────────────────────────────────────────────────────────
 // Used to colour map markers and filter the map legend.
@@ -219,5 +220,57 @@ export function listenToCampusData(callback) {
 
   return () => {
     if (unsubscribeRemote) unsubscribeRemote();
+  };
+}
+
+// ─── CAMPUS ACTIVITY ─────────────────────────────────────────────────────────
+
+/**
+ * Live counters for the "Campus Activity" card on student/rider home.
+ * Mirrors startCampusActivityListeners() from main branch.
+ *
+ * Fires callback({ ridersOnline, studentsInQueue }) immediately and on change.
+ * Returns a single unsubscribe function that stops both listeners.
+ *
+ * @param {(counts: { ridersOnline: number, studentsInQueue: number }) => void} callback
+ * @returns {() => void} unsubscribe
+ */
+export function listenToCampusActivity(callback) {
+  let counts = { ridersOnline: 0, studentsInQueue: 0 };
+  let unsubRides = null;
+  let unsubQueue = null;
+
+  try {
+    // Active keke riders on campus
+    unsubRides = onSnapshot(
+      query(collection(db, "rides"), where("status", "in", ["waiting", "active"])),
+      (snap) => {
+        counts = { ...counts, ridersOnline: snap.size };
+        callback({ ...counts });
+      },
+      (err) => {
+        console.warn("[campus-activity] Rider count unavailable:", err.code ?? err.message);
+      }
+    );
+
+    // Students currently in queue (uses rideRequests with status "queued"
+    // because security rules don't give students direct waitingQueue access)
+    unsubQueue = onSnapshot(
+      query(collection(db, "rideRequests"), where("status", "==", "queued")),
+      (snap) => {
+        counts = { ...counts, studentsInQueue: snap.size };
+        callback({ ...counts });
+      },
+      (err) => {
+        console.warn("[campus-activity] Queue count unavailable:", err.code ?? err.message);
+      }
+    );
+  } catch (err) {
+    console.warn("[campus-activity] Failed to start listeners:", err);
+  }
+
+  return () => {
+    if (unsubRides) unsubRides();
+    if (unsubQueue) unsubQueue();
   };
 }

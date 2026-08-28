@@ -356,7 +356,7 @@ export default function MapScreen() {
         ref={mapRef}
         style={styles.map}
         initialRegion={mapRegion}
-        mapType="none"
+        mapType="standard"
         showsUserLocation
         showsMyLocationButton={false}
         onRegionChange={r => setZoomDelta(r.latitudeDelta)}

@@ -29,6 +29,7 @@ import useStore from "../../store";
 import {
   loadCampusDataFromFirestore,
   listenToCampusData,
+  listenToCampusActivity,
   getRideStops,
 } from "../../services/campus-data";
 import {
@@ -166,6 +167,7 @@ export default function StudentHomeScreen({ navigation }) {
   const [payingNow,   setPayingNow]   = useState(false);
   const [cancelling,  setCancelling]  = useState(false);
   const [history,     setHistory]     = useState([]);
+  const [campusActivity, setCampusActivity] = useState({ ridersOnline: 0, studentsInQueue: 0 });
 
   const notifiedArrivingRef = useRef(false);
   const unsubRequestRef     = useRef(null);
@@ -173,16 +175,19 @@ export default function StudentHomeScreen({ navigation }) {
   const unsubQueueRef       = useRef(null);
   const unsubHistoryRef     = useRef(null);
   const unsubCampusRef      = useRef(null);
+  const unsubActivityRef    = useRef(null);
 
   // ── Load campus data ────────────────────────────────────────────────────
   useEffect(() => {
     loadCampusDataFromFirestore().then(() => setRideStops(getRideStops()));
     unsubCampusRef.current = listenToCampusData(() => setRideStops(getRideStops()));
+    unsubActivityRef.current = listenToCampusActivity(setCampusActivity);
     if (currentUser?.uid) {
       unsubHistoryRef.current = listenToRideHistory(currentUser.uid, setHistory);
     }
     return () => {
       unsubCampusRef.current?.();
+      unsubActivityRef.current?.();
       unsubHistoryRef.current?.();
       unsubRequestRef.current?.();
       unsubRideRef.current?.();
@@ -390,6 +395,29 @@ export default function StudentHomeScreen({ navigation }) {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+
+        {/* ── Campus Activity (idle only) ─────────────────────────────── */}
+        {ridePhase === "idle" && (
+          <View style={styles.activityCard}>
+            <View style={styles.activityHeader}>
+              <View style={styles.pulseDot} />
+              <Text style={styles.activityTitle}>Campus Live</Text>
+            </View>
+            <View style={styles.activityGrid}>
+              <View style={styles.activityItem}>
+                <Text style={styles.activityValue}>{campusActivity.ridersOnline}</Text>
+                <Text style={styles.activityLabel}>Riders Online</Text>
+              </View>
+              <View style={styles.activityDivider} />
+              <View style={styles.activityItem}>
+                <Text style={[styles.activityValue, campusActivity.studentsInQueue > 0 && { color: "#f59e0b" }]}>
+                  {campusActivity.studentsInQueue}
+                </Text>
+                <Text style={styles.activityLabel}>In Queue</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* ── IDLE: Request form ───────────────────────────────────── */}
         {ridePhase === "idle" && (
@@ -674,4 +702,48 @@ const styles = StyleSheet.create({
   historyFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   visitBtn:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: C.green },
   visitBtnText:  { color: C.green, fontSize: 12, fontWeight: "600" },
+
+  // Campus activity card
+  activityCard: {
+    backgroundColor: C.surface,
+    borderRadius:    16,
+    padding:         14,
+    marginBottom:    16,
+    borderWidth:     1,
+    borderColor:     C.border,
+  },
+  activityHeader: {
+    flexDirection: "row",
+    alignItems:    "center",
+    marginBottom:  12,
+    gap:           8,
+  },
+  pulseDot: {
+    width:           8,
+    height:          8,
+    borderRadius:    4,
+    backgroundColor: C.green,
+  },
+  activityTitle: { color: C.text, fontWeight: "700", fontSize: 14 },
+  activityGrid: {
+    flexDirection:  "row",
+    alignItems:     "center",
+  },
+  activityItem: {
+    flex:        1,
+    alignItems:  "center",
+    paddingVertical: 8,
+  },
+  activityValue: {
+    color:      C.green,
+    fontSize:   26,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  activityLabel: { color: C.sub, fontSize: 12 },
+  activityDivider: {
+    width:           1,
+    height:          40,
+    backgroundColor: C.border,
+  },
 });
