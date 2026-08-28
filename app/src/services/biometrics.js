@@ -123,7 +123,7 @@ export async function authenticateBiometrics() {
   }
 
   const result = await LocalAuthentication.authenticateAsync({
-    promptMessage:         "Log in to OpRides",
+    promptMessage:         "Log in to NavCamp",
     fallbackLabel:         "Use passcode",
     cancelLabel:           "Cancel",
     disableDeviceFallback: false,

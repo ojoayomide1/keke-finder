@@ -1,7 +1,7 @@
 /**
  * notifications.js
  *
- * Push notification helpers for OpRides.
+ * Push notification helpers for NavCamp.
  *
  * Provides:
  *   registerForPushNotifications(userId)  — request permission, get token, save to Firestore
@@ -63,7 +63,7 @@ export async function registerForPushNotifications(userId) {
     //    notifications (ride matched, picked up, etc.) still work fine.
     try {
       const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: "oprides", // fallback slug — replace with real EAS projectId when building
+        projectId: "c4785082-e5ed-4f6e-b59d-32db581a49ad",
       });
       const token = tokenData.data;
 

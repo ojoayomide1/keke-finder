@@ -212,7 +212,7 @@ export default function StudentHomeScreen({ navigation }) {
       if (summary.isCompleted) {
         setRidePhase("arrived");
         clearRideState();
-        showToast("You have arrived! Thanks for riding OpRides.", "success");
+        showToast("You have arrived! Thanks for riding NavCamp.", "success");
       }
 
       if (
@@ -541,7 +541,7 @@ export default function StudentHomeScreen({ navigation }) {
         {ridePhase === "arrived" && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>You've Arrived!</Text>
-            <Text style={styles.cardSub}>Thanks for riding with OpRides.</Text>
+            <Text style={styles.cardSub}>Thanks for riding with NavCamp.</Text>
             <TouchableOpacity
               style={[styles.primaryBtn, { marginTop: 20 }]}
               onPress={() => setRidePhase("idle")}

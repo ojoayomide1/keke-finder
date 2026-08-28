@@ -78,7 +78,7 @@ function getInitials(name = "") {
 }
 
 function getGradientHues(name = "") {
-  const src = String(name || "OpRides");
+  const src = String(name || "NavCamp");
   let hash  = 0;
   for (let i = 0; i < src.length; i++) {
     hash = src.charCodeAt(i) + ((hash << 5) - hash);
@@ -343,7 +343,7 @@ export default function RiderProfileScreen() {
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
-        <Text style={styles.appVersion}>OpRides v2.0 — Rider Edition</Text>
+        <Text style={styles.appVersion}>NavCamp v2.0 — Rider Edition</Text>
       </ScrollView>
 
       <SupportModal visible={showSupport} onClose={() => setShowSupport(false)} />
