@@ -1,0 +1,19 @@
+[Unit]
+Description=NavCamp API Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/navcamp
+ExecStart=/usr/bin/node /opt/navcamp/index.js
+Restart=on-failure
+RestartSec=5
+EnvironmentFile=/etc/navcamp.env
+
+# Basic hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

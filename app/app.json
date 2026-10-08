@@ -24,9 +24,14 @@
     },
     "extra": {
       "eas": {
-        "projectId": "c4785082-e5ed-4f6e-b59d-32db581a49ad"
+        "projectId": "73b01ba4-36fb-4d70-a98e-f06d30448fe7"
       }
     },
-    "owner": "madaraffx"
+    "owner": "madaraffx",
+    "plugins": [
+      "expo-dev-client",
+      "expo-status-bar"
+    ],
+    "scheme": "navcamp"
   }
 }

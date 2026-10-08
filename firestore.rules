@@ -286,7 +286,7 @@ service cloud.firestore {
 
     function studentClaimSeat() {
       return isStudent()
-        && resource.data.status in ["waiting", "active"]
+        && resource.data.status in ["matched", "onTrip"]
         && resource.data.seats.available > 0
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(["stopQueue", "passengers", "seats", "updatedAt"])
@@ -323,7 +323,7 @@ service cloud.firestore {
       return isStudent()
         && request.resource.data.keys().hasOnly([
           "studentId", "studentName", "pickup", "dropoff", "rideType",
-          "status", "matchedRideId", "requestedAt"
+          "status", "matchedRideId", "requestedAt", "paymentMethod"
         ])
         && request.resource.data.studentId == request.auth.uid
         && validShortString(request.resource.data.studentName, 80)
@@ -332,7 +332,11 @@ service cloud.firestore {
         && request.resource.data.rideType == "pool"
         && request.resource.data.status == "searching"
         && request.resource.data.matchedRideId == null
-        && request.resource.data.requestedAt == request.time;
+        && request.resource.data.requestedAt == request.time
+        && (
+          !("paymentMethod" in request.resource.data)
+          || request.resource.data.paymentMethod in ["wallet", "cash"]
+        );
     }
 
     function requestOwnerBase() {
@@ -403,13 +407,17 @@ service cloud.firestore {
       return isStudent()
         && request.resource.data.keys().hasOnly([
           "studentId", "studentName", "requestId", "pickup", "dropoff",
-          "joinedAt", "position", "estimatedWait", "notified"
+          "paymentMethod", "joinedAt", "position", "estimatedWait", "notified"
         ])
         && request.resource.data.studentId == request.auth.uid
         && (!("studentName" in request.resource.data) || validShortString(request.resource.data.studentName, 80))
         && request.resource.data.requestId is string
         && validPoint(request.resource.data.pickup)
         && validPoint(request.resource.data.dropoff)
+        && (
+          !("paymentMethod" in request.resource.data)
+          || request.resource.data.paymentMethod in ["wallet", "cash"]
+        )
         && request.resource.data.joinedAt == request.time
         && request.resource.data.position is int
         && request.resource.data.position > 0
@@ -594,5 +602,16 @@ service cloud.firestore {
     match /riderStatus/{riderId} {
       allow read, write: if isSignedIn() && request.auth.uid == riderId && isRider();
     }
+
+    // Authorized students registry - used during student signup verification & admin tool seeding
+    match /authorized_students/{docId} {
+      allow read, write: if true;
+    }
+
+    // Authorized riders registry - used during rider signup verification & admin tool seeding
+    match /authorized_riders/{docId} {
+      allow read, write: if true;
+    }
   }
 }
+

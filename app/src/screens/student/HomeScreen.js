@@ -159,6 +159,7 @@ export default function StudentHomeScreen({ navigation }) {
   const [rideStops,  setRideStops]  = useState([]);
   const [pickupId,   setPickupId]   = useState(null);
   const [dropoffId,  setDropoffId]  = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("wallet");
   const [requesting, setRequesting] = useState(false);
 
   const [ridePhase,   setRidePhase]   = useState("idle");
@@ -273,19 +274,23 @@ export default function StudentHomeScreen({ navigation }) {
         dropoffId,
         walletBalance,
         debt: currentUser.debt,
+        paymentMethod,
       });
       setCurrentRequestId(requestId);
       setRidePhase("searching");
       attachRequestListener(requestId);
       showToast("Looking for your keke...", "info");
     } catch (err) {
+      console.error("[requestRide] error:", err.message, err);
       if (err.message?.startsWith("DEBT_OUTSTANDING:")) {
         const amount = Number(err.message.split(":")[1] || 0);
         showToast(`Outstanding balance of ${formatNaira(amount)}. Top up to continue.`, "error");
       } else if (err.message === "SAME_STOP") {
         showToast("Pickup and drop-off cannot be the same stop.", "error");
+      } else if (err.message === "STOP_NOT_FOUND") {
+        showToast("Stop coordinates not set up yet. Admin needs to add stop locations.", "error");
       } else {
-        showToast("Failed to request ride. Try again.", "error");
+        showToast(err.message || "Failed to request ride. Try again.", "error");
       }
     } finally {
       setRequesting(false);
@@ -389,8 +394,8 @@ export default function StudentHomeScreen({ navigation }) {
           </View>
         </View>
         <View style={styles.wordmark}>
-          <Text style={styles.wordmarkOp}>OP</Text>
-          <Text style={styles.wordmarkRides}>rides</Text>
+          <Text style={styles.wordmarkNav}>Nav</Text>
+          <Text style={styles.wordmarkCamp}>Camp</Text>
         </View>
       </View>
 
@@ -428,6 +433,41 @@ export default function StudentHomeScreen({ navigation }) {
             {rideStops.length === 0 && (
               <Text style={styles.note}>No stops available yet. Admin needs to add coordinates.</Text>
             )}
+
+            {/* ── Payment Method ── */}
+            <View style={styles.payMethodWrap}>
+              <Text style={styles.payMethodLabel}>Payment Method</Text>
+              <View style={styles.payMethodRow}>
+                <TouchableOpacity
+                  style={[styles.payMethodOption, paymentMethod === "wallet" && styles.payMethodOptionActive]}
+                  onPress={() => setPaymentMethod("wallet")}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.payMethodRadio, paymentMethod === "wallet" && styles.payMethodRadioActive]}>
+                    {paymentMethod === "wallet" && <View style={styles.payMethodRadioDot} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.payMethodOptionTitle, paymentMethod === "wallet" && { color: C.text }]}>Wallet</Text>
+                    <Text style={styles.payMethodOptionSub}>{formatNaira(walletBalance)} available</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.payMethodOption, paymentMethod === "cash" && styles.payMethodOptionActive]}
+                  onPress={() => setPaymentMethod("cash")}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.payMethodRadio, paymentMethod === "cash" && styles.payMethodRadioActive]}>
+                    {paymentMethod === "cash" && <View style={styles.payMethodRadioDot} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.payMethodOptionTitle, paymentMethod === "cash" && { color: C.text }]}>Cash</Text>
+                    <Text style={styles.payMethodOptionSub}>Pay rider directly</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <TouchableOpacity
               style={[styles.primaryBtn, (!canRequest || requesting) && styles.primaryBtnDisabled]}
               onPress={handleRequestRide}
@@ -512,7 +552,12 @@ export default function StudentHomeScreen({ navigation }) {
             </TouchableOpacity>
 
             {ridePhase === "onTrip" ? (
-              liveSummary.paid ? (
+              liveSummary.paymentMethod === "cash" ? (
+                <View style={styles.cashNotice}>
+                  <Text style={styles.cashNoticeTitle}>Cash Payment</Text>
+                  <Text style={styles.cashNoticeSub}>Pay the rider {formatNaira(liveSummary.fare)} in cash at drop-off</Text>
+                </View>
+              ) : liveSummary.paid ? (
                 <View style={[styles.primaryBtn, styles.primaryBtnDisabled]}>
                   <Text style={styles.primaryBtnText}>Paid {formatNaira(liveSummary.fare)}</Text>
                 </View>
@@ -629,8 +674,8 @@ const styles = StyleSheet.create({
   greeting:     { color: C.text, fontSize: 16, fontWeight: "600" },
   walletText:   { color: C.sub, fontSize: 12, marginTop: 1 },
   wordmark:     { flexDirection: "row" },
-  wordmarkOp:   { color: C.text,  fontWeight: "800", fontSize: 20 },
-  wordmarkRides:{ color: C.green, fontWeight: "800", fontSize: 20 },
+  wordmarkNav:  { color: C.text,  fontWeight: "800", fontSize: 20 },
+  wordmarkCamp: { color: C.green, fontWeight: "800", fontSize: 20 },
 
   card: {
     backgroundColor: C.surface,
@@ -671,6 +716,33 @@ const styles = StyleSheet.create({
 
   dangerBtn:     { borderRadius: 12, paddingVertical: 14, alignItems: "center", borderWidth: 1, borderColor: C.red, backgroundColor: "rgba(239,68,68,0.08)" },
   dangerBtnText: { color: C.red, fontWeight: "600", fontSize: 15 },
+
+  // Payment method selector
+  payMethodWrap:  { marginTop: 12, marginBottom: 4 },
+  payMethodLabel: { color: C.sub, fontSize: 12, fontWeight: "600", marginBottom: 8 },
+  payMethodRow:   { flexDirection: "row", gap: 8 },
+  payMethodOption: {
+    flex:            1,
+    flexDirection:   "row",
+    alignItems:      "center",
+    gap:             10,
+    backgroundColor: C.bg,
+    borderRadius:    10,
+    borderWidth:     1,
+    borderColor:     C.border,
+    padding:         10,
+  },
+  payMethodOptionActive: { borderColor: C.green, backgroundColor: "rgba(0,196,140,0.06)" },
+  payMethodRadio:        { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: C.border, alignItems: "center", justifyContent: "center" },
+  payMethodRadioActive:  { borderColor: C.green },
+  payMethodRadioDot:     { width: 8, height: 8, borderRadius: 4, backgroundColor: C.green },
+  payMethodOptionTitle:  { color: C.sub, fontSize: 13, fontWeight: "600" },
+  payMethodOptionSub:    { color: C.sub, fontSize: 11, marginTop: 1 },
+
+  // Cash notice shown during onTrip for cash rides
+  cashNotice:      { borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, padding: 14, marginTop: 8 },
+  cashNoticeTitle: { color: C.text, fontWeight: "700", fontSize: 14, marginBottom: 3 },
+  cashNoticeSub:   { color: C.sub, fontSize: 13 },
 
   mapBtn:     { borderRadius: 12, paddingVertical: 12, alignItems: "center", borderWidth: 1, borderColor: C.green, marginBottom: 8, marginTop: 8 },
   mapBtnText: { color: C.green, fontWeight: "600", fontSize: 14 },
@@ -747,3 +819,6 @@ const styles = StyleSheet.create({
     backgroundColor: C.border,
   },
 });
+
+
+

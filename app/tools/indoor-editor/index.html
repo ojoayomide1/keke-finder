@@ -1,0 +1,2875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Uchiha Archive — NavCamp Admin Suite</title>
+<style>
+  /* ── MADARA THEME ─────────────────────────────────────────────────────────
+     Void black, blood red, Susanoo purple, sharp geometry, minimal chrome.
+     "Wake up to reality. Nothing ever goes as planned in this accursed world."
+  ─────────────────────────────────────────────────────────────────────────── */
+  :root {
+    --bg:          #07070a;
+    --surface:     #0e0e14;
+    --surface2:    #15151f;
+    --surface3:    #1c1c2a;
+    --border:      #262638;
+    --border2:     #383852;
+    --red:         #c0392b;
+    --red-bright:  #e74c3c;
+    --red-dim:     rgba(192, 57, 43, 0.16);
+    --red-glow:    rgba(192, 57, 43, 0.08);
+    --red-shadow:  rgba(231, 76, 60, 0.28);
+    --purple:      #6c3483;
+    --purple-light:#8e44ad;
+    --purple-dim:  rgba(108, 52, 131, 0.18);
+    --ink:         #eaeaf2;
+    --muted:       #82829e;
+    --sub:         #4e4e68;
+    --success:     #27ae60;
+    --warn:        #e67e22;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ── Scrollbars ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--red); }
+
+  /* ── Background Mangekyo Sharingan watermark ── */
+  body::after {
+    content: "";
+    position: fixed;
+    bottom: -110px;
+    right: -110px;
+    width: 500px;
+    height: 500px;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='100' cy='100' r='90' fill='none' stroke='%23c0392b' stroke-width='1.5' opacity='0.07'/%3E%3Ccircle cx='100' cy='100' r='68' fill='none' stroke='%23c0392b' stroke-width='1' opacity='0.05'/%3E%3Ccircle cx='100' cy='100' r='20' fill='%23c0392b' opacity='0.08'/%3E%3Ccircle cx='100' cy='100' r='8' fill='%23c0392b' opacity='0.14'/%3E%3Cellipse cx='100' cy='32' rx='10' ry='16' fill='%23c0392b' opacity='0.09' transform='rotate(0 100 100)'/%3E%3Cellipse cx='100' cy='32' rx='10' ry='16' fill='%23c0392b' opacity='0.09' transform='rotate(120 100 100)'/%3E%3Cellipse cx='100' cy='32' rx='10' ry='16' fill='%23c0392b' opacity='0.09' transform='rotate(240 100 100)'/%3E%3Cpath d='M100 78 Q122 100 100 122 Q78 100 100 78Z' fill='%23c0392b' opacity='0.08' transform='rotate(0 100 100)'/%3E%3Cpath d='M100 78 Q122 100 100 122 Q78 100 100 78Z' fill='%23c0392b' opacity='0.08' transform='rotate(120 100 100)'/%3E%3Cpath d='M100 78 Q122 100 100 122 Q78 100 100 78Z' fill='%23c0392b' opacity='0.08' transform='rotate(240 100 100)'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: contain;
+    pointer-events: none;
+    z-index: 0;
+    animation: bg-sharingan-spin 65s linear infinite;
+  }
+
+  @keyframes bg-sharingan-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  /* ── Madara Loading Screen (Extended cinematic activation) ── */
+  #loader {
+    position: fixed;
+    inset: 0;
+    background: #050508;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.7s ease;
+  }
+
+  #loader.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .loader-sharingan {
+    width: 104px;
+    height: 104px;
+    animation: sharingan-spin 2.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+    filter: drop-shadow(0 0 22px rgba(192, 57, 43, 0.85));
+  }
+
+  @keyframes sharingan-spin {
+    0%   { transform: rotate(0deg); }
+    50%  { transform: rotate(180deg) scale(1.05); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .loader-text {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--red-bright);
+    text-shadow: 0 0 16px rgba(231, 76, 60, 0.7);
+    animation: loader-pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes loader-pulse {
+    0%, 100% { opacity: 0.6; transform: scale(0.97); }
+    50%       { opacity: 1; transform: scale(1.03); }
+  }
+
+  .loader-sub {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: -14px;
+  }
+
+  /* ── Protocol Warning Banner ── */
+  .protocol-warning {
+    background: #201108;
+    border-bottom: 1px solid var(--warn);
+    color: #f39c12;
+    padding: 10px 18px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    z-index: 100;
+    position: relative;
+  }
+
+  .protocol-warning strong { color: #f1c40f; }
+  .protocol-warning code { background: #120904; padding: 2px 6px; border: 1px solid #7d4410; color: #ffeb3b; }
+
+  /* ── Suite Header / Mode Tabs ── */
+  .suite-topbar {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 48px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  .suite-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .uchiha-crest {
+    filter: drop-shadow(0 0 6px rgba(192, 57, 43, 0.5));
+    transition: transform 0.3s ease;
+  }
+
+  .suite-brand:hover .uchiha-crest {
+    transform: rotate(15deg) scale(1.1);
+  }
+
+  .suite-brand-title {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--red-bright);
+  }
+
+  .suite-modes {
+    display: flex;
+    height: 100%;
+  }
+
+  .suite-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 18px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+  }
+
+  .suite-mode-btn:hover {
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .suite-mode-btn.active {
+    color: var(--red-bright);
+    border-bottom-color: var(--red-bright);
+    background: var(--red-glow);
+  }
+
+  .suite-status-tag {
+    font-size: 10px;
+    font-family: monospace;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+  }
+
+  /* ── Layout ── */
+  .view-container {
+    display: none;
+    min-height: calc(100vh - 48px);
+  }
+
+  .view-container.active-view {
+    display: grid;
+  }
+
+  #viewIndoor.active-view {
+    grid-template-columns: 290px 1fr;
+  }
+
+  #viewSeeder.active-view,
+  #viewRiders.active-view {
+    display: block;
+    padding: 28px 36px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* ── Sidebar (Indoor) ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 48px);
+    position: sticky;
+    top: 48px;
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    position: relative;
+  }
+
+  .sidebar-header h2 {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--red-bright);
+  }
+
+  .sidebar-header p {
+    font-size: 10px;
+    color: var(--sub);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 1px;
+  }
+
+  .sidebar-search {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .sidebar-search input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 7px 10px;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .sidebar-search input:focus {
+    border-color: var(--red);
+    box-shadow: 0 0 8px var(--red-shadow);
+  }
+
+  .sidebar-search input::placeholder { color: var(--sub); }
+
+  .building-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 6px 0;
+  }
+
+  .building-item {
+    padding: 11px 16px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 0.12s, border-color 0.12s;
+    position: relative;
+  }
+
+  .building-item:hover {
+    background: var(--red-glow);
+  }
+
+  .building-item.active {
+    background: var(--red-dim);
+    border-left-color: var(--red-bright);
+  }
+
+  .building-item-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 38px;
+  }
+
+  .building-item-meta {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: monospace;
+    margin-top: 1px;
+  }
+
+  .building-item-count {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--sub);
+    letter-spacing: 0.06em;
+    background: var(--surface3);
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+  }
+
+  .building-item.active .building-item-count {
+    color: var(--red-bright);
+    border-color: var(--red);
+  }
+
+  .sidebar-footer {
+    border-top: 1px solid var(--border);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--surface2);
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+    background: none;
+    color: var(--ink);
+    user-select: none;
+  }
+
+  .btn-red {
+    background: var(--red);
+    border-color: var(--red);
+    color: #fff;
+  }
+
+  .btn-red:hover {
+    background: var(--red-bright);
+    border-color: var(--red-bright);
+    box-shadow: 0 0 10px var(--red-shadow);
+  }
+
+  .btn-outline {
+    border-color: var(--border2);
+    color: var(--muted);
+  }
+
+  .btn-outline:hover {
+    border-color: var(--red);
+    color: var(--ink);
+  }
+
+  .btn-ghost {
+    color: var(--muted);
+    border-color: transparent;
+    padding: 4px 8px;
+  }
+
+  .btn-ghost:hover {
+    color: var(--red-bright);
+  }
+
+  .btn-sm { padding: 5px 10px; font-size: 11px; }
+  .btn-icon { padding: 5px 8px; }
+  .btn-full { width: 100%; }
+
+  .btn-success {
+    background: var(--success);
+    border-color: var(--success);
+    color: #fff;
+  }
+
+  .btn-success:hover {
+    background: #219a52;
+    box-shadow: 0 0 8px rgba(39, 174, 96, 0.4);
+  }
+
+  .btn-purple {
+    background: var(--purple);
+    border-color: var(--purple-light);
+    color: #fff;
+  }
+
+  .btn-purple:hover {
+    background: var(--purple-light);
+    box-shadow: 0 0 10px rgba(142, 68, 173, 0.35);
+  }
+
+  /* ── Main Area (Indoor) ── */
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 48px);
+    background: var(--bg);
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 48px;
+    z-index: 10;
+    gap: 12px;
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .topbar-breadcrumb {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .topbar-breadcrumb span {
+    color: var(--red-bright);
+    font-weight: 700;
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .save-status {
+    font-size: 11px;
+    color: var(--sub);
+    letter-spacing: 0.06em;
+    min-width: 80px;
+    text-align: right;
+  }
+
+  .save-status.saving { color: var(--warn); }
+  .save-status.saved  { color: var(--success); }
+  .save-status.error  { color: var(--red-bright); }
+
+  .content { padding: 24px 28px; flex: 1; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 55vh;
+    gap: 14px;
+    color: var(--sub);
+    text-align: center;
+  }
+
+  .empty-state-crest {
+    opacity: 0.25;
+    animation: sharingan-spin 20s linear infinite;
+  }
+
+  .empty-state h2 {
+    font-size: 16px;
+    color: var(--muted);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .empty-state p {
+    font-size: 13px;
+    max-width: 380px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+
+  .empty-state-quote {
+    font-size: 11px;
+    font-style: italic;
+    color: var(--sub);
+    max-width: 440px;
+    margin-top: 10px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+
+  /* ── Building Header ── */
+  .building-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .building-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .building-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+  }
+
+  .building-id {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: monospace;
+    margin-top: 4px;
+    letter-spacing: 0.06em;
+  }
+
+  .building-id code {
+    background: var(--surface2);
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    color: var(--red-bright);
+  }
+
+  /* ── Stats Bar ── */
+  .stats-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+    padding: 8px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+
+  .stat-item strong {
+    color: var(--ink);
+    margin-left: 2px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-title::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Floor Tabs ── */
+  .floor-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+
+  .floor-tab {
+    padding: 9px 18px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+  }
+
+  .floor-tab:hover {
+    color: var(--ink);
+    background: var(--surface2);
+  }
+
+  .floor-tab.active {
+    color: var(--red-bright);
+    border-bottom-color: var(--red-bright);
+    background: var(--red-glow);
+  }
+
+  .floor-tab-add {
+    padding: 9px 14px;
+    color: var(--sub);
+    cursor: pointer;
+    font-size: 16px;
+    background: none;
+    border: none;
+    transition: color 0.12s;
+  }
+
+  .floor-tab-add:hover { color: var(--red-bright); }
+
+  /* ── Floor Controls ── */
+  .floor-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .floor-filter-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 240px;
+  }
+
+  .floor-filter-box input {
+    width: 100%;
+    max-width: 320px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 6px 10px;
+    font-size: 12px;
+    outline: none;
+  }
+
+  .floor-filter-box input:focus { border-color: var(--red); }
+
+  .floor-filter-box select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 8px;
+    font-size: 12px;
+    outline: none;
+  }
+
+  .floor-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Room Grid ── */
+  .room-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .room-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+    position: relative;
+  }
+
+  .room-card:hover {
+    border-color: var(--border2);
+    background: var(--surface2);
+  }
+
+  .room-card.selected {
+    border-color: var(--red-bright);
+    background: var(--red-glow);
+  }
+
+  .room-card-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: none;
+    align-items: center;
+    gap: 4px;
+    z-index: 2;
+  }
+
+  .room-card:hover .room-card-actions { display: flex; }
+
+  .card-action-btn {
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 3px 6px;
+    line-height: 1;
+    transition: color 0.12s, border-color 0.12s;
+  }
+
+  .card-action-btn:hover { color: var(--ink); border-color: var(--border2); }
+  .card-action-btn.btn-del:hover { color: var(--red-bright); border-color: var(--red); }
+
+  .room-card-type {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--red-bright);
+    margin-bottom: 4px;
+  }
+
+  .room-card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 3px;
+    padding-right: 50px;
+  }
+
+  .room-card-sub {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+    min-height: 16px;
+  }
+
+  .room-card-badges {
+    display: flex;
+    gap: 5px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  .room-card-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid;
+  }
+
+  .badge-open     { color: var(--success); border-color: var(--success); }
+  .badge-closed   { color: var(--red); border-color: var(--red); }
+  .badge-survey   { color: var(--warn); border-color: var(--warn); }
+  .badge-staff    { color: var(--purple-light); border-color: var(--purple-light); }
+  .badge-student  { color: #3498db; border-color: #3498db; }
+  .badge-public   { color: var(--muted); border-color: var(--border2); }
+  .badge-restricted{ color: #e67e22; border-color: #e67e22; }
+
+  .room-add-card {
+    background: none;
+    border: 1px dashed var(--border2);
+    padding: 16px;
+    cursor: pointer;
+    color: var(--sub);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+    min-height: 110px;
+  }
+
+  .room-add-card:hover {
+    border-color: var(--red-bright);
+    color: var(--red-bright);
+    background: var(--red-glow);
+  }
+
+  /* ── Drawer ── */
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(2px);
+    z-index: 40;
+    display: none;
+  }
+
+  .drawer-overlay.open { display: block; }
+
+  .drawer {
+    position: fixed;
+    top: 48px;
+    right: -560px;
+    width: 540px;
+    max-width: 100vw;
+    height: calc(100vh - 48px);
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    z-index: 50;
+    overflow-y: auto;
+    transition: right 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .drawer.open { right: 0; }
+
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .drawer-title {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--red-bright);
+  }
+
+  .drawer-body { padding: 22px; flex: 1; }
+
+  .drawer-footer {
+    padding: 14px 22px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+  }
+
+  /* ── Forms & Fields ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-full { grid-column: 1 / -1; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+
+  .field label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.12s, box-shadow 0.12s;
+    width: 100%;
+  }
+
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus {
+    border-color: var(--red);
+    box-shadow: 0 0 8px var(--red-shadow);
+  }
+
+  .field input::placeholder,
+  .field textarea::placeholder { color: var(--sub); }
+  .field textarea { resize: vertical; min-height: 68px; }
+  .field select option { background: var(--surface2); }
+  .field-hint { font-size: 11px; color: var(--sub); margin-top: 2px; }
+  .form-section { margin-bottom: 22px; }
+
+  /* ── Multi-Occupant Rows ── */
+  .occupant-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+
+  .occupant-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    align-items: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+  }
+
+  .occupant-row input {
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.12s;
+  }
+
+  .occupant-row input:focus { border-color: var(--red); }
+  .occupant-row input::placeholder { color: var(--sub); }
+
+  .occupant-remove-btn {
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    flex-shrink: 0;
+    transition: border-color 0.12s, color 0.12s;
+  }
+
+  .occupant-remove-btn:hover { border-color: var(--red); color: var(--red-bright); }
+
+  .occupant-row-label {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    padding: 0 10px;
+    margin-bottom: 4px;
+  }
+
+  .occupant-row-label span {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sub);
+  }
+
+  .occupant-empty {
+    font-size: 12px;
+    color: var(--sub);
+    padding: 8px 0;
+    font-style: italic;
+  }
+
+  /* ── Seeder Hub Elements ── */
+  .seeder-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .seeder-title h2 {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+  }
+
+  .seeder-title p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  .seeder-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  @media (max-width: 900px) {
+    .seeder-grid { grid-template-columns: 1fr; }
+  }
+
+  .seeder-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .seeder-card-title {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--red-bright);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .log-terminal {
+    background: #050508;
+    border: 1px solid var(--border);
+    color: #adbac7;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 12px;
+    height: 220px;
+    overflow-y: auto;
+    line-height: 1.5;
+  }
+
+  .log-line.success { color: #86efac; }
+  .log-line.error   { color: #fca5a5; }
+  .log-line.info    { color: #93c5fd; }
+  .log-line.warn    { color: #fcd34d; }
+
+  .data-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .data-table th {
+    background: var(--surface3);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 8px 12px;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .data-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--ink);
+  }
+
+  .data-table tr:hover td {
+    background: var(--surface);
+  }
+
+  .data-table code {
+    font-family: monospace;
+    color: var(--red-bright);
+    background: var(--surface);
+    padding: 1px 4px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── Modals ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(2px);
+    z-index: 60;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    width: 440px;
+    max-width: calc(100vw - 32px);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-title {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--red-bright);
+  }
+
+  .modal-body { padding: 20px; }
+  .modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    padding: 10px 18px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    z-index: 100;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.18s, transform 0.18s;
+    pointer-events: none;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+  }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.toast-success { border-left: 3px solid var(--success); }
+  .toast.toast-error   { border-left: 3px solid var(--red-bright); }
+  .toast.toast-info    { border-left: 3px solid #3498db; }
+
+  .room-count-badge {
+    display: inline-block;
+    background: var(--red-dim);
+    color: var(--red-bright);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    letter-spacing: 0.06em;
+    margin-left: 8px;
+    vertical-align: middle;
+    border: 1px solid rgba(192, 57, 43, 0.4);
+  }
+</style>
+</head>
+<body>
+
+<!-- ── MADARA LOADER (EXTENDED DURATION) ─────────────────────────────────── -->
+<div id="loader">
+  <svg class="loader-sharingan" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="100" cy="100" r="92" fill="none" stroke="#c0392b" stroke-width="2.5"/>
+    <circle cx="100" cy="100" r="72" fill="none" stroke="#c0392b" stroke-width="1.5" opacity="0.65"/>
+    <circle cx="100" cy="100" r="66" fill="#150505" opacity="0.8"/>
+    <circle cx="100" cy="100" r="18" fill="#c0392b"/>
+    <circle cx="100" cy="100" r="8" fill="#08080a"/>
+    <!-- 3 Tomoe -->
+    <ellipse cx="100" cy="34" rx="11" ry="17" fill="#c0392b"/>
+    <circle  cx="100" cy="50" r="6" fill="#08080a"/>
+    <ellipse cx="100" cy="34" rx="11" ry="17" fill="#c0392b" transform="rotate(120 100 100)"/>
+    <circle  cx="100" cy="50" r="6" fill="#08080a" transform="rotate(120 100 100)"/>
+    <ellipse cx="100" cy="34" rx="11" ry="17" fill="#c0392b" transform="rotate(240 100 100)"/>
+    <circle  cx="100" cy="50" r="6" fill="#08080a" transform="rotate(240 100 100)"/>
+    <!-- Madara Mangekyo Inner Blades -->
+    <path d="M100 78 Q122 100 100 122 Q78 100 100 78Z" fill="#c0392b" opacity="0.8"/>
+    <path d="M100 78 Q122 100 100 122 Q78 100 100 78Z" fill="#c0392b" opacity="0.8" transform="rotate(120 100 100)"/>
+    <path d="M100 78 Q122 100 100 122 Q78 100 100 78Z" fill="#c0392b" opacity="0.8" transform="rotate(240 100 100)"/>
+  </svg>
+  <div class="loader-text">Powered by Uchiha</div>
+  <div class="loader-sub">NavCamp Admin Suite // Madara Matrix</div>
+</div>
+
+<!-- ── PROTOCOL WARNING ────────────────────────────────────────────────── -->
+<div id="fileProtocolWarning" class="protocol-warning" style="display:none;">
+  <div>
+    <strong>⚠️ Standalone File Mode:</strong>
+    <span>You opened this file directly. To load and auto-save local map data, run <code>npm run admin</code> and open <strong>http://localhost:3737</strong>.</span>
+  </div>
+  <button class="btn btn-outline btn-sm" onclick="this.parentElement.style.display='none'">Dismiss</button>
+</div>
+
+<!-- ── SUITE HEADER / NAVIGATION TABS ───────────────────────────────────── -->
+<header class="suite-topbar">
+  <div class="suite-brand">
+    <svg class="uchiha-crest" viewBox="0 0 100 120" width="24" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M 50 10 A 40 40 0 0 0 10 50 A 40 40 0 0 0 50 90 A 40 40 0 0 0 90 50 A 40 40 0 0 0 50 10 Z" fill="#c0392b"/>
+      <path d="M 10 50 A 40 40 0 0 0 50 90 A 40 40 0 0 0 90 50 Z" fill="#eaeaf2"/>
+      <rect x="46" y="86" width="8" height="26" rx="2" fill="#eaeaf2" stroke="#0f0f15" stroke-width="1.5"/>
+    </svg>
+    <span class="suite-brand-title">NavCamp Admin</span>
+  </div>
+
+  <nav class="suite-modes">
+    <button class="suite-mode-btn active" id="modeBtnIndoor" onclick="switchSuiteMode('indoor')">
+      🏛 Indoor Places
+    </button>
+    <button class="suite-mode-btn" id="modeBtnStudents" onclick="switchSuiteMode('students')">
+      🎓 Student Seeder
+    </button>
+    <button class="suite-mode-btn" id="modeBtnRiders" onclick="switchSuiteMode('riders')">
+      🛺 Rider Registry
+    </button>
+  </nav>
+
+  <div class="suite-status-tag">
+    <span class="status-dot"></span>
+    <span id="suiteConnStatus">Local Server Ready</span>
+  </div>
+</header>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     VIEW 1: INDOOR PLACES EDITOR
+══════════════════════════════════════════════════════════════════════════ -->
+<div id="viewIndoor" class="view-container active-view">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Indoor Places</h2>
+      <p>Building Matrix</p>
+    </div>
+    <div class="sidebar-search">
+      <input type="text" id="buildingSearch" placeholder="Search buildings..." oninput="filterBuildings(this.value)" />
+    </div>
+    <div class="building-list" id="buildingList"></div>
+    <div class="sidebar-footer">
+      <button class="btn btn-red btn-full" onclick="openAddBuildingModal()">+ New Building</button>
+    </div>
+  </aside>
+
+  <!-- Main Area -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-breadcrumb" id="breadcrumb">Select a building</div>
+      </div>
+      <div class="topbar-right">
+        <span class="save-status" id="saveStatus"></span>
+        <button class="btn btn-outline btn-sm" onclick="copyJsonToClipboard()" title="Copy entire JSON">📋 Copy JSON</button>
+        <button class="btn btn-outline btn-sm" onclick="downloadJsonBackup()" title="Download backup">💾 Backup</button>
+        <button class="btn btn-success btn-sm" onclick="saveAll()">Save JSON</button>
+      </div>
+    </div>
+
+    <div class="content" id="mainContent">
+      <div class="empty-state">
+        <svg class="empty-state-crest" viewBox="0 0 200 200" width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="90" fill="none" stroke="#c0392b" stroke-width="2"/>
+          <circle cx="100" cy="100" r="20" fill="#c0392b"/>
+          <ellipse cx="100" cy="35" rx="10" ry="16" fill="#c0392b"/>
+          <ellipse cx="100" cy="35" rx="10" ry="16" fill="#c0392b" transform="rotate(120 100 100)"/>
+          <ellipse cx="100" cy="35" rx="10" ry="16" fill="#c0392b" transform="rotate(240 100 100)"/>
+        </svg>
+        <h2>No Building Selected</h2>
+        <p>Pick a building from the sidebar or create a new one to document floors, lecture halls, offices, and rooms.</p>
+        <div class="empty-state-quote">
+          "Wake up to reality. In this world, wherever there is light, there are always shadows." — Madara Uchiha
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     VIEW 2: STUDENT SEEDER (authorized_students in Firestore)
+══════════════════════════════════════════════════════════════════════════ -->
+<div id="viewSeeder" class="view-container">
+  <div class="seeder-header">
+    <div class="seeder-title">
+      <h2>Authorized Student Registry</h2>
+      <p>Manages <code>authorized_students</code> in Firestore for login validation.</p>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline btn-sm" onclick="fetchStudentsFromFirestore()">🔄 Refresh from DB</button>
+    </div>
+  </div>
+
+  <div class="seeder-grid">
+    <!-- Left: Upload Form -->
+    <div class="seeder-card">
+      <div class="seeder-card-title">
+        <span>⚡ Bulk Upload Roster</span>
+        <span style="font-size:11px;color:var(--muted);font-weight:normal;">1 line per student</span>
+      </div>
+      <p style="font-size:12px;color:var(--muted);">
+        Format: <code>NAME SURNAME MATRIC_NO</code> (e.g. <code>FAROUQ USMAN VUG/CEG/21/4201</code>).
+      </p>
+      <div class="field">
+        <textarea id="bulkStudentData" style="height:140px;font-family:monospace;font-size:12px;" placeholder="FAROUQ USMAN VUG/CEG/21/4201&#10;AYOMIDE OJO VUG/CSC/22/5001"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-red btn-full" id="startStudentUploadBtn" onclick="uploadStudentsToFirestore()">Start Upload to Firestore</button>
+      </div>
+
+      <div class="divider" style="height:1px;background:var(--border);"></div>
+
+      <div class="seeder-card-title">
+        <span>+ Add Single Student</span>
+      </div>
+      <div class="form-grid">
+        <div class="field form-full">
+          <label>Full Name</label>
+          <input type="text" id="singleStudentName" placeholder="e.g. John Doe" />
+        </div>
+        <div class="field form-full">
+          <label>Matric Number</label>
+          <input type="text" id="singleStudentMatric" placeholder="e.g. VUG/CSC/22/1001" oninput="inferLevelFromMatric(this.value)" />
+        </div>
+        <div class="field">
+          <label>Level <span style="color:var(--muted);font-weight:normal;">(auto-inferred from matric)</span></label>
+          <select id="singleStudentLevel">
+            <option value="">— Auto-detect —</option>
+            <option value="100L">100L</option>
+            <option value="200L">200L</option>
+            <option value="300L">300L</option>
+            <option value="400L">400L</option>
+            <option value="500L">500L</option>
+            <option value="600L">600L</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Department <span style="color:var(--muted);font-weight:normal;">(optional)</span></label>
+          <input type="text" id="singleStudentDept" placeholder="e.g. Computer Engineering" />
+        </div>
+      </div>
+      <button class="btn btn-outline" onclick="addSingleStudent()">Add Student</button>
+
+      <div class="seeder-card-title" style="margin-top:10px;">
+        <span>Terminal Log</span>
+      </div>
+      <div class="log-terminal" id="studentLogTerminal">Ready. Paste roster or test matric numbers.</div>
+    </div>
+
+    <!-- Right: Explorer -->
+    <div class="seeder-card">
+      <div class="seeder-card-title">
+        <span>Firestore Records</span>
+        <span id="studentCountBadge" class="room-count-badge">0 Students</span>
+      </div>
+      <div class="field">
+        <input type="text" id="studentSearchInput" placeholder="Filter by name or matric..." oninput="filterStudentTable(this.value)" />
+      </div>
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Matric No</th>
+              <th>Level</th>
+              <th>Department</th>
+              <th>Doc ID</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="studentTableBody">
+            <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">Click "Refresh from DB" to load live records.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     VIEW 3: RIDER REGISTRY (authorized_riders in Firestore)
+══════════════════════════════════════════════════════════════════════════ -->
+<div id="viewRiders" class="view-container">
+  <div class="seeder-header">
+    <div class="seeder-title">
+      <h2>Authorized Rider Registry</h2>
+      <p>Manages <code>authorized_riders</code> in Firestore for keke rider signups.</p>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline btn-sm" onclick="fetchRidersFromFirestore()">🔄 Refresh from DB</button>
+    </div>
+  </div>
+
+  <div class="seeder-grid">
+    <!-- Left: Add Rider Form -->
+    <div class="seeder-card">
+      <div class="seeder-card-title">
+        <span>+ Register Authorized Rider</span>
+      </div>
+      <p style="font-size:12px;color:var(--muted);">
+        Riders verify their <strong>Name</strong>, <strong>Phone</strong>, and <strong>Plate Number</strong> when signing up.
+      </p>
+      <div class="form-grid">
+        <div class="field form-full">
+          <label>Rider Full Name *</label>
+          <input type="text" id="riderNameInput" placeholder="e.g. Ibrahim Musa" />
+        </div>
+        <div class="field">
+          <label>Phone Number *</label>
+          <input type="text" id="riderPhoneInput" placeholder="e.g. 08012345678" />
+        </div>
+        <div class="field">
+          <label>Plate Number *</label>
+          <input type="text" id="riderPlateInput" placeholder="e.g. KKE-01 or ABJ-123-XY" />
+        </div>
+      </div>
+      <button class="btn btn-red btn-full" onclick="addSingleRider()">Save Rider to Firestore</button>
+
+      <div class="divider" style="height:1px;background:var(--border);"></div>
+
+      <div class="seeder-card-title">
+        <span>⚡ Bulk Add Riders</span>
+      </div>
+      <p style="font-size:11px;color:var(--muted);">
+        Comma-separated lines: <code>Name, Phone, PlateNo</code>
+      </p>
+      <textarea id="bulkRiderData" style="height:100px;font-family:monospace;font-size:12px;" placeholder="Ibrahim Musa, 08012345678, KKE-01&#10;Usman Bello, 09087654321, KKE-02"></textarea>
+      <button class="btn btn-outline" onclick="uploadBulkRiders()">Batch Upload Riders</button>
+
+      <div class="seeder-card-title" style="margin-top:10px;">
+        <span>Terminal Log</span>
+      </div>
+      <div class="log-terminal" id="riderLogTerminal">Ready. Add riders to allow rider registration.</div>
+    </div>
+
+    <!-- Right: Explorer -->
+    <div class="seeder-card">
+      <div class="seeder-card-title">
+        <span>Authorized Riders</span>
+        <span id="riderCountBadge" class="room-count-badge">0 Riders</span>
+      </div>
+      <div class="field">
+        <input type="text" id="riderSearchInput" placeholder="Filter by name, plate, or phone..." oninput="filterRiderTable(this.value)" />
+      </div>
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Plate No</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="riderTableBody">
+            <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px;">Click "Refresh from DB" to load live riders.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ROOM DRAWER ──────────────────────────────────────────────────────────── -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="roomDrawer">
+  <div class="drawer-header">
+    <span class="drawer-title" id="drawerTitle">Add Room</span>
+    <button class="btn btn-ghost btn-icon" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <input type="hidden" id="editRoomId" />
+    <div class="form-section">
+      <div class="section-title">Identity</div>
+      <div class="form-grid">
+        <div class="field form-full">
+          <label>Room Name *</label>
+          <input type="text" id="rName" placeholder="e.g. Dean's Office" />
+        </div>
+        <div class="field">
+          <label>Room ID *</label>
+          <input type="text" id="rId" placeholder="e.g. room_faculty_law_gf_dean" />
+          <span class="field-hint">Auto-generated. Edit if needed.</span>
+        </div>
+        <div class="field">
+          <label>Room Type *</label>
+          <select id="rType">
+            <option value="">— Select —</option>
+            <option value="office">Office</option>
+            <option value="lecture_hall">Lecture Hall</option>
+            <option value="lab">Lab</option>
+            <option value="restroom">Restroom</option>
+            <option value="cafeteria">Cafeteria / Canteen</option>
+            <option value="shop">Shop / Bookshop</option>
+            <option value="reception">Reception / Info Desk</option>
+            <option value="library">Library / Reading Room</option>
+            <option value="clinic">Clinic / First Aid</option>
+            <option value="chapel">Chapel / Religious Space</option>
+            <option value="admin">Admin / Registry / Bursary</option>
+            <option value="security">Security Post</option>
+            <option value="store">Store / Maintenance</option>
+            <option value="lounge">Lounge</option>
+            <option value="hall">Hall / Auditorium</option>
+            <option value="cyber_cafe">Cyber Cafe / ICT Room</option>
+            <option value="gym">Gym / Sports Facility</option>
+            <option value="parking">Parking</option>
+            <option value="stairwell">Stairwell</option>
+            <option value="corridor">Corridor / Walkway</option>
+            <option value="unknown">Unknown</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>People / Occupants</span>
+        <button class="btn btn-outline btn-sm" onclick="addOccupantRow()" style="font-size:11px;padding:3px 10px;">+ Add Person</button>
+      </div>
+      <p style="font-size:11px;color:var(--sub);margin-bottom:10px;">
+        For shared offices: add each person separately. Title is optional.
+      </p>
+      <div class="occupant-row-label">
+        <span>Name</span>
+        <span>Title / Role</span>
+        <span></span>
+      </div>
+      <div class="occupant-list" id="occupantList">
+        <div class="occupant-empty" id="occupantEmptyHint">No occupants added yet.</div>
+      </div>
+      <div class="form-grid" style="margin-top:14px;">
+        <div class="field">
+          <label>Department / Unit</label>
+          <input type="text" id="rDepartment" placeholder="e.g. Faculty of Law" />
+        </div>
+        <div class="field">
+          <label>Office / Room Number</label>
+          <input type="text" id="rRoomNumber" placeholder="e.g. A21, B104" />
+        </div>
+        <div class="field">
+          <label>Phone</label>
+          <input type="text" id="rPhone" placeholder="e.g. 08012345678" />
+        </div>
+        <div class="field form-full">
+          <label>Course Codes</label>
+          <input type="text" id="rCourse" placeholder="e.g. LAW 301, LAW 401" />
+          <span class="field-hint">Comma-separated. For lecture halls.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-title">Properties</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Access</label>
+          <select id="rAccess">
+            <option value="public">Public</option>
+            <option value="student">Student</option>
+            <option value="staff">Staff</option>
+            <option value="restricted">Restricted</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="rStatus">
+            <option value="open">Open</option>
+            <option value="closed">Closed</option>
+            <option value="needs_survey">Needs Survey</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Capacity</label>
+          <input type="number" id="rCapacity" placeholder="e.g. 120" min="0" />
+        </div>
+        <div class="field">
+          <label>Gender (restrooms)</label>
+          <select id="rGender">
+            <option value="">N/A</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="unisex">Unisex</option>
+          </select>
+        </div>
+        <div class="field form-full">
+          <label>Search Tags</label>
+          <input type="text" id="rTags" placeholder="e.g. dean,law,office,admin" />
+          <span class="field-hint">Comma-separated keywords for AI search.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-title">Notes</div>
+      <div class="form-grid">
+        <div class="field form-full">
+          <label>Description</label>
+          <textarea id="rDescription" placeholder="e.g. End of ground floor corridor, near stairwell"></textarea>
+        </div>
+        <div class="field form-full">
+          <label>Internal Notes</label>
+          <textarea id="rNotes" placeholder="Notes for survey team — not shown in public app"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-red btn-full" id="drawerSaveBtn" onclick="saveRoom()">Save Room</button>
+    <button class="btn btn-outline" onclick="closeDrawer()">Cancel</button>
+  </div>
+</div>
+
+<!-- ── ADD BUILDING MODAL ───────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="addBuildingModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">New Building</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeAddBuildingModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field form-full">
+          <label>Building Name *</label>
+          <input type="text" id="newBuildingName" placeholder="e.g. Block A" />
+        </div>
+        <div class="field form-full">
+          <label>Building ID *</label>
+          <input type="text" id="newBuildingId" placeholder="e.g. block_a_building" />
+          <span class="field-hint">Matches QGIS format: <code>{slug}_building</code></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAddBuildingModal()">Cancel</button>
+      <button class="btn btn-red" onclick="addBuilding()">Add Building</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD FLOOR MODAL ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="addFloorModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add Floor</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeAddFloorModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field">
+          <label>Floor Number *</label>
+          <input type="number" id="newFloorNum" placeholder="0 = Ground, 1 = First..." />
+        </div>
+        <div class="field">
+          <label>Floor Label *</label>
+          <input type="text" id="newFloorLabel" placeholder="e.g. Ground Floor" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAddFloorModal()">Cancel</button>
+      <button class="btn btn-red" onclick="addFloor()">Add Floor</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BATCH ADD ROOMS MODAL ────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="batchAddModal">
+  <div class="modal" style="width: 500px;">
+    <div class="modal-header">
+      <span class="modal-title">⚡ Batch Add Rooms</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeBatchModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:12px;margin-bottom:14px;">
+        Rapidly generate sequential rooms (e.g. Room 101 to Room 112).
+      </p>
+      <div class="form-grid">
+        <div class="field form-full">
+          <label>Room Name Prefix</label>
+          <input type="text" id="batchPrefix" placeholder="e.g. Room  or  Office " value="Room " />
+        </div>
+        <div class="field">
+          <label>Start Number *</label>
+          <input type="number" id="batchStart" placeholder="101" value="101" />
+        </div>
+        <div class="field">
+          <label>End Number *</label>
+          <input type="number" id="batchEnd" placeholder="110" value="110" />
+        </div>
+        <div class="field">
+          <label>Room Type</label>
+          <select id="batchType">
+            <option value="office">Office</option>
+            <option value="lecture_hall">Lecture Hall</option>
+            <option value="lab">Lab</option>
+            <option value="restroom">Restroom</option>
+            <option value="unknown">Unknown</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Access</label>
+          <select id="batchAccess">
+            <option value="public">Public</option>
+            <option value="student">Student</option>
+            <option value="staff">Staff</option>
+            <option value="restricted">Restricted</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeBatchModal()">Cancel</button>
+      <button class="btn btn-red" onclick="executeBatchAdd()">Generate Rooms</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DELETE CONFIRM MODAL ─────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Confirm Delete</span>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:13px;line-height:1.7" id="deleteMessage">Are you sure?</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-red" id="deleteConfirmBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ─────────────────────────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<!-- ── FIREBASE MODULE & SUITE SCRIPTS ────────────────────────────────────── -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, doc, setDoc, getDocs, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD7B0wPIFFs3aGZL4kaAXSAfwixo08yDf4",
+  authDomain: "keke-finder-cd5fe.firebaseapp.com",
+  projectId: "keke-finder-cd5fe",
+  storageBucket: "keke-finder-cd5fe.firebasestorage.app",
+  messagingSenderId: "836112236677",
+  appId: "1:836112236677:web:bd2a64d87f093a3230e9ec"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db    = getFirestore(fbApp);
+
+// Expose globally for functions
+window.__db = db;
+window.__doc = doc;
+window.__setDoc = setDoc;
+window.__getDocs = getDocs;
+window.__collection = collection;
+window.__deleteDoc = deleteDoc;
+</script>
+
+<script>
+// ── Global State ──────────────────────────────────────────────────────────────
+let currentSuiteMode  = "indoor"; // "indoor" | "students" | "riders"
+let data              = {};       // indoor_places.json
+let activeBuildingId  = null;
+let activeFloorIdx    = 0;
+let pendingDeleteFn   = null;
+let editingRoomId     = null;
+let floorSearchFilter = "";
+let floorTypeFilter   = "";
+
+// Seeder states
+let loadedStudents    = [];
+let loadedRiders      = [];
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+async function init() {
+  if (window.location.protocol === "file:") {
+    document.getElementById("fileProtocolWarning").style.display = "flex";
+  }
+
+  try {
+    const res = await fetch("/api/data");
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    data = await res.json();
+    renderSidebar();
+    const firstKey = Object.keys(data)[0];
+    if (firstKey) selectBuilding(firstKey);
+  } catch (e) {
+    showToast("Could not load indoor map data. Ensure server is running.", "error");
+  } finally {
+    // Extended Uchiha Loading Duration (~2200ms) for cinematic feel
+    dismissLoader(2200);
+  }
+}
+
+function dismissLoader(delay = 2000) {
+  const loader = document.getElementById("loader");
+  if (!loader) return;
+  setTimeout(() => {
+    loader.classList.add("hidden");
+  }, delay);
+}
+
+// ── Suite Mode Switcher ───────────────────────────────────────────────────────
+function switchSuiteMode(mode) {
+  currentSuiteMode = mode;
+
+  document.getElementById("modeBtnIndoor").classList.toggle("active", mode === "indoor");
+  document.getElementById("modeBtnStudents").classList.toggle("active", mode === "students");
+  document.getElementById("modeBtnRiders").classList.toggle("active", mode === "riders");
+
+  document.getElementById("viewIndoor").classList.toggle("active-view", mode === "indoor");
+  document.getElementById("viewSeeder").classList.toggle("active-view", mode === "students");
+  document.getElementById("viewRiders").classList.toggle("active-view", mode === "riders");
+
+  if (mode === "students" && loadedStudents.length === 0) {
+    fetchStudentsFromFirestore();
+  } else if (mode === "riders" && loadedRiders.length === 0) {
+    fetchRidersFromFirestore();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// INDOOR EDITOR LOGIC
+// ══════════════════════════════════════════════════════════════════════════════
+
+function renderSidebar(filter = "") {
+  const list = document.getElementById("buildingList");
+  list.innerHTML = "";
+  const keys = Object.keys(data).filter(k =>
+    !filter || (data[k].name && data[k].name.toLowerCase().includes(filter.toLowerCase())) || k.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  if (keys.length === 0) {
+    list.innerHTML = `<div style="padding:16px;color:var(--sub);font-size:12px;text-align:center">No buildings found</div>`;
+    return;
+  }
+
+  keys.forEach(id => {
+    const building = data[id];
+    const totalRooms = (building.floors || []).reduce((n, f) => n + (f.rooms || []).length, 0);
+    const div = document.createElement("div");
+    div.className = "building-item" + (id === activeBuildingId ? " active" : "");
+    div.onclick = () => selectBuilding(id);
+    div.innerHTML = `
+      <div class="building-item-name">${building.name || id}</div>
+      <div class="building-item-meta">${id}</div>
+      <span class="building-item-count">${totalRooms}R</span>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function filterBuildings(val) { renderSidebar(val); }
+
+function selectBuilding(id) {
+  activeBuildingId = id;
+  activeFloorIdx   = 0;
+  floorSearchFilter = "";
+  floorTypeFilter   = "";
+  renderSidebar(document.getElementById("buildingSearch").value);
+  renderMain();
+}
+
+function renderMain() {
+  const content = document.getElementById("mainContent");
+  const crumb   = document.getElementById("breadcrumb");
+
+  if (!activeBuildingId || !data[activeBuildingId]) {
+    content.innerHTML = `
+      <div class="empty-state">
+        <svg class="empty-state-crest" viewBox="0 0 200 200" width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="90" fill="none" stroke="#c0392b" stroke-width="2"/>
+          <circle cx="100" cy="100" r="20" fill="#c0392b"/>
+          <ellipse cx="100" cy="35" rx="10" ry="16" fill="#c0392b"/>
+          <ellipse cx="100" cy="35" rx="10" ry="16" fill="#c0392b" transform="rotate(120 100 100)"/>
+          <ellipse cx="100" cy="35" rx="10" ry="16" fill="#c0392b" transform="rotate(240 100 100)"/>
+        </svg>
+        <h2>No Building Selected</h2>
+        <p>Pick a building from the sidebar or add a new one.</p>
+        <div class="empty-state-quote">
+          "Wake up to reality. In this world, wherever there is light, there are always shadows." — Madara Uchiha
+        </div>
+      </div>
+    `;
+    crumb.textContent = "Select a building";
+    return;
+  }
+
+  const building = data[activeBuildingId];
+  const floors   = building.floors || [];
+  if (activeFloorIdx >= floors.length) activeFloorIdx = 0;
+
+  crumb.innerHTML = `Indoor Matrix / <span>${building.name}</span>`;
+
+  const tabsHtml = floors.map((f, i) => `
+    <button class="floor-tab ${i === activeFloorIdx ? "active" : ""}" onclick="selectFloor(${i})">
+      ${f.label || floorLabel(f.floor)} (${(f.rooms || []).length})
+    </button>
+  `).join("") + `<button class="floor-tab-add" title="Add floor" onclick="openAddFloorModal()">+</button>`;
+
+  const currentFloor = floors[activeFloorIdx];
+  const allRooms = currentFloor ? (currentFloor.rooms || []) : [];
+
+  const rooms = allRooms.filter(r => {
+    // Build a searchable string from occupants array or legacy occupant field
+    const occupantStr = r.occupants
+      ? r.occupants.map(o => `${o.name || ""} ${o.title || ""}`).join(" ")
+      : (r.occupant || "");
+    const matchSearch = !floorSearchFilter ||
+      (r.name       && r.name.toLowerCase().includes(floorSearchFilter.toLowerCase())) ||
+      (occupantStr  && occupantStr.toLowerCase().includes(floorSearchFilter.toLowerCase())) ||
+      (r.room_number && r.room_number.toLowerCase().includes(floorSearchFilter.toLowerCase())) ||
+      (r.id         && r.id.toLowerCase().includes(floorSearchFilter.toLowerCase())) ||
+      (r.tags       && r.tags.toLowerCase().includes(floorSearchFilter.toLowerCase())) ||
+      (r.course     && r.course.toLowerCase().includes(floorSearchFilter.toLowerCase()));
+
+    const matchType = !floorTypeFilter || r.room_type === floorTypeFilter;
+    return matchSearch && matchType;
+  });
+
+  const roomCards = rooms.map(room => {
+    // Sub-line: show first occupant name, or course, or description
+    let subLine = "—";
+    if (room.occupants && room.occupants.length > 0) {
+      subLine = room.occupants.map(o => o.name + (o.title ? ` · ${o.title}` : "")).join(", ");
+    } else if (room.occupant) {
+      subLine = room.occupant + (room.title ? ` · ${room.title}` : "");
+    } else if (room.course) {
+      subLine = room.course;
+    } else if (room.description) {
+      subLine = room.description;
+    }
+    const roomNoLabel = room.room_number ? `<span style="font-size:10px;color:var(--muted);margin-right:4px;">${room.room_number}</span>` : "";
+    const multiOccBadge = (room.occupants && room.occupants.length > 1)
+      ? `<span class="room-card-badge badge-public">${room.occupants.length} people</span>`
+      : "";
+    return `
+    <div class="room-card" onclick="editRoom('${room.id}')">
+      <div class="room-card-actions">
+        <button class="card-action-btn" onclick="event.stopPropagation(); duplicateRoom('${room.id}')" title="Duplicate room">⧉</button>
+        <button class="card-action-btn btn-del" onclick="event.stopPropagation(); confirmDeleteRoom('${room.id}')" title="Delete room">✕</button>
+      </div>
+      <div class="room-card-type">${(room.room_type || "unknown").replace("_", " ")}</div>
+      <div class="room-card-name">${roomNoLabel}${room.name}</div>
+      <div class="room-card-sub">${subLine}</div>
+      <div class="room-card-badges">
+        <span class="room-card-badge badge-${room.status || "open"}">${room.status || "open"}</span>
+        <span class="room-card-badge badge-${room.access || "public"}">${room.access || "public"}</span>
+        ${multiOccBadge}
+        ${room.capacity ? `<span class="room-card-badge badge-public">Cap: ${room.capacity}</span>` : ""}
+      </div>
+    </div>
+  `;
+  }).join("");
+
+  const totalRoomsInBuilding = (building.floors || []).reduce((n, f) => n + (f.rooms || []).length, 0);
+
+  const typeCounts = {};
+  allRooms.forEach(r => {
+    const t = r.room_type || "unknown";
+    typeCounts[t] = (typeCounts[t] || 0) + 1;
+  });
+  const statPills = Object.entries(typeCounts)
+    .map(([type, cnt]) => `<span class="stat-item">${type.replace("_", " ")}: <strong>${cnt}</strong></span>`)
+    .join(" • ");
+
+  content.innerHTML = `
+    <div class="building-header">
+      <div>
+        <div class="building-title-row">
+          <div class="building-title">${building.name}</div>
+          <span class="room-count-badge">${totalRoomsInBuilding} rooms total</span>
+        </div>
+        <div class="building-id">QGIS ID: <code>${activeBuildingId}</code></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="confirmDeleteBuilding()">Delete Building</button>
+      </div>
+    </div>
+
+    <div class="section-title">Floors</div>
+    <div class="floor-tabs">${tabsHtml}</div>
+
+    <div class="stats-bar">
+      <span>Floor Summary:</span>
+      <strong>${allRooms.length} rooms</strong>
+      ${statPills ? `<span>•</span> ${statPills}` : ""}
+    </div>
+
+    <div class="floor-controls">
+      <div class="floor-filter-box">
+        <input type="text" placeholder="Filter rooms on this floor..." value="${floorSearchFilter}" oninput="setFloorSearch(this.value)" />
+        <select onchange="setFloorTypeFilter(this.value)">
+          <option value="">All Types</option>
+          <option value="office" ${floorTypeFilter === "office" ? "selected" : ""}>Offices</option>
+          <option value="lecture_hall" ${floorTypeFilter === "lecture_hall" ? "selected" : ""}>Lecture Halls</option>
+          <option value="lab" ${floorTypeFilter === "lab" ? "selected" : ""}>Labs</option>
+          <option value="restroom" ${floorTypeFilter === "restroom" ? "selected" : ""}>Restrooms</option>
+          <option value="admin" ${floorTypeFilter === "admin" ? "selected" : ""}>Admin</option>
+          <option value="library" ${floorTypeFilter === "library" ? "selected" : ""}>Library</option>
+        </select>
+      </div>
+      <div class="floor-actions">
+        <button class="btn btn-outline btn-sm" onclick="openBatchModal()">⚡ Batch Add</button>
+        <button class="btn btn-red btn-sm" onclick="openAddRoom()">+ Add Room</button>
+      </div>
+    </div>
+
+    <div class="room-grid">
+      ${roomCards}
+      <button class="room-add-card" onclick="openAddRoom()">
+        <span style="font-size: 20px; line-height: 1;">+</span>
+        <span>Add Room</span>
+      </button>
+    </div>
+  `;
+}
+
+function selectFloor(idx) {
+  activeFloorIdx = idx;
+  floorSearchFilter = "";
+  floorTypeFilter   = "";
+  renderMain();
+}
+
+function setFloorSearch(val) { floorSearchFilter = val; renderMain(); }
+function setFloorTypeFilter(val) { floorTypeFilter = val; renderMain(); }
+
+function floorLabel(n) {
+  if (n === 0) return "Ground Floor";
+  if (n === 1) return "1st Floor";
+  if (n === 2) return "2nd Floor";
+  if (n === 3) return "3rd Floor";
+  return `${n}th Floor`;
+}
+
+function openAddBuildingModal() {
+  document.getElementById("newBuildingName").value = "";
+  document.getElementById("newBuildingId").value   = "";
+  document.getElementById("addBuildingModal").classList.add("open");
+  document.getElementById("newBuildingName").focus();
+}
+
+document.getElementById("newBuildingName").addEventListener("input", function() {
+  const slug = this.value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  document.getElementById("newBuildingId").value = slug ? `${slug}_building` : "";
+});
+
+function closeAddBuildingModal() { document.getElementById("addBuildingModal").classList.remove("open"); }
+
+function addBuilding() {
+  const name = document.getElementById("newBuildingName").value.trim();
+  const id   = document.getElementById("newBuildingId").value.trim();
+  if (!name || !id) { showToast("Name and ID are required", "error"); return; }
+  if (data[id]) { showToast("Building ID already exists", "error"); return; }
+
+  data[id] = { name, floors: [{ floor: 0, label: "Ground Floor", rooms: [] }] };
+  closeAddBuildingModal();
+  renderSidebar();
+  selectBuilding(id);
+  showToast("Building created: " + id);
+}
+
+function openAddFloorModal() {
+  const building = data[activeBuildingId];
+  const existing = (building.floors || []).map(f => f.floor);
+  const next = existing.length > 0 ? Math.max(...existing) + 1 : 0;
+  document.getElementById("newFloorNum").value   = next;
+  document.getElementById("newFloorLabel").value = floorLabel(next);
+  document.getElementById("addFloorModal").classList.add("open");
+}
+
+function closeAddFloorModal() { document.getElementById("addFloorModal").classList.remove("open"); }
+
+function addFloor() {
+  const num   = parseInt(document.getElementById("newFloorNum").value, 10);
+  const label = document.getElementById("newFloorLabel").value.trim();
+  if (isNaN(num) || !label) { showToast("Floor number and label required", "error"); return; }
+
+  const building = data[activeBuildingId];
+  if (!building.floors) building.floors = [];
+  if (building.floors.find(f => f.floor === num)) { showToast("Floor number already exists", "error"); return; }
+
+  building.floors.push({ floor: num, label, rooms: [] });
+  building.floors.sort((a, b) => a.floor - b.floor);
+  activeFloorIdx = building.floors.findIndex(f => f.floor === num);
+
+  closeAddFloorModal();
+  renderMain();
+  showToast("Floor added: " + label);
+}
+
+function openAddRoom() {
+  editingRoomId = null;
+  document.getElementById("drawerTitle").textContent = "Add Room";
+  clearRoomForm();
+  openDrawer();
+  document.getElementById("rName").focus();
+}
+
+function editRoom(roomId) {
+  const floor = data[activeBuildingId].floors[activeFloorIdx];
+  const room  = floor.rooms.find(r => r.id === roomId);
+  if (!room) return;
+
+  editingRoomId = roomId;
+  document.getElementById("drawerTitle").textContent = "Edit Room";
+  populateRoomForm(room);
+  openDrawer();
+}
+
+function clearRoomForm() {
+  ["rId","rName","rDepartment","rRoomNumber","rPhone","rCourse",
+   "rTags","rDescription","rNotes"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("rType").value     = "";
+  document.getElementById("rAccess").value   = "public";
+  document.getElementById("rStatus").value   = "open";
+  document.getElementById("rGender").value   = "";
+  document.getElementById("rCapacity").value = "";
+  clearOccupantList();
+}
+
+// ── Multi-Occupant Helpers ────────────────────────────────────────────────────
+let occupantRowCount = 0;
+
+function clearOccupantList() {
+  const list = document.getElementById("occupantList");
+  if (!list) return;
+  list.innerHTML = `<div class="occupant-empty" id="occupantEmptyHint">No occupants added yet.</div>`;
+  occupantRowCount = 0;
+}
+
+function addOccupantRow(name = "", title = "") {
+  const hint = document.getElementById("occupantEmptyHint");
+  if (hint) hint.remove();
+
+  const idx  = occupantRowCount++;
+  const row  = document.createElement("div");
+  row.className = "occupant-row";
+  row.id        = `occupantRow_${idx}`;
+
+  const nameInput  = document.createElement("input");
+  nameInput.type        = "text";
+  nameInput.placeholder = "Full name";
+  nameInput.value       = name;
+  nameInput.id          = `occ_name_${idx}`;
+
+  const titleInput = document.createElement("input");
+  titleInput.type        = "text";
+  titleInput.placeholder = "Title / role (optional)";
+  titleInput.value       = title;
+  titleInput.id          = `occ_title_${idx}`;
+
+  const removeBtn = document.createElement("button");
+  removeBtn.className = "occupant-remove-btn";
+  removeBtn.title     = "Remove person";
+  removeBtn.textContent = "✕";
+  removeBtn.onclick   = () => removeOccupantRow(idx);
+
+  row.appendChild(nameInput);
+  row.appendChild(titleInput);
+  row.appendChild(removeBtn);
+  document.getElementById("occupantList").appendChild(row);
+}
+
+function removeOccupantRow(idx) {
+  const row = document.getElementById(`occupantRow_${idx}`);
+  if (row) row.remove();
+  const list = document.getElementById("occupantList");
+  if (list && list.querySelectorAll(".occupant-row").length === 0) {
+    list.innerHTML = `<div class="occupant-empty" id="occupantEmptyHint">No occupants added yet.</div>`;
+  }
+}
+
+function getOccupantsFromForm() {
+  const rows = document.getElementById("occupantList").querySelectorAll(".occupant-row");
+  const result = [];
+  rows.forEach(row => {
+    const nameInput  = row.querySelector("input:nth-child(1)");
+    const titleInput = row.querySelector("input:nth-child(2)");
+    const name  = nameInput  ? nameInput.value.trim()  : "";
+    const title = titleInput ? titleInput.value.trim() : "";
+    if (name) result.push({ name, ...(title ? { title } : {}) });
+  });
+  return result;
+}
+
+function populateOccupantList(occupants) {
+  clearOccupantList();
+  if (!occupants || occupants.length === 0) return;
+  occupants.forEach(o => addOccupantRow(o.name || "", o.title || ""));
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function populateRoomForm(room) {
+  document.getElementById("rId").value          = room.id || "";
+  document.getElementById("rName").value        = room.name || "";
+  document.getElementById("rType").value        = room.room_type || "";
+  document.getElementById("rDepartment").value  = room.department || "";
+  document.getElementById("rRoomNumber").value  = room.room_number || "";
+  document.getElementById("rPhone").value       = room.phone || "";
+  document.getElementById("rCourse").value      = room.course || "";
+  document.getElementById("rAccess").value      = room.access || "public";
+  document.getElementById("rStatus").value      = room.status || "open";
+  document.getElementById("rCapacity").value    = room.capacity != null ? room.capacity : "";
+  document.getElementById("rGender").value      = room.gender || "";
+  document.getElementById("rTags").value        = room.tags || "";
+  document.getElementById("rDescription").value = room.description || "";
+  document.getElementById("rNotes").value       = room.notes || "";
+
+  // Occupants — support both new array and old single-string legacy fields
+  if (room.occupants && room.occupants.length > 0) {
+    populateOccupantList(room.occupants);
+  } else if (room.occupant) {
+    populateOccupantList([{ name: room.occupant, title: room.title || null }]);
+  } else {
+    clearOccupantList();
+  }
+}
+
+document.getElementById("rName").addEventListener("input", function() {
+  if (editingRoomId) return;
+  const building = data[activeBuildingId];
+  const floor    = building ? building.floors[activeFloorIdx] : null;
+  const floorNum = floor ? floor.floor : 0;
+  const slug     = this.value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  const prefix   = activeBuildingId ? activeBuildingId.replace(/_building$/, "") : "room";
+  const floorTag = floorNum === 0 ? "gf" : `f${floorNum}`;
+  document.getElementById("rId").value = slug ? `room_${prefix}_${floorTag}_${slug}` : "";
+});
+
+function saveRoom() {
+  const name = document.getElementById("rName").value.trim();
+  const id   = document.getElementById("rId").value.trim();
+  const type = document.getElementById("rType").value;
+  if (!name) { showToast("Room name is required", "error"); return; }
+  if (!id)   { showToast("Room ID is required", "error"); return; }
+
+  const occupants = getOccupantsFromForm();
+
+  const room = {
+    id,
+    name,
+    room_type:   type || "unknown",
+    occupants:   occupants.length > 0 ? occupants : undefined,
+    department:  document.getElementById("rDepartment").value.trim()  || undefined,
+    room_number: document.getElementById("rRoomNumber").value.trim()  || undefined,
+    phone:       document.getElementById("rPhone").value.trim()       || undefined,
+    course:      document.getElementById("rCourse").value.trim()      || undefined,
+    capacity:    document.getElementById("rCapacity").value !== ""    ? parseInt(document.getElementById("rCapacity").value, 10) : undefined,
+    gender:      document.getElementById("rGender").value             || undefined,
+    tags:        document.getElementById("rTags").value.trim()        || undefined,
+    access:      document.getElementById("rAccess").value,
+    status:      document.getElementById("rStatus").value,
+    description: document.getElementById("rDescription").value.trim() || undefined,
+    photo:       undefined,
+    notes:       document.getElementById("rNotes").value.trim()       || undefined
+  };
+
+  // Strip undefined keys to keep JSON clean
+  Object.keys(room).forEach(k => { if (room[k] === undefined) delete room[k]; });
+
+  const floor = data[activeBuildingId].floors[activeFloorIdx];
+  if (!floor.rooms) floor.rooms = [];
+
+  if (editingRoomId) {
+    const idx = floor.rooms.findIndex(r => r.id === editingRoomId);
+    if (idx !== -1) floor.rooms[idx] = room;
+    else floor.rooms.push(room);
+  } else {
+    if (floor.rooms.find(r => r.id === id)) { showToast("Room ID already exists on this floor", "error"); return; }
+    floor.rooms.push(room);
+  }
+
+  closeDrawer();
+  renderMain();
+  renderSidebar(document.getElementById("buildingSearch").value);
+  showToast(editingRoomId ? "Room updated" : "Room added");
+}
+
+function duplicateRoom(roomId) {
+  const floor = data[activeBuildingId].floors[activeFloorIdx];
+  const orig  = floor.rooms.find(r => r.id === roomId);
+  if (!orig) return;
+
+  const clone = JSON.parse(JSON.stringify(orig));
+  let counter = 2;
+  let newId = `${orig.id}_copy`;
+  while (floor.rooms.find(r => r.id === newId)) {
+    newId = `${orig.id}_copy${counter++}`;
+  }
+
+  clone.id   = newId;
+  clone.name = `${orig.name} (Copy)`;
+  floor.rooms.push(clone);
+
+  renderMain();
+  renderSidebar(document.getElementById("buildingSearch").value);
+  showToast("Room duplicated: " + clone.name);
+}
+
+function openBatchModal() { document.getElementById("batchAddModal").classList.add("open"); }
+function closeBatchModal() { document.getElementById("batchAddModal").classList.remove("open"); }
+
+function executeBatchAdd() {
+  const prefix = document.getElementById("batchPrefix").value;
+  const start  = parseInt(document.getElementById("batchStart").value, 10);
+  const end    = parseInt(document.getElementById("batchEnd").value, 10);
+  const type   = document.getElementById("batchType").value;
+  const access = document.getElementById("batchAccess").value;
+
+  if (isNaN(start) || isNaN(end) || start > end) { showToast("Invalid number range", "error"); return; }
+
+  const floor = data[activeBuildingId].floors[activeFloorIdx];
+  if (!floor.rooms) floor.rooms = [];
+
+  const bldgPrefix = activeBuildingId.replace(/_building$/, "");
+  const floorTag   = floor.floor === 0 ? "gf" : `f${floor.floor}`;
+
+  let createdCount = 0;
+  for (let n = start; n <= end; n++) {
+    const roomName = `${prefix}${n}`.trim();
+    const slug = roomName.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+    const id = `room_${bldgPrefix}_${floorTag}_${slug}`;
+
+    if (!floor.rooms.find(r => r.id === id)) {
+      floor.rooms.push({
+        id,
+        name:      roomName,
+        room_type: type,
+        tags:      `${roomName.toLowerCase()},${type}`,
+        access,
+        status:    "open"
+      });
+      createdCount++;
+    }
+  }
+
+  closeBatchModal();
+  renderMain();
+  renderSidebar(document.getElementById("buildingSearch").value);
+  showToast(`Batch added ${createdCount} rooms`);
+}
+
+function confirmDeleteRoom(roomId) {
+  const floor = data[activeBuildingId].floors[activeFloorIdx];
+  const room  = floor.rooms.find(r => r.id === roomId);
+  document.getElementById("deleteMessage").textContent = `Delete room "${room?.name || roomId}"? This cannot be undone.`;
+  pendingDeleteFn = () => {
+    floor.rooms = floor.rooms.filter(r => r.id !== roomId);
+    renderMain();
+    renderSidebar(document.getElementById("buildingSearch").value);
+    showToast("Room deleted");
+  };
+  document.getElementById("deleteModal").classList.add("open");
+}
+
+function confirmDeleteBuilding() {
+  const building = data[activeBuildingId];
+  document.getElementById("deleteMessage").textContent = `Delete building "${building?.name}"? All floors and rooms will be lost.`;
+  pendingDeleteFn = () => {
+    delete data[activeBuildingId];
+    activeBuildingId = null;
+    renderSidebar();
+    renderMain();
+    showToast("Building deleted");
+  };
+  document.getElementById("deleteModal").classList.add("open");
+}
+
+function closeDeleteModal() {
+  document.getElementById("deleteModal").classList.remove("open");
+  pendingDeleteFn = null;
+}
+
+document.getElementById("deleteConfirmBtn").onclick = function() {
+  if (pendingDeleteFn) pendingDeleteFn();
+  closeDeleteModal();
+};
+
+function openDrawer() {
+  document.getElementById("drawerOverlay").classList.add("open");
+  document.getElementById("roomDrawer").classList.add("open");
+}
+
+function closeDrawer() {
+  document.getElementById("drawerOverlay").classList.remove("open");
+  document.getElementById("roomDrawer").classList.remove("open");
+}
+
+async function saveAll() {
+  const status = document.getElementById("saveStatus");
+  status.textContent = "Saving…";
+  status.className   = "save-status saving";
+  try {
+    const res = await fetch("/api/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data, null, 2),
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+    status.textContent = "Saved ✓";
+    status.className   = "save-status saved";
+    showToast("Saved to indoor_places.json", "success");
+    setTimeout(() => { status.textContent = ""; status.className = "save-status"; }, 3000);
+  } catch (e) {
+    status.textContent = "Error";
+    status.className   = "save-status error";
+    showToast("Save failed: " + e.message, "error");
+  }
+}
+
+function copyJsonToClipboard() {
+  const jsonStr = JSON.stringify(data, null, 2);
+  navigator.clipboard.writeText(jsonStr).then(() => {
+    showToast("Copied indoor_places.json to clipboard!");
+  }).catch(() => {
+    showToast("Failed to copy to clipboard", "error");
+  });
+}
+
+function downloadJsonBackup() {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `indoor_places_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("Backup JSON downloaded");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STUDENT SEEDER LOGIC (Firestore: authorized_students)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Level inference (mirrors LoginScreen.js logic) ───────────────────────────
+function calculateLevelFromMatric(matricNo, baseYear = 25) {
+  if (!matricNo) return "100L";
+  const match = matricNo.match(/[\/\-_](\d{2})[\/\-_]/);
+  if (match) {
+    const yr   = parseInt(match[1], 10);
+    const diff = (baseYear - yr) + 1;
+    if (diff >= 1 && diff <= 6) return `${diff * 100}L`;
+  }
+  return "100L";
+}
+
+function inferLevelFromMatric(val) {
+  const sel = document.getElementById("singleStudentLevel");
+  if (!sel || sel.value) return; // don't overwrite a manual selection
+  const inferred = calculateLevelFromMatric(val);
+  sel.value = inferred;
+}
+
+function logStudent(msg, type = "info") {
+  const terminal = document.getElementById("studentLogTerminal");
+  const div = document.createElement("div");
+  div.className = `log-line ${type}`;
+  div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  terminal.appendChild(div);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+async function fetchStudentsFromFirestore() {
+  logStudent("Fetching authorized students from Firestore...", "info");
+  try {
+    const colRef = window.__collection(window.__db, "authorized_students");
+    const snap = await window.__getDocs(colRef);
+    loadedStudents = [];
+    snap.forEach(d => {
+      loadedStudents.push({ id: d.id, ...d.data() });
+    });
+    logStudent(`Loaded ${loadedStudents.length} students from database.`, "success");
+    renderStudentTable(loadedStudents);
+  } catch (err) {
+    logStudent(`Fetch failed: ${err.message}`, "error");
+    showToast("Failed to fetch students: " + err.message, "error");
+  }
+}
+
+function renderStudentTable(students) {
+  const tbody = document.getElementById("studentTableBody");
+  document.getElementById("studentCountBadge").textContent = `${students.length} Students`;
+  tbody.innerHTML = "";
+
+  if (students.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">No records found in database.</td></tr>`;
+    return;
+  }
+
+  students.slice(0, 200).forEach(s => {
+    const levelBadge = s.level
+      ? `<span style="background:var(--red-dim);color:var(--red-bright);border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600;">${s.level}</span>`
+      : `<span style="color:var(--sub);">—</span>`;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>${s.name || "—"}</strong></td>
+      <td><code>${s.matricNo || "—"}</code></td>
+      <td>${levelBadge}</td>
+      <td style="color:var(--muted);font-size:12px;">${s.department || "—"}</td>
+      <td style="font-family:monospace;color:var(--muted);font-size:11px;">${s.id}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="deleteStudent('${s.id}')">✕</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function filterStudentTable(val) {
+  const query = val.toLowerCase().trim();
+  const filtered = loadedStudents.filter(s =>
+    (s.name       && s.name.toLowerCase().includes(query)) ||
+    (s.matricNo   && s.matricNo.toLowerCase().includes(query)) ||
+    (s.level      && s.level.toLowerCase().includes(query)) ||
+    (s.department && s.department.toLowerCase().includes(query)) ||
+    (s.id         && s.id.toLowerCase().includes(query))
+  );
+  renderStudentTable(filtered);
+}
+
+async function deleteStudent(docId) {
+  if (!confirm(`Remove student ${docId} from authorized list?`)) return;
+  try {
+    await window.__deleteDoc(window.__doc(window.__db, "authorized_students", docId));
+    logStudent(`Deleted student record: ${docId}`, "warn");
+    loadedStudents = loadedStudents.filter(s => s.id !== docId);
+    renderStudentTable(loadedStudents);
+    showToast("Student removed");
+  } catch (err) {
+    logStudent(`Error deleting: ${err.message}`, "error");
+  }
+}
+
+async function addSingleStudent() {
+  const name   = document.getElementById("singleStudentName").value.trim();
+  const matric = document.getElementById("singleStudentMatric").value.trim();
+  const levelSel = document.getElementById("singleStudentLevel").value.trim();
+  const dept   = document.getElementById("singleStudentDept").value.trim();
+
+  if (!name || !matric) {
+    showToast("Name and Matric Number required", "error");
+    return;
+  }
+
+  const level     = levelSel || calculateLevelFromMatric(matric);
+  const sanitized = matric.toUpperCase().replace(/\//g, "-");
+
+  const payload = {
+    name,
+    matricNo:   matric.toUpperCase(),
+    level,
+    authorized: true,
+    updatedAt:  new Date()
+  };
+  if (dept) payload.department = dept;
+
+  try {
+    await window.__setDoc(window.__doc(window.__db, "authorized_students", sanitized), payload);
+    logStudent(`Added: ${name} (${matric}) → ${level}${dept ? " / " + dept : ""}`, "success");
+    showToast(`Added ${name} [${level}]`);
+    document.getElementById("singleStudentName").value  = "";
+    document.getElementById("singleStudentMatric").value = "";
+    document.getElementById("singleStudentLevel").value  = "";
+    document.getElementById("singleStudentDept").value   = "";
+    fetchStudentsFromFirestore();
+  } catch (err) {
+    logStudent(`Upload error: ${err.message}`, "error");
+    showToast(err.message, "error");
+  }
+}
+
+async function uploadStudentsToFirestore() {
+  const raw = document.getElementById("bulkStudentData").value.trim();
+  if (!raw) {
+    showToast("Please paste student data first", "error");
+    return;
+  }
+
+  const lines = raw.split("\n").map(l => l.trim()).filter(Boolean);
+  const students = lines.map(line => {
+    const parts = line.split(/\s+/);
+    const matricNo = parts.pop();
+    const name = parts.join(" ");
+    return { name, matricNo };
+  });
+
+  const btn = document.getElementById("startStudentUploadBtn");
+  btn.disabled = true;
+  btn.textContent = "Uploading...";
+  logStudent(`Found ${students.length} students to seed. Commencing upload...`, "info");
+
+  let count = 0;
+  for (const s of students) {
+    try {
+      const sanitized = s.matricNo.trim().toUpperCase().replace(/\//g, "-");
+      const level     = calculateLevelFromMatric(s.matricNo);
+      await window.__setDoc(window.__doc(window.__db, "authorized_students", sanitized), {
+        name:       s.name.trim(),
+        matricNo:   s.matricNo.trim().toUpperCase(),
+        level,
+        authorized: true,
+        updatedAt:  new Date()
+      });
+      count++;
+      logStudent(`[${count}/${students.length}] ${s.name} (${s.matricNo}) → ${level}`, "success");
+    } catch (err) {
+      logStudent(`Failed for ${s.name}: ${err.message}`, "error");
+    }
+  }
+
+  logStudent(`Completed upload of ${count} students!`, "success");
+  btn.disabled = false;
+  btn.textContent = "Upload Complete ✓";
+  showToast(`Successfully seeded ${count} students!`, "success");
+  fetchStudentsFromFirestore();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// RIDER REGISTRY LOGIC (Firestore: authorized_riders)
+// ══════════════════════════════════════════════════════════════════════════════
+
+function logRider(msg, type = "info") {
+  const terminal = document.getElementById("riderLogTerminal");
+  const div = document.createElement("div");
+  div.className = `log-line ${type}`;
+  div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  terminal.appendChild(div);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+async function fetchRidersFromFirestore() {
+  logRider("Fetching authorized riders from Firestore...", "info");
+  try {
+    const colRef = window.__collection(window.__db, "authorized_riders");
+    const snap = await window.__getDocs(colRef);
+    loadedRiders = [];
+    snap.forEach(d => {
+      loadedRiders.push({ id: d.id, ...d.data() });
+    });
+    logRider(`Loaded ${loadedRiders.length} riders from database.`, "success");
+    renderRiderTable(loadedRiders);
+  } catch (err) {
+    logRider(`Fetch failed: ${err.message}`, "error");
+    showToast("Failed to fetch riders: " + err.message, "error");
+  }
+}
+
+function renderRiderTable(riders) {
+  const tbody = document.getElementById("riderTableBody");
+  document.getElementById("riderCountBadge").textContent = `${riders.length} Riders`;
+  tbody.innerHTML = "";
+
+  if (riders.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px;">No authorized riders registered.</td></tr>`;
+    return;
+  }
+
+  riders.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><code>${r.plateNo || r.id}</code></td>
+      <td><strong>${r.name || "—"}</strong></td>
+      <td>${r.phone || "—"}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="deleteRider('${r.id}')">✕</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function filterRiderTable(val) {
+  const query = val.toLowerCase().trim();
+  const filtered = loadedRiders.filter(r =>
+    (r.name && r.name.toLowerCase().includes(query)) ||
+    (r.phone && r.phone.toLowerCase().includes(query)) ||
+    (r.id && r.id.toLowerCase().includes(query)) ||
+    (r.plateNo && r.plateNo.toLowerCase().includes(query))
+  );
+  renderRiderTable(filtered);
+}
+
+async function deleteRider(plateId) {
+  if (!confirm(`Revoke rider authorization for plate ${plateId}?`)) return;
+  try {
+    await window.__deleteDoc(window.__doc(window.__db, "authorized_riders", plateId));
+    logRider(`Deleted rider record: ${plateId}`, "warn");
+    loadedRiders = loadedRiders.filter(r => r.id !== plateId);
+    renderRiderTable(loadedRiders);
+    showToast("Rider authorization revoked");
+  } catch (err) {
+    logRider(`Delete error: ${err.message}`, "error");
+  }
+}
+
+async function addSingleRider() {
+  const name  = document.getElementById("riderNameInput").value.trim();
+  const phone = document.getElementById("riderPhoneInput").value.trim();
+  const plate = document.getElementById("riderPlateInput").value.trim().toUpperCase();
+
+  if (!name || !phone || !plate) {
+    showToast("Name, phone, and plate number required", "error");
+    return;
+  }
+
+  try {
+    await window.__setDoc(window.__doc(window.__db, "authorized_riders", plate), {
+      name,
+      phone,
+      plateNo: plate,
+      authorized: true,
+      updatedAt: new Date()
+    });
+    logRider(`Authorized rider saved: ${name} (${plate}, ${phone})`, "success");
+    showToast(`Rider ${name} authorized!`);
+    document.getElementById("riderNameInput").value = "";
+    document.getElementById("riderPhoneInput").value = "";
+    document.getElementById("riderPlateInput").value = "";
+    fetchRidersFromFirestore();
+  } catch (err) {
+    logRider(`Error saving rider: ${err.message}`, "error");
+    showToast(err.message, "error");
+  }
+}
+
+async function uploadBulkRiders() {
+  const raw = document.getElementById("bulkRiderData").value.trim();
+  if (!raw) {
+    showToast("Please enter rider lines", "error");
+    return;
+  }
+
+  const lines = raw.split("\n").map(l => l.trim()).filter(Boolean);
+  logRider(`Parsing ${lines.length} rider records...`, "info");
+
+  let count = 0;
+  for (const line of lines) {
+    const parts = line.split(/[,\t]+/).map(p => p.trim());
+    if (parts.length < 3) continue;
+    const [name, phone, plate] = parts;
+    const plateUpper = plate.toUpperCase();
+
+    try {
+      await window.__setDoc(window.__doc(window.__db, "authorized_riders", plateUpper), {
+        name,
+        phone,
+        plateNo: plateUpper,
+        authorized: true,
+        updatedAt: new Date()
+      });
+      count++;
+      logRider(`[${count}] Added rider: ${name} [${plateUpper}]`, "success");
+    } catch (err) {
+      logRider(`Failed for ${name}: ${err.message}`, "error");
+    }
+  }
+
+  logRider(`Bulk uploaded ${count} riders successfully!`, "success");
+  showToast(`Added ${count} authorized riders!`);
+  fetchRidersFromFirestore();
+}
+
+// ── Toast Utility ─────────────────────────────────────────────────────────────
+function showToast(msg, type = "success") {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className   = `toast toast-${type} show`;
+  setTimeout(() => { t.classList.remove("show"); }, 2800);
+}
+
+// ── Keyboard Shortcuts ────────────────────────────────────────────────────────
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+    e.preventDefault();
+    if (currentSuiteMode === "indoor") saveAll();
+  }
+  if (e.key === "Escape") {
+    closeDrawer();
+    closeAddBuildingModal();
+    closeAddFloorModal();
+    closeBatchModal();
+    closeDeleteModal();
+  }
+});
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

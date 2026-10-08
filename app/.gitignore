@@ -39,3 +39,14 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# debug request logs
+debug-request-*.json
+
+# GIS working files & raw OSM dumps
+*.qgz
+*.gpkg
+veritas_*.geojson*
+veritas_*.osm
+
+

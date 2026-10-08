@@ -243,8 +243,8 @@ export default function ProfileScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
         <View style={styles.wordmark}>
-          <Text style={styles.wordmarkOp}>OP</Text>
-          <Text style={styles.wordmarkRides}>rides</Text>
+          <Text style={styles.wordmarkNav}>Nav</Text>
+          <Text style={styles.wordmarkCamp}>Camp</Text>
         </View>
       </View>
 
@@ -353,8 +353,8 @@ const styles = StyleSheet.create({
   },
   headerTitle:   { color: C.text, fontWeight: "800", fontSize: 24 },
   wordmark:      { flexDirection: "row" },
-  wordmarkOp:    { color: C.text, fontWeight: "800", fontSize: 20 },
-  wordmarkRides: { color: C.green, fontWeight: "800", fontSize: 20 },
+  wordmarkNav:   { color: C.text, fontWeight: "800", fontSize: 20 },
+  wordmarkCamp:  { color: C.green, fontWeight: "800", fontSize: 20 },
 
   avatarSection: { alignItems: "center", paddingVertical: 24 },
   avatar:        { alignItems: "center", justifyContent: "center", marginBottom: 14 },

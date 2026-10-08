@@ -18,7 +18,7 @@
  *  └──────────────────────────────┘
  *
  *  Top-up modal (bottom sheet):
- *    Preset amounts + custom input → opens Paystack in browser
+ *    Preset amounts + custom input -> requests transfer details
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -27,6 +27,7 @@ import {
   Alert,
   Animated,
   FlatList,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -177,7 +178,6 @@ function TxDetailRow({ label, value }) {
     </View>
   );
 }
-
 /** Filter tab bar */
 function FilterTabs({ active, onChange }) {
   const tabs = [
@@ -271,7 +271,7 @@ function TopUpModal({ visible, onClose, onConfirm, loading, email }) {
           {loading
             ? <ActivityIndicator color="#0F0F13" />
             : <Text style={styles.primaryBtnText}>
-                Pay {isValid ? formatNaira(effectiveAmount * 100) : "—"} via Paystack
+                Pay {isValid ? `₦${effectiveAmount.toLocaleString()}` : ""}
               </Text>
           }
         </TouchableOpacity>
@@ -337,15 +337,19 @@ export default function WalletScreen() {
   async function handleTopUp(amountNaira) {
     setTopUpLoading(true);
     try {
-      await initiateTopUp({
+      const { paymentUrl } = await initiateTopUp({
         uid:         currentUser.uid,
         email:       currentUser.email,
         amountNaira,
       });
       setTopUpVisible(false);
-      showToast("Paystack checkout opened. Come back once you've paid.", "info");
+      // Open Paystack checkout in the browser.
+      // When payment completes, the webhook credits the wallet automatically
+      // and the listenToWallet listener will update the balance in real time.
+      await Linking.openURL(paymentUrl);
+      showToast("Complete the payment in your browser. Your balance updates automatically.", "info");
     } catch (err) {
-      showToast(err.message || "Failed to open payment page.", "error");
+      showToast(err.message || "Failed to start payment. Try again.", "error");
     } finally {
       setTopUpLoading(false);
     }
@@ -364,8 +368,8 @@ export default function WalletScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Wallet</Text>
         <View style={styles.wordmark}>
-          <Text style={styles.wordmarkOp}>OP</Text>
-          <Text style={styles.wordmarkRides}>rides</Text>
+          <Text style={styles.wordmarkNav}>Nav</Text>
+          <Text style={styles.wordmarkCamp}>Camp</Text>
         </View>
       </View>
 
@@ -477,8 +481,8 @@ const styles = StyleSheet.create({
   },
   headerTitle:    { color: C.text, fontWeight: "800", fontSize: 24 },
   wordmark:       { flexDirection: "row" },
-  wordmarkOp:     { color: C.text, fontWeight: "800", fontSize: 20 },
-  wordmarkRides:  { color: C.green, fontWeight: "800", fontSize: 20 },
+  wordmarkNav:    { color: C.text, fontWeight: "800", fontSize: 20 },
+  wordmarkCamp:   { color: C.green, fontWeight: "800", fontSize: 20 },
 
   // ── Balance card
   balanceCard: {

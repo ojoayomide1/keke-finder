@@ -4,8 +4,10 @@
  * Pure utility functions for ride matching and fare calculation.
  * Mirrors js/modules/ride-helpers.js from main branch.
  * No Firebase, no UI — all functions are synchronous except
- * getQueuePosition / estimateWaitTime which are stubs kept for API parity.
+ * getQueuePosition / estimateWaitTime which query Firestore for live queue state.
  */
+
+import { db, collection, query, where, getDocs } from "../config/firebase";
 
 // ─── DISTANCE ────────────────────────────────────────────────────────────────
 
@@ -164,16 +166,39 @@ export function formatNaira(kobo = 0) {
 }
 
 // ─── QUEUE HELPERS ───────────────────────────────────────────────────────────
-// Students are not allowed to count the full waitingQueue in Firestore rules.
-// These return sensible defaults until a queueStats doc is added.
 
-/** @returns {Promise<number>} estimated queue position */
+/**
+ * Count how many students are currently in the waitingQueue and return
+ * the next available position (count + 1).
+ *
+ * @returns {Promise<number>}
+ */
 export async function getQueuePosition() {
-  return 1;
+  try {
+    const snap = await getDocs(
+      query(collection(db, "waitingQueue"), where("notified", "==", false))
+    );
+    return snap.size + 1;
+  } catch {
+    return 1;
+  }
 }
 
-/** @returns {Promise<string>} human-readable wait estimate */
+/**
+ * Estimate wait time based on queue position.
+ * Assumes ~4–6 minutes per position ahead in the queue.
+ *
+ * @returns {Promise<string>} e.g. "4–6 mins", "8–12 mins"
+ */
 export async function estimateWaitTime() {
-  const pos = await getQueuePosition();
-  return `${pos * 4}–${pos * 6} mins`;
+  try {
+    const snap = await getDocs(
+      query(collection(db, "waitingQueue"), where("notified", "==", false))
+    );
+    const ahead = snap.size; // number of students ahead of this one
+    if (ahead === 0) return "2–4 mins";
+    return `${ahead * 4}–${ahead * 6} mins`;
+  } catch {
+    return "A few minutes";
+  }
 }

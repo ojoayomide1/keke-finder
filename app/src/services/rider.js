@@ -75,7 +75,7 @@ export function listenToRideRequests(riderId, callback) {
   // Simple query - only filter by status, no ordering to avoid composite index
   const q = query(
     collection(db, "rideRequests"),
-    where("status", "==", "pending")
+    where("status", "==", "searching")
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -104,7 +104,7 @@ export async function acceptRideRequest(requestId, riderId) {
       const requestRef = doc(db, "rideRequests", requestId);
       const requestDoc = await transaction.get(requestRef);
       
-      if (!requestDoc.exists() || requestDoc.data().status !== "pending") {
+      if (!requestDoc.exists() || requestDoc.data().status !== "searching") {
         throw new Error("Ride request no longer available");
       }
 
@@ -158,6 +158,7 @@ export async function acceptRideRequest(requestId, riderId) {
               pickupStatus: "pending",
               dropoffStatus: "pending",
               fare: TOTAL_FARE_KOBO,
+              paymentMethod: requestData.paymentMethod ?? "wallet",
             }
           },
           stopQueue,
@@ -165,6 +166,7 @@ export async function acceptRideRequest(requestId, riderId) {
           fare: TOTAL_FARE_KOBO,
           riderShare: RIDER_SHARE_KOBO,
           adminShare: ADMIN_SHARE_KOBO,
+          paymentMethod: requestData.paymentMethod ?? "wallet",
           createdAt: serverTimestamp(),
           matchedAt: serverTimestamp(),
         };
@@ -189,6 +191,7 @@ export async function acceptRideRequest(requestId, riderId) {
             pickupStatus: "pending",
             dropoffStatus: "pending",
             fare: TOTAL_FARE_KOBO,
+            paymentMethod: requestData.paymentMethod ?? "wallet",
           }
         };
         
@@ -214,6 +217,7 @@ export async function acceptRideRequest(requestId, riderId) {
         status: "matched",
         riderId,
         rideId: rideRef.id,
+        matchedRideId: rideRef.id,
         matchedAt: serverTimestamp(),
       });
 
@@ -359,25 +363,58 @@ export async function completeNextStop(rideId) {
         if (remainingStops.length === 0) {
           updates.status = "completed";
           updates.completedAt = serverTimestamp();
-          
-          // Update rider earnings
+
           const riderRef = doc(db, "users", rideData.riderId);
           const riderDoc = await transaction.get(riderRef);
-          
+
           if (riderDoc.exists()) {
             const currentEarnings = riderDoc.data().earnings || { balance: 0, totalEarned: 0 };
-            transaction.update(riderRef, {
-              earnings: {
-                ...currentEarnings,
-                balance: currentEarnings.balance + rideData.riderShare,
-                totalEarned: currentEarnings.totalEarned + rideData.riderShare,
-                lastEarning: {
-                  amount: rideData.riderShare,
+            const passengerList = Object.values(rideData.passengers || {});
+
+            // Split earnings by payment method across all passengers
+            let walletShare = 0;
+            let cashShare   = 0;
+            passengerList.forEach((p) => {
+              const passengerFare = p.fare ?? rideData.riderShare ?? 0;
+              const method = p.paymentMethod ?? "wallet";
+              // Use the per-passenger rider share (riderShare stored on ride is the total)
+              // We approximate per-passenger rider share from the ride-level ratio
+              const perPassengerRiderShare = passengerList.length > 0
+                ? Math.floor(rideData.riderShare / passengerList.length)
+                : rideData.riderShare;
+              if (method === "cash") {
+                cashShare += perPassengerRiderShare;
+              } else {
+                walletShare += perPassengerRiderShare;
+              }
+            });
+
+            // Credit wallet earnings only for wallet rides
+            if (walletShare > 0) {
+              transaction.update(riderRef, {
+                "earnings.balance":     (currentEarnings.balance     || 0) + walletShare,
+                "earnings.totalEarned": (currentEarnings.totalEarned || 0) + walletShare,
+                "earnings.lastEarning": {
+                  amount:   walletShare,
                   rideId,
                   earnedAt: serverTimestamp(),
                 },
-              },
-            });
+              });
+            }
+
+            // Track cash earnings separately — no wallet credit, just a record
+            if (cashShare > 0) {
+              const currentCash = riderDoc.data().cashEarnings || { totalCollected: 0, rideCount: 0 };
+              transaction.update(riderRef, {
+                "cashEarnings.totalCollected": (currentCash.totalCollected || 0) + cashShare,
+                "cashEarnings.rideCount":      (currentCash.rideCount      || 0) + 1,
+                "cashEarnings.lastCollection": {
+                  amount:      cashShare,
+                  rideId,
+                  collectedAt: serverTimestamp(),
+                },
+              });
+            }
           }
         }
       }
@@ -468,10 +505,12 @@ export async function fetchRiderStats(riderId) {
     });
 
     return {
-      balance: earnings.balance || 0,
-      totalEarned: earnings.totalEarned || 0,
+      balance:      earnings.balance      || 0,
+      totalEarned:  earnings.totalEarned  || 0,
       todayEarnings,
       totalRides,
+      cashCollected: userData.cashEarnings?.totalCollected || 0,
+      cashRideCount: userData.cashEarnings?.rideCount      || 0,
     };
   } catch (error) {
     console.error("Error fetching rider stats:", error);
@@ -596,3 +635,4 @@ export async function requestWithdrawal(riderId, amountNaira, bankDetails) {
 export function formatNaira(kobo) {
   return `₦${(kobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 }
+

@@ -33,6 +33,7 @@ import {
   orderBy,
   serverTimestamp,
   runTransaction,
+  writeBatch,
 } from "../config/firebase";
 
 import { getRideStops } from "./campus-data";
@@ -63,17 +64,17 @@ const RIDER_SHARE_RATIO = 13 / 15;
  * @param {object} request   — same shape as the Firestore rideRequests doc
  */
 export async function runMatching(requestId, request) {
-  // 1. Try active rides first
-  const activeSnap = await getDocs(
-    query(collection(db, "rides"), where("status", "==", "active"))
+  // 1. Try rides that are actively moving passengers (onTrip)
+  const activSnap = await getDocs(
+    query(collection(db, "rides"), where("status", "==", "onTrip"))
   );
 
   let bestRide  = null;
   let bestScore = Infinity;
 
-  activeSnap.forEach((docSnap) => {
+  activSnap.forEach((docSnap) => {
     const data = docSnap.data();
-    if (data.seats.available <= 0) return;
+    if (!data.seats || data.seats.available <= 0) return;
     const score = calculateDetourScore(data, request);
     if (score < bestScore && score < MAX_DETOUR_ACTIVE) {
       bestScore = score;
@@ -86,15 +87,17 @@ export async function runMatching(requestId, request) {
     return;
   }
 
-  // 2. Try waiting/idle kekes
-  const idleSnap = await getDocs(
-    query(collection(db, "rides"), where("status", "==", "waiting"))
+  // 2. Try rides that are matched but not yet moving (rider on the way to first pickup)
+  const matchedSnap = await getDocs(
+    query(collection(db, "rides"), where("status", "==", "matched"))
   );
 
-  idleSnap.forEach((docSnap) => {
+  matchedSnap.forEach((docSnap) => {
     const data = docSnap.data();
-    if (data.seats.available <= 0) return;
-    const dist = getDistance(data.currentLocation, request.pickup);
+    if (!data.seats || data.seats.available <= 0) return;
+    const dist = data.currentLocation
+      ? getDistance(data.currentLocation, request.pickup)
+      : Infinity;
     if (dist < bestScore && dist < MAX_DETOUR_IDLE) {
       bestScore = dist;
       bestRide  = { id: docSnap.id, ...data };
@@ -107,22 +110,34 @@ export async function runMatching(requestId, request) {
   }
 
   // 3. No keke available — add to waiting queue
-  const queueRef = await addDoc(collection(db, "waitingQueue"), {
+  const position      = await getQueuePosition();
+  const estimatedWait = await estimateWaitTime();
+
+  // Use a batch so the queue doc and rideRequest update are atomic.
+  // The Firestore rule uses getAfter() to verify both docs exist together.
+  const batch        = writeBatch(db);
+  const queueDocRef  = doc(collection(db, "waitingQueue"));
+  const requestRef   = doc(db, "rideRequests", requestId);
+
+  batch.set(queueDocRef, {
     studentId:     request.studentId,
     studentName:   request.studentName,
     requestId,
     pickup:        request.pickup,
     dropoff:       request.dropoff,
+    paymentMethod: request.paymentMethod ?? "wallet",
     joinedAt:      serverTimestamp(),
-    position:      await getQueuePosition(),
-    estimatedWait: await estimateWaitTime(),
+    position,
+    estimatedWait,
     notified:      false,
   });
 
-  await updateDoc(doc(db, "rideRequests", requestId), {
+  batch.update(requestRef, {
     status:     "queued",
-    queueDocId: queueRef.id,
+    queueDocId: queueDocRef.id,
   });
+
+  await batch.commit();
 }
 
 /**
@@ -150,6 +165,7 @@ async function claimSeat(rideId, requestId, request) {
           pickupStatus:  "pending",
           dropoffStatus: "pending",
           fare:          calculateFare(request.pickup, request.dropoff),
+          paymentMethod: request.paymentMethod ?? "wallet",
           paid:          false,
         },
         "seats.occupied":  (ride.seats.occupied || 0) + 1,
@@ -180,17 +196,18 @@ async function claimSeat(rideId, requestId, request) {
  * @param {object} params
  * @param {string}   params.studentId
  * @param {string}   params.studentName
- * @param {string}   params.pickupId     — stop id from campus-data rideStops
+ * @param {string}   params.pickupId       — stop id from campus-data rideStops
  * @param {string}   params.dropoffId
- * @param {number}   params.walletBalance — current student wallet balance in kobo
- * @param {number}   params.debt         — outstanding debt in kobo
+ * @param {number}   params.walletBalance  — current student wallet balance in kobo
+ * @param {number}   params.debt           — outstanding debt in kobo
+ * @param {string}   params.paymentMethod  — "wallet" | "cash"
  *
  * @returns {{ requestId: string, pickup: object, dropoff: object }}
- * @throws {Error} with messages: "DEBT_OUTSTANDING:<amount>", "SAME_STOP", "STOP_NOT_FOUND", "NO_ACTIVE_REQUEST"
+ * @throws {Error} with messages: "DEBT_OUTSTANDING:<amount>", "SAME_STOP", "STOP_NOT_FOUND"
  */
-export async function requestRide({ studentId, studentName, pickupId, dropoffId, walletBalance, debt }) {
-  // Debt gate — same logic as checkDebtBeforeRide in main
-  if (debt?.amount > 0) {
+export async function requestRide({ studentId, studentName, pickupId, dropoffId, walletBalance, debt, paymentMethod = "wallet" }) {
+  // Debt gate only applies to wallet rides
+  if (paymentMethod === "wallet" && debt?.amount > 0) {
     throw new Error(`DEBT_OUTSTANDING:${debt.amount}`);
   }
 
@@ -222,6 +239,7 @@ export async function requestRide({ studentId, studentName, pickupId, dropoffId,
       lng:   dropoffLoc.lng,
       label: dropoffLoc.name,
     },
+    paymentMethod,
     rideType:      "pool",
     status:        "searching",
     matchedRideId: null,
@@ -230,10 +248,10 @@ export async function requestRide({ studentId, studentName, pickupId, dropoffId,
 
   const ref = await addDoc(collection(db, "rideRequests"), requestData);
 
-  // Matching is intentionally fire-and-forget so the UI can react to the
-  // "searching" status immediately via listenToRequest.
-  runMatching(ref.id, requestData).catch(err => {
-    console.error("[student] runMatching failed:", err);
+  // Kick off matching asynchronously — do not await so the UI gets
+  // the requestId immediately and can start listening before matching resolves.
+  runMatching(ref.id, { ...requestData, requestedAt: new Date() }).catch((err) => {
+    console.warn("[requestRide] runMatching error:", err.message);
   });
 
   return { requestId: ref.id, pickup: requestData.pickup, dropoff: requestData.dropoff };
@@ -473,6 +491,7 @@ export function listenToRide(rideId, studentId, callback) {
         pickupStatus:     passenger?.pickupStatus  ?? "pending",
         paid:             passenger?.paid          ?? false,
         fare:             passenger?.fare          ?? 0,
+        paymentMethod:    passenger?.paymentMethod ?? ride.paymentMethod ?? "wallet",
         isCompleted:      ride.status === "completed",
       });
     },
@@ -552,3 +571,5 @@ export async function deleteRideRecord(requestId) {
     deletedByStudent: true,
   });
 }
+
+

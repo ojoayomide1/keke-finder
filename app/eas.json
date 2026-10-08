@@ -1,0 +1,30 @@
+{
+    "cli":  {
+                "version":  "\u003e= 22.0.0",
+                "appVersionSource":  "remote"
+            },
+    "build":  {
+                  "preview":  {
+                                  "android":  {
+                                                  "buildType":  "apk"
+                                              }
+                              },
+                  "production":  {
+                                     "android":  {
+                                                     "buildType":  "app-bundle"
+                                                 }
+                                 },
+                  "development":  {
+                                      "developmentClient":  true,
+                                      "distribution":  "internal",
+                                      "android":  {
+                                                      "buildType":  "apk"
+                                                  }
+                                  }
+              },
+    "submit":  {
+                   "production":  {
+
+                                  }
+               }
+}

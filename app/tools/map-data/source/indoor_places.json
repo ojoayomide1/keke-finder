@@ -1,0 +1,389 @@
+{
+  "block_a_building": {
+    "name": "Block A",
+    "floors": [
+      {
+        "floor": 0,
+        "label": "Ground Floor",
+        "rooms": [
+          {
+            "id": "room_block_a_gf_department_of_art_s_and_social_scienc_education",
+            "name": "department of art's and social scienc education",
+            "room_type": "office",
+            "occupants": [
+              {
+                "name": "REV, FR, PROF, PETER B, TANKO",
+                "title": "HEAD OF DEPARTMENT ART AND SOCIAL SCIENCE"
+              }
+            ],
+            "room_number": "A1",
+            "tags": "m",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_gf_education_management",
+            "name": "Education Management",
+            "room_type": "office",
+            "occupants": [
+              {
+                "name": "DR FELIX E IYALA",
+                "title": "ADMINISTRATION AND PLANNING"
+              }
+            ],
+            "room_number": "A2",
+            "access": "public",
+            "status": "open",
+            "description": "ADMINISTRATION AND PLANNING H.O.D , EDUCATION FOUNDATIONS"
+          },
+          {
+            "id": "room_block_a_gf_guidance_and_counseling",
+            "name": "GUIDANCE AND COUNSELING",
+            "room_type": "office",
+            "room_number": "A3",
+            "access": "public",
+            "status": "open",
+            "description": "HEAD OF DEPARTMENT , GUIDANCE AND COUNSELING"
+          },
+          {
+            "id": "room_block_a_gf_dr_olumire_agbede",
+            "name": "DR OLUMIRE AGBEDE",
+            "room_type": "unknown",
+            "room_number": "A4",
+            "access": "public",
+            "status": "open",
+            "description": "DR OLUMIRE AGBEDE"
+          },
+          {
+            "id": "room_block_a_gf_department_of_scienc_edukation",
+            "name": "DEPARTMENT OF SCIENC EDUKATION",
+            "room_type": "office",
+            "occupants": [
+              {
+                "name": "DR FRANCIS R OJO",
+                "title": "HEAD OF DEPARTMENT SCIENC EDUCATION"
+              }
+            ],
+            "room_number": "A5",
+            "access": "public",
+            "status": "open",
+            "description": "DR. FRANCIS R. OJO, HEAD OF DEPARTMENT SCIENC EDUCATION"
+          },
+          {
+            "id": "room_block_a_gf_dept_recovery_office_1",
+            "name": "DEPT RECOVERY OFFICE 1",
+            "room_type": "office",
+            "room_number": "A6",
+            "access": "public",
+            "status": "open",
+            "description": "DEPT RECOVERY OFFICE 1"
+          }
+        ]
+      },
+      {
+        "floor": 1,
+        "label": "1st Floor",
+        "rooms": [
+          {
+            "id": "room_block_a_f1_a21",
+            "name": "A21",
+            "room_type": "unknown",
+            "room_number": "A21",
+            "access": "public",
+            "status": "open",
+            "description": "A21"
+          },
+          {
+            "id": "room_block_a_f1_office_of_ethics",
+            "name": "OFFICE OF THE DIRECTOR OF ETHICS",
+            "room_type": "office",
+            "occupants": [
+              {
+                "name": "REV. FR. DR. PETER OKONWO CMF",
+                "title": "DIRECTOR OF ETHICS"
+              }
+            ],
+            "room_number": "A22",
+            "tags": "Ethics,peter,okonkwo,CMF,A22",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f1_a23",
+            "name": "A23",
+            "room_type": "office",
+            "tags": "A23",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f1_a24",
+            "name": "A24",
+            "room_type": "unknown",
+            "tags": "A24",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f1_a25",
+            "name": "A25",
+            "room_type": "unknown",
+            "tags": "A24",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f1_a26",
+            "name": "A26",
+            "room_type": "unknown",
+            "tags": "A26",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f1_faculty_resource_room",
+            "name": "FACULTY RESOURCE ROOM",
+            "room_type": "office",
+            "tags": "FACULTY RESOURCE ROOM",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f1_lecture_room",
+            "name": "LECTURE ROOM",
+            "room_type": "lecture_hall",
+            "room_number": "27-28",
+            "tags": "lecture,room",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f1_vuef_office",
+            "name": "VUEF OFFICE",
+            "room_type": "office",
+            "occupants": [
+              {
+                "name": "REV, PR, DR, RICHARD  GOKUM"
+              }
+            ],
+            "room_number": "A29",
+            "tags": "VUEF OFFICE, REV, PR, DR, RICHARD  GOKUM",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f1_department_of_peace_and_conflct",
+            "name": "DEPARTMENT OF PEACE AND CONFLCT",
+            "room_type": "office",
+            "room_number": "A30",
+            "tags": "DEPARTMENT OF PEACE AND CONFLCT",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f1_department_of_computer_information_technology",
+            "name": "DEPARTMENT OF COMPUTER / INFORMATION TECHNOLOGY",
+            "room_type": "office",
+            "room_number": "A16",
+            "tags": "DEPARTMENT OF COMPUTER / INFORMATION TECHNOLOGY",
+            "access": "public",
+            "status": "open"
+          }
+        ]
+      },
+      {
+        "floor": 2,
+        "label": "2nd Floor",
+        "rooms": [
+          {
+            "id": "room_block_a_f2_hardwaer_laboratry",
+            "name": "HARDWAER LABORATRY",
+            "room_type": "lab",
+            "tags": "HARDWAER LABORATRY",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f2_cybersecurity_laburatry",
+            "name": "CYBERSECURITY LABURATRY",
+            "room_type": "lab",
+            "tags": "CYBERSECURITY LABURATRY",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f2_softweare_information_system_lab",
+            "name": "SOFTWEARE/ INFORMATION SYSTEM LAB",
+            "room_type": "lab",
+            "tags": "SOFTWEARE/ INFORMATION SYSTEM LAB",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f2_rev_sr_dr_chika_eze",
+            "name": "REV,SR,DR CHIKA EZE",
+            "room_type": "office",
+            "occupants": [
+              {
+                "name": "REV,SR,DR CHIKA EZE"
+              }
+            ],
+            "room_number": "A40",
+            "tags": "REV,SR,DR CHIKA EZE",
+            "access": "public",
+            "status": "open",
+            "description": "REV,SR,DR CHIKA EZE"
+          },
+          {
+            "id": "room_block_a_f2_a39",
+            "name": "A39",
+            "room_type": "office",
+            "occupants": [
+              {
+                "name": "DR IDAKWONJI S.B"
+              },
+              {
+                "name": "DR FADAPE BAYO MICHEIL"
+              }
+            ],
+            "room_number": "A39",
+            "tags": "DR FADAPE BAYO MICHEIL, DR IDAKWONJI S.B",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f2_a38",
+            "name": "A38",
+            "room_type": "office",
+            "occupants": [
+              {
+                "name": "DR FELIX ULOKO O"
+              },
+              {
+                "name": "MR OGNNA C NNANNA"
+              }
+            ],
+            "room_number": "A38",
+            "tags": "DR FELIX ULOKO O,MR OGNNA C NNANNA",
+            "access": "public",
+            "status": "open"
+          },
+          {
+            "id": "room_block_a_f2_a37",
+            "name": "A37",
+            "room_type": "office",
+            "occupants": [
+              {
+                "name": "GRAHAMS M TOR"
+              }
+            ],
+            "room_number": "A37",
+            "tags": "GRAHAMS M TOR",
+            "access": "public",
+            "status": "open"
+          }
+        ]
+      }
+    ]
+  },
+  "block_b_building": {
+    "name": "Block B",
+    "floors": [
+      {
+        "floor": 0,
+        "label": "Ground Floor",
+        "rooms": []
+      }
+    ]
+  },
+  "block_c_building": {
+    "name": "Block C",
+    "floors": [
+      {
+        "floor": 0,
+        "label": "Ground Floor",
+        "rooms": []
+      }
+    ]
+  },
+  "block_d_building": {
+    "name": "Block D",
+    "floors": [
+      {
+        "floor": 0,
+        "label": "Ground Floor",
+        "rooms": []
+      }
+    ]
+  },
+  "ict_building": {
+    "name": "ICT",
+    "floors": [
+      {
+        "floor": 0,
+        "label": "Ground Floor",
+        "rooms": []
+      }
+    ]
+  },
+  "clinic_building": {
+    "name": "Clinic",
+    "floors": [
+      {
+        "floor": 0,
+        "label": "Ground Floor",
+        "rooms": []
+      }
+    ]
+  },
+  "senate_building": {
+    "name": "Senate",
+    "floors": [
+      {
+        "floor": 0,
+        "label": "Ground Floor",
+        "rooms": []
+      }
+    ]
+  },
+  "auditorium_building": {
+    "name": "Auditorium",
+    "floors": [
+      {
+        "floor": 0,
+        "label": "Ground Floor",
+        "rooms": []
+      }
+    ]
+  },
+  "software_building_building": {
+    "name": "Software Building",
+    "floors": [
+      {
+        "floor": 0,
+        "label": "Ground Floor",
+        "rooms": []
+      }
+    ]
+  },
+  "chapel_building": {
+    "name": "Chapel",
+    "floors": [
+      {
+        "floor": 0,
+        "label": "Ground Floor",
+        "rooms": []
+      }
+    ]
+  },
+  "faculty_law_building": {
+    "name": "Faculty of Law",
+    "floors": [
+      {
+        "floor": 0,
+        "label": "Ground Floor",
+        "rooms": []
+      }
+    ]
+  }
+}

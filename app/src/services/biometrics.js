@@ -22,6 +22,7 @@
  *   getBiometricLabel()            → Promise<string>  — "Face ID" | "Fingerprint" | "Biometrics"
  */
 
+import { Platform } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -36,6 +37,7 @@ const KEY_CREDS   = "oprBiometricCredentials"; // JSON string: { email, password
  * Returns true if the device has biometric hardware AND enrolled biometrics.
  */
 export async function isBiometricsAvailable() {
+  if (Platform.OS === "web") return false;
   try {
     const compatible = await LocalAuthentication.hasHardwareAsync();
     if (!compatible) return false;

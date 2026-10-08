@@ -5,21 +5,20 @@
  * Mirrors js/wallet.js from the main branch, rewritten for React Native:
  *  - No DOM manipulation
  *  - Pure functions / callbacks / returned data
- *  - Paystack top-up uses expo-linking to open the Paystack Checkout URL
- *    (the webhook on the Cloudflare Worker credits the wallet automatically)
+ *  - Paystack top-up requests bank-transfer details from the Cloudflare Worker
+ *    (the webhook credits the wallet automatically)
  *
  * Exports:
  *   formatNaira(kobo)                              — format kobo → ₦ string
  *   listenToWallet(uid, onBalance, onTransactions) — subscribe to balance + tx history
- *   initiateTopUp(params)                          — open Paystack checkout in browser
+ *   initiateTopUp(params)                          — request Paystack transfer details
  *   checkDebtBeforeRide(uid)                       — throws if outstanding debt
  *   clearDebtAfterTopUp(uid)                       — run transaction to clear debt
  *   fetchProfileStats(uid)                         — one-shot stats for Profile screen
  */
 
-import * as Linking from "expo-linking";
-
 import {
+  auth,
   db,
   collection,
   doc,
@@ -40,9 +39,7 @@ export const MIN_TOPUP_NAIRA          = 500;
 export const LOW_BALANCE_THRESHOLD    = 50_000; // kobo — ₦500
 export const TOPUP_PRESET_AMOUNTS     = [500, 1_000, 2_000, 3_000, 5_000]; // naira
 
-// The same live key used in the main branch
-const PAYSTACK_PUBLIC_KEY =
-  "pk_live_cd5305502fcec15b34ded0dcfc9d56f84b85482a";
+const TOPUP_ENDPOINT = "https://navcamp-webhook.ojopraise423.workers.dev/paystack/create-virtual-account";
 
 // ─── FORMATTING ──────────────────────────────────────────────────────────────
 
@@ -176,12 +173,13 @@ export function listenToWallet(uid, onBalance, onTransactions, onTopUp) {
 // ─── TOP-UP ──────────────────────────────────────────────────────────────────
 
 /**
- * Open the Paystack inline checkout page in the device browser.
- * The Cloudflare Worker webhook handles the actual wallet credit — we just
- * redirect the user and the wallet listener will detect the new top-up.
+ * Initialize a Paystack checkout for wallet top-up.
+ * The worker creates a transaction via Paystack's transaction/initialize endpoint
+ * and returns a payment URL. The app opens that URL in the browser.
+ * When payment completes, the Paystack webhook credits the wallet automatically.
  *
  * @param {{ uid: string, email: string, amountNaira: number }} params
- * @throws {Error} if amount is below minimum or uid/email is missing
+ * @returns {{ paymentUrl: string, reference: string, amountKobo: number, amountNaira: number }}
  */
 export async function initiateTopUp({ uid, email, amountNaira }) {
   if (!uid || !email) throw new Error("Login required to top up");
@@ -189,31 +187,54 @@ export async function initiateTopUp({ uid, email, amountNaira }) {
     throw new Error(`Minimum top-up is ${formatNaira(MIN_TOPUP_NAIRA * 100)}`);
   }
 
-  // Build a Paystack Checkout URL with metadata so the webhook knows the student
-  const params = new URLSearchParams({
-    key:      PAYSTACK_PUBLIC_KEY,
-    email,
-    amount:   String(amountNaira * 100), // Paystack expects kobo
-    currency: "NGN",
-    ref:      `opr_${uid}_${Date.now()}`,
-    metadata: JSON.stringify({
-      studentId:     uid,
-      custom_fields: [
-        {
-          display_name:  "Student ID",
-          variable_name: "student_id",
-          value:         uid,
-        },
-      ],
-    }),
-  });
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error("Login required to top up");
 
-  const checkoutUrl = `https://checkout.paystack.com/pay?${params.toString()}`;
-  const supported   = await Linking.canOpenURL(checkoutUrl);
-  if (!supported) throw new Error("Cannot open payment page. Please try again.");
-  await Linking.openURL(checkoutUrl);
+  const amountKobo  = Math.round(amountNaira * 100);
+  const controller  = new AbortController();
+  const timeoutId   = setTimeout(() => controller.abort(), 20_000);
+
+  let response;
+  try {
+    response = await fetch(TOPUP_ENDPOINT, {
+      method:  "POST",
+      headers: {
+        Authorization:  `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body:   JSON.stringify({
+        studentId: uid,
+        email,
+        amount: amountKobo,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Request timed out. Check your connection and try again.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not initialize payment. Try again.");
+  }
+
+  if (!data.paymentUrl) {
+    throw new Error("Payment link was not returned. Please try again.");
+  }
+
+  return {
+    paymentUrl:  data.paymentUrl,
+    reference:   data.reference,
+    amountKobo,
+    amountNaira,
+  };
 }
-
 // ─── DEBT LOGIC ──────────────────────────────────────────────────────────────
 
 /**

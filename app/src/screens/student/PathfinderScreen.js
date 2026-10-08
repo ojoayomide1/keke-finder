@@ -117,8 +117,12 @@ export default function PathfinderScreen({ navigation }) {
 
   // ── Load data ───────────────────────────────────────────────────────────
   useEffect(() => {
-    loadCampusDataFromFirestore().then(() => setLocations(getCampusLocationsForMap()));
-    unsubCampusRef.current = listenToCampusData(() => setLocations(getCampusLocationsForMap()));
+    loadCampusDataFromFirestore().then(() =>
+      setLocations(getCampusLocationsForMap().filter(l => l.category !== "pickup"))
+    );
+    unsubCampusRef.current = listenToCampusData(() =>
+      setLocations(getCampusLocationsForMap().filter(l => l.category !== "pickup"))
+    );
 
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -300,7 +304,9 @@ export default function PathfinderScreen({ navigation }) {
         style={styles.filterRow}
         contentContainerStyle={styles.filterContent}
       >
-        {[["all", "All"], ...Object.entries(CAMPUS_CATEGORY_META).map(([id, m]) => [id, m.label])].map(([id, label]) => (
+        {[["all", "All"], ...Object.entries(CAMPUS_CATEGORY_META)
+          .filter(([id]) => id !== "pickup")
+          .map(([id, m]) => [id, m.label])].map(([id, label]) => (
           <TouchableOpacity
             key={id}
             style={[styles.filterChip, filter === id && styles.filterChipActive]}

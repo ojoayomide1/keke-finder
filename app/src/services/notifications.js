@@ -9,6 +9,7 @@
  */
 
 import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { db, doc, updateDoc } from "../config/firebase";
 
@@ -62,9 +63,13 @@ export async function registerForPushNotifications(userId) {
     //    work in Expo Go (SDK 53+). We skip it gracefully so local
     //    notifications (ride matched, picked up, etc.) still work fine.
     try {
-      const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: "c4785082-e5ed-4f6e-b59d-32db581a49ad",
-      });
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+      if (!projectId) {
+        console.warn("[Notifications] EAS project ID is not configured yet.");
+        return null;
+      }
+
+      const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
       const token = tokenData.data;
 
       // 3. Save token to Firestore
@@ -108,3 +113,5 @@ export async function sendLocalNotification(title, body, data = {}) {
     console.warn("[Notifications] sendLocalNotification failed:", err?.message ?? err);
   }
 }
+
+

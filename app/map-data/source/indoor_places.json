@@ -1,0 +1,72 @@
+{
+    "faculty_law_building": {
+      "name": "Faculty of Law",
+      "floors": [
+        {
+          "floor": 0,
+          "label": "Ground Floor",
+          "rooms": [
+            {
+              "id": "room_faculty_law_gf_dean",
+              "name": "Dean's Office",
+              "room_type": "office",
+              "occupant": "Prof. John Doe",
+              "title": "Dean, Faculty of Law",
+              "department": "Faculty of Law",
+              "phone": null,
+              "course": null,
+              "capacity": null,
+              "gender": null,
+              "tags": "dean,law,office,admin,professor",
+              "access": "staff",
+              "status": "open",
+              "description": null,
+              "photo": null,
+              "notes": null
+            },
+            {
+              "id": "room_faculty_law_gf_lh1",
+              "name": "Lecture Hall 1",
+              "room_type": "lecture_hall",
+              "occupant": null,
+              "title": null,
+              "department": "Faculty of Law",
+              "phone": null,
+              "course": "LAW 101, LAW 201",
+              "capacity": 200,
+              "gender": null,
+              "tags": "lecture,law,hall,lh1,ground",
+              "access": "student",
+              "status": "open",
+              "description": "Large lecture hall on the ground floor, left of main entrance",
+              "photo": null,
+              "notes": null
+            },
+            {
+              "id": "room_faculty_law_gf_restroom_m",
+              "name": "Male Restroom",
+              "room_type": "restroom",
+              "occupant": null,
+              "title": null,
+              "department": null,
+              "phone": null,
+              "course": null,
+              "capacity": null,
+              "gender": "male",
+              "tags": "toilet,restroom,male,gents,wc",
+              "access": "public",
+              "status": "open",
+              "description": "End of ground floor corridor, near stairwell",
+              "photo": null,
+              "notes": null
+            }
+          ]
+        },
+        {
+          "floor": 1,
+          "label": "First Floor",
+          "rooms": []
+        }
+      ]
+    }
+  }

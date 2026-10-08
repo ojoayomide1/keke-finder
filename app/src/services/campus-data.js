@@ -3,13 +3,14 @@
  *
  * Mirrors js/campus-data.js from main branch.
  * Holds the static campus map data and syncs it live from Firestore.
- * All DOM-specific code is stripped — this is pure data + Firebase.
+ * All DOM-specific code is stripped â€” this is pure data + Firebase.
  */
 
 import { db, doc, getDoc, onSnapshot, setDoc, serverTimestamp, collection, query, where } from "../config/firebase";
+import VERITAS_MAP_PACKAGE from "../../map-data/exports/veritas-map.json";
 
 
-// ─── CATEGORY META ───────────────────────────────────────────────────────────
+// â”€â”€â”€ CATEGORY META â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Used to colour map markers and filter the map legend.
 
 export const CAMPUS_CATEGORY_META = {
@@ -25,7 +26,7 @@ export const CAMPUS_CATEGORY_META = {
   pickup:       { label: "Pickup / Drop-off", icon: "car-side",      color: "#00c48c" },
 };
 
-// ─── STATIC CAMPUS DATA ──────────────────────────────────────────────────────
+// â”€â”€â”€ STATIC CAMPUS DATA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Coordinates start as null. They are populated by the admin map-editor
 // and stored in Firestore under campusData/main. loadCampusDataFromFirestore()
 // merges the live values in at runtime.
@@ -99,9 +100,11 @@ export const CAMPUS_MAP_DATA = {
 
   paths: [],
   buildings: [],
+  routingNodes: [],
+  routingEdges: [],
 };
 
-// ─── INTERNAL HELPERS ────────────────────────────────────────────────────────
+// â”€â”€â”€ INTERNAL HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -125,17 +128,59 @@ function normalizeShape(shape) {
   };
 }
 
+
+function applyBundledCampusMapPackage() {
+  const appData = VERITAS_MAP_PACKAGE?.app;
+  if (!appData) return;
+
+  if (Array.isArray(appData.locations) && appData.locations.length > 0) {
+    const existingById = new Map(CAMPUS_MAP_DATA.locations.map((location) => [location.id, location]));
+    appData.locations.forEach((location) => {
+      existingById.set(location.id, { ...existingById.get(location.id), ...location });
+    });
+    CAMPUS_MAP_DATA.locations = Array.from(existingById.values());
+  }
+
+  if (Array.isArray(appData.rideStops) && appData.rideStops.length > 0) {
+    const existingById = new Map(CAMPUS_MAP_DATA.rideStops.map((stop) => [stop.id, stop]));
+    appData.rideStops.forEach((stop) => {
+      existingById.set(stop.id, { ...existingById.get(stop.id), ...stop });
+    });
+    CAMPUS_MAP_DATA.rideStops = Array.from(existingById.values());
+  }
+
+  if (Array.isArray(appData.paths)) {
+    CAMPUS_MAP_DATA.paths = appData.paths.map(normalizeShape);
+  }
+
+  if (Array.isArray(appData.buildings)) {
+    CAMPUS_MAP_DATA.buildings = appData.buildings.map(normalizeShape);
+  }
+
+  if (Array.isArray(appData.routingNodes)) {
+    CAMPUS_MAP_DATA.routingNodes = appData.routingNodes;
+  }
+
+  if (Array.isArray(appData.routingEdges)) {
+    CAMPUS_MAP_DATA.routingEdges = appData.routingEdges;
+  }
+}
+
 /** Merge Firestore data into the in-memory CAMPUS_MAP_DATA. */
+applyBundledCampusMapPackage();
+
 function applyCampusData(nextData) {
   if (Array.isArray(nextData?.locations))     CAMPUS_MAP_DATA.locations     = clone(nextData.locations);
   if (Array.isArray(nextData?.rideStops))     CAMPUS_MAP_DATA.rideStops     = clone(nextData.rideStops);
   if (Array.isArray(nextData?.paths))         CAMPUS_MAP_DATA.paths         = nextData.paths.map(normalizeShape);
   if (Array.isArray(nextData?.buildings))     CAMPUS_MAP_DATA.buildings     = nextData.buildings.map(normalizeShape);
+  if (Array.isArray(nextData?.routingNodes))  CAMPUS_MAP_DATA.routingNodes  = clone(nextData.routingNodes);
+  if (Array.isArray(nextData?.routingEdges))  CAMPUS_MAP_DATA.routingEdges  = clone(nextData.routingEdges);
 }
 
 const CAMPUS_DOC = doc(db, "campusData", "main");
 
-// ─── PUBLIC API ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ PUBLIC API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Returns all locations that have coordinates (used for map markers). */
 export function getCampusLocationsForMap() {
@@ -223,7 +268,7 @@ export function listenToCampusData(callback) {
   };
 }
 
-// ─── CAMPUS ACTIVITY ─────────────────────────────────────────────────────────
+// â”€â”€â”€ CAMPUS ACTIVITY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Live counters for the "Campus Activity" card on student/rider home.

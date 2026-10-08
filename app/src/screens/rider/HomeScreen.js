@@ -28,7 +28,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import * as Location from "expo-location";
 
 import useStore from "../../store";
@@ -108,21 +108,29 @@ function EarningsCard({ stats, loading }) {
 }
 
 function RideRequestCard({ request, onAccept, onDecline, accepting }) {
+  const isCash = request.paymentMethod === "cash";
   return (
     <View style={styles.requestCard}>
       <View style={styles.requestHeader}>
         <Text style={styles.requestStudent}>{request.studentName}</Text>
-        <Text style={styles.requestFare}>₦150</Text>
+        <View style={styles.requestHeaderRight}>
+          {isCash && (
+            <View style={styles.payBadge}>
+              <Text style={styles.payBadgeText}>CASH</Text>
+            </View>
+          )}
+          <Text style={styles.requestFare}>₦150</Text>
+        </View>
       </View>
       <View style={styles.requestRoute}>
         <Text style={styles.routeLabel}>From:</Text>
-        <Text style={styles.routeLocation}>{request.pickup?.name || "Unknown"}</Text>
+        <Text style={styles.routeLocation}>{request.pickup?.name || request.pickup?.label || "Unknown"}</Text>
       </View>
       <View style={styles.requestRoute}>
         <Text style={styles.routeLabel}>To:</Text>
-        <Text style={styles.routeLocation}>{request.dropoff?.name || "Unknown"}</Text>
+        <Text style={styles.routeLocation}>{request.dropoff?.name || request.dropoff?.label || "Unknown"}</Text>
       </View>
-      
+
       <View style={styles.requestActions}>
         <TouchableOpacity
           style={[styles.actionBtn, styles.declineBtn]}
@@ -149,44 +157,60 @@ function RideRequestCard({ request, onAccept, onDecline, accepting }) {
 
 function ActiveRideCard({ ride, onNextStop, actionLoading }) {
   const nextAction = getNextRideAction(ride);
-  
-  // Show all passengers in this ride
   const passengers = ride.passengers ? Object.values(ride.passengers) : [];
-  
+  const hasCashPassenger = passengers.some(p => p.paymentMethod === "cash");
+
   return (
     <View style={styles.activeCard}>
       <View style={styles.activeHeader}>
         <Text style={styles.activeStudent}>
-          {passengers.length > 1 
-            ? `${passengers.length} passengers` 
+          {passengers.length > 1
+            ? `${passengers.length} passengers`
             : passengers[0]?.studentName || "Passenger"
           }
         </Text>
         <View style={[styles.statusDot, ride.status === "onTrip" ? styles.statusDotActive : styles.statusDotPending]} />
       </View>
-      
-      {/* Show all passenger routes */}
-      {passengers.map((passenger, index) => (
-        <View key={passenger.studentId} style={index > 0 ? { marginTop: 8 } : {}}>
-          {index > 0 && <View style={styles.passengerDivider} />}
-          <Text style={styles.passengerName}>{passenger.studentName}</Text>
-          <View style={styles.activeRoute}>
-            <Text style={styles.routeLabel}>From:</Text>
-            <Text style={styles.routeLocation}>{passenger.pickup?.name || "Unknown"}</Text>
+
+      {/* Per-passenger rows */}
+      {passengers.map((passenger, index) => {
+        const isCash = passenger.paymentMethod === "cash";
+        return (
+          <View key={passenger.studentId} style={index > 0 ? { marginTop: 8 } : {}}>
+            {index > 0 && <View style={styles.passengerDivider} />}
+            <View style={styles.passengerNameRow}>
+              <Text style={styles.passengerName}>{passenger.studentName}</Text>
+              <View style={[styles.payBadge, isCash && styles.payBadgeCash]}>
+                <Text style={[styles.payBadgeText, isCash && styles.payBadgeTextCash]}>
+                  {isCash ? "CASH" : "WALLET"}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.activeRoute}>
+              <Text style={styles.routeLabel}>From:</Text>
+              <Text style={styles.routeLocation}>{passenger.pickup?.name || passenger.pickup?.label || "Unknown"}</Text>
+            </View>
+            <View style={styles.activeRoute}>
+              <Text style={styles.routeLabel}>To:</Text>
+              <Text style={styles.routeLocation}>{passenger.dropoff?.name || passenger.dropoff?.label || "Unknown"}</Text>
+            </View>
+            <Text style={styles.rideStatus}>
+              {passenger.pickupStatus === "completed"
+                ? passenger.dropoffStatus === "completed" ? "Completed" : "On board"
+                : "Waiting for pickup"
+              }
+            </Text>
           </View>
-          <View style={styles.activeRoute}>
-            <Text style={styles.routeLabel}>To:</Text>
-            <Text style={styles.routeLocation}>{passenger.dropoff?.name || "Unknown"}</Text>
-          </View>
-          <Text style={styles.rideStatus}>
-            Status: {passenger.pickupStatus === "completed" ? 
-              (passenger.dropoffStatus === "completed" ? "Completed" : "On board") : 
-              "Waiting for pickup"
-            }
-          </Text>
+        );
+      })}
+
+      {/* Cash collection reminder shown when any passenger is paying cash */}
+      {hasCashPassenger && (
+        <View style={styles.cashReminderBanner}>
+          <Text style={styles.cashReminderText}>Collect cash fare at drop-off</Text>
         </View>
-      ))}
-      
+      )}
+
       {/* Next action button */}
       {nextAction && (
         <TouchableOpacity
@@ -549,6 +573,7 @@ export default function RiderHomeScreen() {
             <View style={styles.mapContainer}>
               <MapView
                 style={styles.map}
+                provider={PROVIDER_DEFAULT}
                 initialRegion={{
                   latitude: 7.3775,
                   longitude: 3.9470,
@@ -558,7 +583,7 @@ export default function RiderHomeScreen() {
                 mapType="none"
                 showsUserLocation={true}
                 followsUserLocation={true}
-                showsMyLocationButton={true}
+                showsMyLocationButton={false}
               >
                 {/* Pickup markers for pending requests */}
                 {rideRequests.map((request) => (
@@ -733,8 +758,15 @@ const styles = StyleSheet.create({
     alignItems:     "center",
     marginBottom:   8,
   },
-  requestStudent: { color: C.text, fontSize: 16, fontWeight: "600" },
-  requestFare:    { color: C.green, fontSize: 16, fontWeight: "700" },
+  requestStudent:    { color: C.text, fontSize: 16, fontWeight: "600" },
+  requestFare:       { color: C.green, fontSize: 16, fontWeight: "700" },
+  requestHeaderRight:{ flexDirection: "row", alignItems: "center", gap: 8 },
+
+  // Payment method badge — used on both request and active ride cards
+  payBadge:         { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg },
+  payBadgeText:     { color: C.sub, fontSize: 10, fontWeight: "700", letterSpacing: 0.5 },
+  payBadgeCash:     { borderColor: "#c8a85a", backgroundColor: "rgba(200,168,90,0.08)" },
+  payBadgeTextCash: { color: "#c8a85a" },
 
   requestRoute:   { flexDirection: "row", marginBottom: 4 },
   routeLabel:     { color: C.sub, fontSize: 13, width: 40 },
@@ -767,9 +799,21 @@ const styles = StyleSheet.create({
     marginBottom:   8,
   },
   activeStudent: { color: C.text, fontSize: 16, fontWeight: "600" },
-  
-  passengerName:    { color: C.text, fontSize: 14, fontWeight: "600", marginBottom: 4 },
+
+  passengerNameRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
+  passengerName:    { color: C.text, fontSize: 14, fontWeight: "600" },
   passengerDivider: { height: 1, backgroundColor: C.border, marginVertical: 8 },
+
+  cashReminderBanner: {
+    borderRadius:    10,
+    borderWidth:     1,
+    borderColor:     "#c8a85a",
+    backgroundColor: "rgba(200,168,90,0.07)",
+    paddingVertical:   8,
+    paddingHorizontal: 12,
+    marginTop:         12,
+  },
+  cashReminderText: { color: "#c8a85a", fontSize: 13, fontWeight: "600" },
   
   statusDot:        { width: 8, height: 8, borderRadius: 4 },
   statusDotActive:  { backgroundColor: C.green },

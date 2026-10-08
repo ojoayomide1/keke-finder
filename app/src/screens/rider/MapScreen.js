@@ -26,7 +26,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from "react-native-maps";
 import * as Location from "expo-location";
 
 import useStore from "../../store";
@@ -280,11 +280,12 @@ export default function RiderMapScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        mapType="standard"
+        provider={PROVIDER_DEFAULT}
+        mapType="none"
         initialRegion={initialRegion}
         showsUserLocation={true}
         followsUserLocation={false}
-        showsMyLocationButton={true}
+        showsMyLocationButton={false}
         showsTraffic={false}
         showsBuildings={false}
       >

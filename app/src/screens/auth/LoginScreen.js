@@ -41,13 +41,27 @@ import {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
+function calculateLevelFromMatric(matricNo, baseYear = 25) {
+  if (!matricNo) return "100L";
+  const match = matricNo.match(/[\/\-_](\d{2})[\/\-_]/);
+  if (match) {
+    const yr = parseInt(match[1], 10);
+    const diff = (baseYear - yr) + 1;
+    if (diff >= 1 && diff <= 6) return `${diff * 100}L`;
+  }
+  return "100L";
+}
+
 async function verifyMatricNumber(name, matricNo) {
   if (!name || !matricNo) return false;
   try {
     const sanitized = matricNo.trim().toUpperCase().replace(/\//g, "-");
     const snap = await getDoc(doc(db, "authorized_students", sanitized));
     if (snap.exists()) {
-      return snap.data().name.toLowerCase() === name.toLowerCase();
+      const data = snap.data();
+      if (data.name.toLowerCase() === name.toLowerCase()) {
+        return data;
+      }
     }
     return false;
   } catch {
@@ -200,13 +214,14 @@ export default function LoginScreen() {
     setError("");
 
     try {
+      let studentRecord = null;
       if (role === "student") {
         if (!matricRegex.test(matric)) {
           setLoading(false);
           return setError("Enter a valid Matric Number.");
         }
-        const valid = await verifyMatricNumber(name, matric);
-        if (!valid) {
+        studentRecord = await verifyMatricNumber(name, matric);
+        if (!studentRecord) {
           setLoading(false);
           return setError("Name or Matric Number does not match our records.");
         }
@@ -234,9 +249,11 @@ export default function LoginScreen() {
       };
 
       if (role === "student") {
-        userData.matricNo = matric.toUpperCase();
-        userData.wallet   = { balance: 0, currency: "NGN", lastTopUp: null, lastDeduction: null };
-        userData.debt     = { amount: 0, rideId: null, incurredAt: null };
+        userData.matricNo   = matric.toUpperCase();
+        userData.level      = (studentRecord && studentRecord.level) || calculateLevelFromMatric(matric);
+        userData.department = (studentRecord && studentRecord.department) || null;
+        userData.wallet     = { balance: 0, currency: "NGN", lastTopUp: null, lastDeduction: null };
+        userData.debt       = { amount: 0, rideId: null, incurredAt: null };
       } else {
         userData.plateNo     = plate.toUpperCase();
         userData.vehicleType = vehicleType;
@@ -256,7 +273,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "web" ? undefined : (Platform.OS === "ios" ? "padding" : "height")}
       keyboardVerticalOffset={Platform.OS === "android" ? 0 : 0}
     >
       <ScrollView
@@ -266,8 +283,8 @@ export default function LoginScreen() {
         {/* ── Brand ───────────────────────────────────────────── */}
         <View style={styles.brand}>
           <Text style={styles.brandText}>
-            <Text style={styles.brandOp}>OP</Text>
-            <Text style={styles.brandRides}>rides</Text>
+            <Text style={styles.brandNav}>Nav</Text>
+            <Text style={styles.brandCamp}>Camp</Text>
           </Text>
           <Text style={styles.tagline}>Let's move smarter.</Text>
         </View>
@@ -445,8 +462,8 @@ const styles = StyleSheet.create({
 
   brand:      { alignItems: "center", marginBottom: 36 },
   brandText:  { fontSize: 42, fontWeight: "800", letterSpacing: -1 },
-  brandOp:    { color: "#FFFFFF" },
-  brandRides: { color: "#00C48C" },
+  brandNav:   { color: "#FFFFFF" },
+  brandCamp:  { color: "#00C48C" },
   tagline:    { color: "#666", marginTop: 6, fontSize: 15 },
 
   bioBtn: {
@@ -516,3 +533,6 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText:     { color: "#0F0F13", fontWeight: "700", fontSize: 16 },
 });
+
+
+

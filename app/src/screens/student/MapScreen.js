@@ -21,7 +21,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from "react-native-maps";
 import * as Location from "expo-location";
 
 import useStore from "../../store";
@@ -355,8 +355,9 @@ export default function MapScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
+        provider={PROVIDER_DEFAULT}
         initialRegion={mapRegion}
-        mapType="standard"
+        mapType="none"
         showsUserLocation
         showsMyLocationButton={false}
         onRegionChange={r => setZoomDelta(r.latitudeDelta)}
@@ -367,7 +368,22 @@ export default function MapScreen() {
 
         {/* Markers - zoom gated + memoized */}
         {zoomDelta < 0.018 && locationMarkers}
-        {zoomDelta < 0.018 && stopMarkers}
+        {/* Stop markers only visible when student has an active ride */}
+        {zoomDelta < 0.018 && ridePhase !== "idle" && stopMarkers}
+
+        {/* Dashed line from stop to destination building when on trip */}
+        {ridePhase === "onTrip" && liveSummary?.dropoffLat && liveSummary?.dropoffLng && riderLocation && (() => {
+          const stopCoord = { latitude: riderLocation.lat, longitude: riderLocation.lng };
+          const destCoord = { latitude: liveSummary.dropoffLat, longitude: liveSummary.dropoffLng };
+          return (
+            <Polyline
+              coordinates={[stopCoord, destCoord]}
+              strokeColor="rgba(0,196,140,0.5)"
+              strokeWidth={2}
+              lineDashPattern={[6, 5]}
+            />
+          );
+        })()}
 
         {/* Live rider marker */}
         {riderLocation && (
@@ -455,7 +471,12 @@ export default function MapScreen() {
               )}
 
               {ridePhase === "onTrip" ? (
-                liveSummary.paid ? (
+                liveSummary.paymentMethod === "cash" ? (
+                  <View style={styles.cashNotice}>
+                    <Text style={styles.cashNoticeTitle}>Cash Payment</Text>
+                    <Text style={styles.cashNoticeSub}>Pay the rider {formatNaira(liveSummary.fare)} in cash at drop-off</Text>
+                  </View>
+                ) : liveSummary.paid ? (
                   <View style={[styles.primaryBtn, { opacity: 0.6 }]}>
                     <Text style={styles.primaryBtnText}>Paid {formatNaira(liveSummary.fare)}</Text>
                   </View>
@@ -550,6 +571,10 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: "#0F0F13", fontWeight: "700", fontSize: 15 },
   dangerBtn:      { borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 12, borderWidth: 1, borderColor: C.red, backgroundColor: "rgba(239,68,68,0.08)" },
   dangerBtnText:  { color: C.red, fontWeight: "600", fontSize: 15 },
+
+  cashNotice:      { borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, padding: 14, marginTop: 12 },
+  cashNoticeTitle: { color: C.text, fontWeight: "700", fontSize: 14, marginBottom: 3 },
+  cashNoticeSub:   { color: C.sub, fontSize: 13 },
 
   walkHeader:  { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   walkTitle:   { color: C.text, fontSize: 16, fontWeight: "700" },
