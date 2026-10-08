@@ -16,7 +16,7 @@ export function Marker({ coordinate, title, description, onPress, children }) {
 /**
  * Polyline component for Web Map
  */
-export function Polyline({ coordinates, strokeColor = "#2a2a35", strokeWidth = 3 }) {
+export function Polyline({ coordinates, strokeColor = "#64748B", strokeWidth = 3 }) {
   return {
     type: "Polyline",
     props: { coordinates, strokeColor, strokeWidth }
@@ -24,8 +24,9 @@ export function Polyline({ coordinates, strokeColor = "#2a2a35", strokeWidth = 3
 }
 
 /**
- * Web MapView implementation with custom SVG vector rendering,
- * dark theme styling (#0F0F13), mouse panning, and zoom controls.
+ * Interactive Web MapView component.
+ * Renders campus features (buildings, roads, locations) on a crisp light canvas (#F4F6F9)
+ * with mouse panning, scroll zooming, marker popups, and auto-bounds fitting.
  */
 export default function MapView({ style, children, initialRegion, region }) {
   const containerRef = useRef(null);
@@ -40,47 +41,81 @@ export default function MapView({ style, children, initialRegion, region }) {
   const polylines = childrenArray.filter(c => c && (c.type === Polyline || c.type?.name === "Polyline" || c.props?.coordinates));
   const markers = childrenArray.filter(c => c && (c.type === Marker || c.type?.name === "Marker" || c.props?.coordinate));
 
-  // Determine center coordinates and zoom scale
-  const centerLat = (region && region.latitude) || (initialRegion && initialRegion.latitude) || 9.2868;
-  const centerLng = (region && region.longitude) || (initialRegion && initialRegion.longitude) || 7.4114;
-  const deltaLat  = (region && region.latitudeDelta) || (initialRegion && initialRegion.latitudeDelta) || 0.008;
+  // Collect all coordinates to compute auto-bounds if region is default
+  const allCoords = useMemo(() => {
+    const list = [];
+    markers.forEach(m => {
+      if (m.props?.coordinate?.latitude && m.props?.coordinate?.longitude) {
+        list.push([m.props.coordinate.latitude, m.props.coordinate.longitude]);
+      }
+    });
+    polylines.forEach(p => {
+      (p.props?.coordinates || []).forEach(pt => {
+        const lat = pt.latitude != null ? pt.latitude : pt[0];
+        const lng = pt.longitude != null ? pt.longitude : pt[1];
+        if (lat && lng) list.push([lat, lng]);
+      });
+    });
+    return list;
+  }, [markers, polylines]);
 
-  // View state for pan & zoom
+  // Compute map bounds
+  const mapBounds = useMemo(() => {
+    if (allCoords.length > 0) {
+      const lats = allCoords.map(c => c[0]);
+      const lngs = allCoords.map(c => c[1]);
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs);
+      const maxLng = Math.max(...lngs);
+
+      // Add 10% padding around campus features
+      const latPad = (maxLat - minLat) * 0.1 || 0.002;
+      const lngPad = (maxLng - minLng) * 0.1 || 0.002;
+      return {
+        minLat: minLat - latPad,
+        maxLat: maxLat + latPad,
+        minLng: minLng - lngPad,
+        maxLng: maxLng + lngPad,
+      };
+    }
+
+    const cLat = (region && region.latitude) || (initialRegion && initialRegion.latitude) || 9.2868;
+    const cLng = (region && region.longitude) || (initialRegion && initialRegion.longitude) || 7.4114;
+    const dLat = (region && region.latitudeDelta) || (initialRegion && initialRegion.latitudeDelta) || 0.008;
+
+    return {
+      minLat: cLat - dLat / 2,
+      maxLat: cLat + dLat / 2,
+      minLng: cLng - dLat / 2,
+      maxLng: cLng + dLat / 2,
+    };
+  }, [allCoords, region, initialRegion]);
+
+  // Pan & Zoom state
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
-  // Calculate bounding box for coordinate conversion
-  const bounds = useMemo(() => {
-    const latRadius = (deltaLat / 2) / zoom;
-    const lngRadius = latRadius / zoom;
-    return {
-      minLat: centerLat - latRadius,
-      maxLat: centerLat + latRadius,
-      minLng: centerLng - lngRadius,
-      maxLng: centerLng + lngRadius,
-    };
-  }, [centerLat, centerLng, deltaLat, zoom]);
-
-  // Map coordinate (lat, lng) to percentage (x%, y%)
+  // Map coordinate (lat, lng) to percentage inside viewBox 0..1000 x 0..1000
   const projectPoint = useCallback((lat, lng) => {
-    const latSpan = bounds.maxLat - bounds.minLat || 0.001;
-    const lngSpan = bounds.maxLng - bounds.minLng || 0.001;
-    const x = ((lng - bounds.minLng) / lngSpan) * 100;
-    const y = ((bounds.maxLat - lat) / latSpan) * 100;
-    return { x: `${x}%`, y: `${y}%`, numX: x, numY: y };
-  }, [bounds]);
+    const latSpan = mapBounds.maxLat - mapBounds.minLat || 0.001;
+    const lngSpan = mapBounds.maxLng - mapBounds.minLng || 0.001;
+    const x = ((lng - mapBounds.minLng) / lngSpan) * 1000;
+    const y = ((mapBounds.maxLat - lat) / latSpan) * 1000;
+    return { x: `${(x / 10).toFixed(2)}%`, y: `${(y / 10).toFixed(2)}%`, svgX: x, svgY: y };
+  }, [mapBounds]);
 
-  // Convert polyline coordinates array into SVG points attribute string
+  // Convert polyline coordinates array into SVG points string
   const getSvgPoints = (coordinates) => {
     if (!coordinates || coordinates.length === 0) return "";
     return coordinates
       .map(pt => {
         const lat = pt.latitude != null ? pt.latitude : pt[0];
         const lng = pt.longitude != null ? pt.longitude : pt[1];
-        const { numX, numY } = projectPoint(lat, lng);
-        return `${numX},${numY}`;
+        const { svgX, svgY } = projectPoint(lat, lng);
+        return `${svgX.toFixed(1)},${svgY.toFixed(1)}`;
       })
       .join(" ");
   };
@@ -103,14 +138,24 @@ export default function MapView({ style, children, initialRegion, region }) {
     setIsDragging(false);
   };
 
+  // Mouse wheel zoom
+  const handleWheel = (e) => {
+    e.preventDefault();
+    if (e.deltaY < 0) {
+      setZoom(z => Math.min(z * 1.2, 8));
+    } else {
+      setZoom(z => Math.max(z / 1.2, 0.6));
+    }
+  };
+
   // Zoom controls
-  const zoomIn = () => setZoom(prev => Math.min(prev * 1.3, 5));
-  const zoomOut = () => setZoom(prev => Math.max(prev / 1.3, 0.5));
+  const zoomIn = () => setZoom(z => Math.min(z * 1.3, 8));
+  const zoomOut = () => setZoom(z => Math.max(z / 1.3, 0.6));
   const resetView = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
 
   return (
     <View style={[styles.root, style]}>
-      {/* Pan & Zoom Controls */}
+      {/* Zoom Control Buttons */}
       <View style={styles.controls}>
         <TouchableOpacity style={styles.ctrlBtn} onPress={zoomIn}>
           <Text style={styles.ctrlText}>+</Text>
@@ -119,18 +164,20 @@ export default function MapView({ style, children, initialRegion, region }) {
           <Text style={styles.ctrlText}>−</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.ctrlBtn} onPress={resetView}>
-          <Text style={[styles.ctrlText, { fontSize: 10 }]}>RESET</Text>
+          <Text style={[styles.ctrlText, { fontSize: 10, fontWeight: "800" }]}>RESET</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Main Map Viewport */}
+      {/* Main Map Container (Whitish / Light Slate Theme) */}
       <div
         ref={containerRef}
         style={{
           width: "100%",
           height: "100%",
           position: "relative",
-          backgroundColor: "#0F0F13",
+          backgroundColor: "#F1F5F9",
+          backgroundImage: "radial-gradient(#CBD5E1 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
           overflow: "hidden",
           cursor: isDragging ? "grabbing" : "grab",
           userSelect: "none",
@@ -139,45 +186,67 @@ export default function MapView({ style, children, initialRegion, region }) {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
       >
         <div
           style={{
             width: "100%",
             height: "100%",
             position: "absolute",
-            transform: `translate(${pan.x}px, ${pan.y}px)`,
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: "center center",
             transition: isDragging ? "none" : "transform 0.1s ease-out",
           }}
         >
-          {/* SVG Layer for Campus Roads, Walkways & Buildings */}
+          {/* SVG Vector Layer for Buildings, Roads & Walkways */}
           <svg
-            viewBox="0 0 100 100"
+            viewBox="0 0 1000 1000"
             preserveAspectRatio="none"
             style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }}
           >
             {polylines.map((poly, idx) => {
               const props = poly.props || {};
               const coords = props.coordinates || [];
-              const stroke = props.strokeColor || "#2a2a35";
-              const width = (props.strokeWidth || 3) * 0.15;
               const pointsStr = getSvgPoints(coords);
               if (!pointsStr) return null;
 
+              // Distinguish building polygons vs paths
+              const isClosedPolygon = coords.length > 3 &&
+                coords[0]?.latitude === coords[coords.length - 1]?.latitude &&
+                coords[0]?.longitude === coords[coords.length - 1]?.longitude;
+
+              if (isClosedPolygon) {
+                return (
+                  <polygon
+                    key={`bldg-poly-${idx}`}
+                    points={pointsStr}
+                    fill="#E2E8F0"
+                    stroke="#94A3B8"
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                  />
+                );
+              }
+
+              // Path / Road stroke style
+              const stroke = props.strokeColor || "#475569";
+              const isHighlight = stroke === "#00C48C" || stroke === "#FF5E1A";
               return (
                 <polyline
-                  key={`svg-poly-${idx}`}
+                  key={`road-poly-${idx}`}
                   points={pointsStr}
                   fill="none"
                   stroke={stroke}
-                  strokeWidth={width}
+                  strokeWidth={isHighlight ? 6 : 4}
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  opacity={isHighlight ? 1 : 0.75}
                 />
               );
             })}
           </svg>
 
-          {/* HTML Overlay Layer for Markers */}
+          {/* HTML Layer for Map Markers */}
           {markers.map((m, idx) => {
             const props = m.props || {};
             const coord = props.coordinate;
@@ -195,9 +264,10 @@ export default function MapView({ style, children, initialRegion, region }) {
                   position: "absolute",
                   left: x,
                   top: y,
-                  transform: "translate(-50%, -50%)",
+                  transform: `scale(${1 / Math.sqrt(zoom)}) translate(-50%, -50%)`,
+                  transformOrigin: "top left",
                   cursor: "pointer",
-                  zIndex: 10,
+                  zIndex: 20,
                 }}
                 title={props.title || ""}
               >
@@ -206,10 +276,12 @@ export default function MapView({ style, children, initialRegion, region }) {
                     backgroundColor: "#00C48C",
                     padding: "4px 8px",
                     borderRadius: "12px",
-                    color: "#fff",
-                    fontSize: "12px",
+                    color: "#FFFFFF",
+                    fontSize: "11px",
                     fontWeight: "bold",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.5)"
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                    border: "1px solid #ffffff",
+                    whiteSpace: "nowrap",
                   }}>
                     {props.title || "📍"}
                   </div>
@@ -226,7 +298,7 @@ export default function MapView({ style, children, initialRegion, region }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#0F0F13",
+    backgroundColor: "#F1F5F9",
     position: "relative",
     overflow: "hidden",
   },
@@ -239,17 +311,22 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   ctrlBtn: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: 8,
-    backgroundColor: "#1A1A22",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#2a2a35",
+    borderColor: "#CBD5E1",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   ctrlText: {
-    color: "#FFFFFF",
+    color: "#1E293B",
     fontSize: 18,
     fontWeight: "bold",
   },
