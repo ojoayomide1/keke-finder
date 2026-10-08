@@ -32,72 +32,8 @@ export const CAMPUS_CATEGORY_META = {
 // merges the live values in at runtime.
 
 export const CAMPUS_MAP_DATA = {
-  locations: [
-    { id: "hostel_l",           name: "Hostel L",                              category: "boys_hostel",  lat: null, lng: null },
-    { id: "hostel_i",           name: "Hostel I",                              category: "boys_hostel",  lat: null, lng: null },
-    { id: "hostel_m",           name: "Hostel M",                              category: "boys_hostel",  lat: null, lng: null },
-    { id: "hostel_n",           name: "Hostel N",                              category: "boys_hostel",  lat: null, lng: null },
-    { id: "hostel_s",           name: "Hostel S",                              category: "boys_hostel",  lat: null, lng: null },
-    { id: "new_kelson",         name: "New Kelson",                            category: "girls_hostel", lat: null, lng: null },
-    { id: "faculty_law",        name: "Faculty of Law",                        category: "faculty",      lat: null, lng: null },
-    { id: "faculty_pharmacy",   name: "Faculty of Pharmacy",                   category: "faculty",      lat: null, lng: null },
-    { id: "faculty_medicine",   name: "Faculty of Medicine",                   category: "faculty",      lat: null, lng: null },
-    { id: "faculty_computing",  name: "Faculty of Computing (Software Bldg)", category: "faculty",      lat: null, lng: null },
-    { id: "block_a",            name: "Block A",                               category: "block",        lat: null, lng: null },
-    { id: "block_b",            name: "Block B",                               category: "block",        lat: null, lng: null },
-    { id: "block_c",            name: "Block C",                               category: "block",        lat: null, lng: null },
-    { id: "block_d",            name: "Block D",                               category: "block",        lat: null, lng: null },
-    { id: "nlt",                name: "New Lecture Theatre (NLT)",             category: "hall",         lat: null, lng: null },
-    { id: "mph",                name: "Multipurpose Hall (MPH)",               category: "hall",         lat: null, lng: null },
-    { id: "auditorium",         name: "Auditorium",                            category: "hall",         lat: null, lng: null },
-    { id: "ggs",                name: "GGs",                                   category: "restaurant",   lat: null, lng: null },
-    { id: "munchbox",           name: "MunchBox",                              category: "restaurant",   lat: null, lng: null },
-    { id: "ase_cafe",           name: "Ase Cafe",                              category: "restaurant",   lat: null, lng: null },
-    { id: "school_gate",        name: "School Gate",                           category: "gate",         lat: null, lng: null },
-    { id: "boys_hostel_gate",   name: "Boys Hostel Gate",                      category: "gate",         lat: null, lng: null },
-    { id: "girls_hostel_gate",  name: "Girls Hostel Gate",                     category: "gate",         lat: null, lng: null },
-    { id: "basketball_court",   name: "Basketball Court",                      category: "sport",        lat: null, lng: null },
-    { id: "volleyball_court",   name: "Volleyball Court",                      category: "sport",        lat: null, lng: null },
-    { id: "table_tennis_court", name: "Table Tennis Court",                    category: "sport",        lat: null, lng: null },
-    { id: "badminton_court",    name: "Badminton Court",                       category: "sport",        lat: null, lng: null },
-    { id: "football_field",     name: "Football Field",                        category: "sport",        lat: null, lng: null },
-    { id: "ict",                name: "ICT",                                   category: "service",      lat: null, lng: null },
-    { id: "clinic",             name: "Clinic",                                category: "service",      lat: null, lng: null },
-    { id: "chapel",             name: "Chapel",                                category: "service",      lat: null, lng: null },
-    { id: "senate",             name: "Senate",                                category: "service",      lat: null, lng: null },
-  ],
-
-  rideStops: [
-    {
-      id: "school_gate_stop",
-      name: "School Gate Stop",
-      type: "pickup_dropoff",
-      lat: null, lng: null,
-      serves: ["school_gate"],
-    },
-    {
-      id: "boys_hostel_gate_stop",
-      name: "Boys Hostel Gate Stop",
-      type: "pickup_dropoff",
-      lat: null, lng: null,
-      serves: ["boys_hostel_gate", "hostel_l", "hostel_i", "hostel_m", "hostel_n", "hostel_s"],
-    },
-    {
-      id: "girls_hostel_gate_stop",
-      name: "Girls Hostel Gate Stop",
-      type: "pickup_dropoff",
-      lat: null, lng: null,
-      serves: ["girls_hostel_gate", "new_kelson"],
-    },
-    {
-      id: "block_d_stop",
-      name: "Block D Stop",
-      type: "pickup_dropoff",
-      lat: null, lng: null,
-      serves: ["block_d"],
-    },
-  ],
-
+  locations: [],
+  rideStops: [],
   paths: [],
   buildings: [],
   routingNodes: [],
@@ -133,20 +69,12 @@ function applyBundledCampusMapPackage() {
   const appData = VERITAS_MAP_PACKAGE?.app;
   if (!appData) return;
 
-  if (Array.isArray(appData.locations) && appData.locations.length > 0) {
-    const existingById = new Map(CAMPUS_MAP_DATA.locations.map((location) => [location.id, location]));
-    appData.locations.forEach((location) => {
-      existingById.set(location.id, { ...existingById.get(location.id), ...location });
-    });
-    CAMPUS_MAP_DATA.locations = Array.from(existingById.values());
+  if (Array.isArray(appData.locations)) {
+    CAMPUS_MAP_DATA.locations = clone(appData.locations);
   }
 
-  if (Array.isArray(appData.rideStops) && appData.rideStops.length > 0) {
-    const existingById = new Map(CAMPUS_MAP_DATA.rideStops.map((stop) => [stop.id, stop]));
-    appData.rideStops.forEach((stop) => {
-      existingById.set(stop.id, { ...existingById.get(stop.id), ...stop });
-    });
-    CAMPUS_MAP_DATA.rideStops = Array.from(existingById.values());
+  if (Array.isArray(appData.rideStops)) {
+    CAMPUS_MAP_DATA.rideStops = clone(appData.rideStops);
   }
 
   if (Array.isArray(appData.paths)) {
