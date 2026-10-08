@@ -1,77 +1,148 @@
-import React, { useState, useRef, useMemo, useCallback } from "react";
+/**
+ * index.web.js — Web-only MapView replacement for react-native-maps.
+ *
+ * Marker and Polyline are real React components (render null) so they pass
+ * React.Children validation. MapView detects them via displayName and reads
+ * their data from props.
+ *
+ * ROOT-CAUSE FIX: Previous version returned plain JS objects from Marker/Polyline,
+ * which are not valid React elements — React.Children.toArray() silently dropped
+ * them, so MapView received zero children to render.
+ */
+
+import React, {
+  useState,
+  useRef,
+  useMemo,
+  useCallback,
+  useEffect,
+} from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
+// ─── Re-exported constants (match react-native-maps API) ─────────────────────
+
 export const PROVIDER_DEFAULT = "default";
+export const PROVIDER_GOOGLE = "google";
 
-/**
- * Marker component for Web Map
- */
+// ─── Marker ──────────────────────────────────────────────────────────────────
+// A real React component that renders nothing. MapView reads its props directly.
+
 export function Marker({ coordinate, title, description, onPress, children }) {
-  return {
-    type: "Marker",
-    props: { coordinate, title, description, onPress, children }
-  };
+  // Renders nothing — MapView reads this element's props from the React tree.
+  return null;
+}
+Marker.displayName = "MapViewMarker";
+
+// ─── Polyline ─────────────────────────────────────────────────────────────────
+// Same pattern.
+
+export function Polyline({
+  coordinates,
+  strokeColor = "#64748B",
+  strokeWidth = 3,
+  lineDashPattern,
+  opacity,
+}) {
+  return null;
+}
+Polyline.displayName = "MapViewPolyline";
+
+// ─── Helper: detect component type safely (survives minification) ────────────
+
+function isMarker(element) {
+  if (!element || !element.type) return false;
+  const dn = element.type.displayName;
+  if (dn === "MapViewMarker") return true;
+  // Fallback: name check (may not survive minification but helps in dev)
+  if (typeof element.type === "function" && element.type.name === "Marker") return true;
+  return false;
 }
 
-/**
- * Polyline component for Web Map
- */
-export function Polyline({ coordinates, strokeColor = "#64748B", strokeWidth = 3 }) {
-  return {
-    type: "Polyline",
-    props: { coordinates, strokeColor, strokeWidth }
-  };
+function isPolyline(element) {
+  if (!element || !element.type) return false;
+  const dn = element.type.displayName;
+  if (dn === "MapViewPolyline") return true;
+  if (typeof element.type === "function" && element.type.name === "Polyline") return true;
+  return false;
 }
 
-/**
- * Interactive Web MapView component.
- * Renders campus features (buildings, roads, locations) on a crisp light canvas (#F4F6F9)
- * with mouse panning, scroll zooming, marker popups, and auto-bounds fitting.
- */
-export default function MapView({ style, children, initialRegion, region }) {
-  const containerRef = useRef(null);
+// ─── Main MapView ─────────────────────────────────────────────────────────────
 
-  // Extract markers & polylines from React children
-  const childrenArray = React.Children.toArray(children).flatMap(c => {
-    if (!c) return [];
-    if (Array.isArray(c)) return c;
-    return [c];
-  });
+export default function MapView({
+  style,
+  children,
+  initialRegion,
+  region,
+  // The following props are accepted but ignored on web (native-only)
+  provider,
+  mapType,
+  showsUserLocation,
+  showsMyLocationButton,
+  onRegionChange,
+}) {
+  // ── Collect Marker and Polyline elements from the React children tree ──────
+  const { markers, polylines } = useMemo(() => {
+    const allChildren = [];
 
-  const polylines = childrenArray.filter(c => c && (c.type === Polyline || c.type?.name === "Polyline" || c.props?.coordinates));
-  const markers = childrenArray.filter(c => c && (c.type === Marker || c.type?.name === "Marker" || c.props?.coordinate));
+    function collect(nodes) {
+      React.Children.forEach(nodes, (child) => {
+        if (!child) return;
+        allChildren.push(child);
+        // Also recurse into fragments / arrays
+        if (child.props && child.props.children) {
+          collect(child.props.children);
+        }
+      });
+    }
 
-  // Collect all coordinates to compute auto-bounds if region is default
-  const allCoords = useMemo(() => {
-    const list = [];
-    markers.forEach(m => {
-      if (m.props?.coordinate?.latitude && m.props?.coordinate?.longitude) {
-        list.push([m.props.coordinate.latitude, m.props.coordinate.longitude]);
+    collect(children);
+
+    const markers = allChildren.filter(isMarker);
+    const polylines = allChildren.filter(isPolyline);
+    return { markers, polylines };
+  }, [children]);
+
+  // ── Compute tight map bounds from all lat/lng data ────────────────────────
+  const mapBounds = useMemo(() => {
+    let minLat = Infinity,
+      maxLat = -Infinity,
+      minLng = Infinity,
+      maxLng = -Infinity,
+      count = 0;
+
+    // From markers
+    for (const m of markers) {
+      const lat = m.props?.coordinate?.latitude;
+      const lng = m.props?.coordinate?.longitude;
+      if (lat != null && lng != null && isFinite(lat) && isFinite(lng)) {
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        count++;
       }
-    });
-    polylines.forEach(p => {
-      (p.props?.coordinates || []).forEach(pt => {
+    }
+
+    // From polylines
+    for (const p of polylines) {
+      const coords = p.props?.coordinates;
+      if (!Array.isArray(coords)) continue;
+      for (const pt of coords) {
         const lat = pt.latitude != null ? pt.latitude : pt[0];
         const lng = pt.longitude != null ? pt.longitude : pt[1];
-        if (lat && lng) list.push([lat, lng]);
-      });
-    });
-    return list;
-  }, [markers, polylines]);
+        if (lat != null && lng != null && isFinite(lat) && isFinite(lng)) {
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+          if (lng < minLng) minLng = lng;
+          if (lng > maxLng) maxLng = lng;
+          count++;
+        }
+      }
+    }
 
-  // Compute map bounds
-  const mapBounds = useMemo(() => {
-    if (allCoords.length > 0) {
-      const lats = allCoords.map(c => c[0]);
-      const lngs = allCoords.map(c => c[1]);
-      const minLat = Math.min(...lats);
-      const maxLat = Math.max(...lats);
-      const minLng = Math.min(...lngs);
-      const maxLng = Math.max(...lngs);
-
-      // Add 10% padding around campus features
-      const latPad = (maxLat - minLat) * 0.1 || 0.002;
-      const lngPad = (maxLng - minLng) * 0.1 || 0.002;
+    if (count > 0 && isFinite(minLat)) {
+      const latPad = (maxLat - minLat) * 0.08 || 0.002;
+      const lngPad = (maxLng - minLng) * 0.08 || 0.002;
       return {
         minLat: minLat - latPad,
         maxLat: maxLat + latPad,
@@ -80,82 +151,225 @@ export default function MapView({ style, children, initialRegion, region }) {
       };
     }
 
-    const cLat = (region && region.latitude) || (initialRegion && initialRegion.latitude) || 9.2868;
-    const cLng = (region && region.longitude) || (initialRegion && initialRegion.longitude) || 7.4114;
-    const dLat = (region && region.latitudeDelta) || (initialRegion && initialRegion.latitudeDelta) || 0.008;
-
+    // Fallback to initial/region prop
+    const cLat =
+      (region && region.latitude) ||
+      (initialRegion && initialRegion.latitude) ||
+      9.2868;
+    const cLng =
+      (region && region.longitude) ||
+      (initialRegion && initialRegion.longitude) ||
+      7.4114;
+    const dLat =
+      (region && region.latitudeDelta) ||
+      (initialRegion && initialRegion.latitudeDelta) ||
+      0.012;
     return {
       minLat: cLat - dLat / 2,
       maxLat: cLat + dLat / 2,
       minLng: cLng - dLat / 2,
       maxLng: cLng + dLat / 2,
     };
-  }, [allCoords, region, initialRegion]);
+  }, [markers, polylines, region, initialRegion]);
 
-  // Pan & Zoom state
+  // ── Pan & Zoom state ──────────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  const containerRef = useRef(null);
 
-  // Map coordinate (lat, lng) to percentage inside viewBox 0..1000 x 0..1000
-  const projectPoint = useCallback((lat, lng) => {
-    const latSpan = mapBounds.maxLat - mapBounds.minLat || 0.001;
-    const lngSpan = mapBounds.maxLng - mapBounds.minLng || 0.001;
-    const x = ((lng - mapBounds.minLng) / lngSpan) * 1000;
-    const y = ((mapBounds.maxLat - lat) / latSpan) * 1000;
-    return { x: `${(x / 10).toFixed(2)}%`, y: `${(y / 10).toFixed(2)}%`, svgX: x, svgY: y };
-  }, [mapBounds]);
+  // ── Project (lat,lng) → SVG viewport coords 0..1000 ──────────────────────
+  const projectPoint = useCallback(
+    (lat, lng) => {
+      const latSpan = mapBounds.maxLat - mapBounds.minLat || 0.001;
+      const lngSpan = mapBounds.maxLng - mapBounds.minLng || 0.001;
+      const svgX = ((lng - mapBounds.minLng) / lngSpan) * 1000;
+      const svgY = ((mapBounds.maxLat - lat) / latSpan) * 1000;
+      return {
+        x: `${((svgX / 1000) * 100).toFixed(3)}%`,
+        y: `${((svgY / 1000) * 100).toFixed(3)}%`,
+        svgX,
+        svgY,
+      };
+    },
+    [mapBounds]
+  );
 
-  // Convert polyline coordinates array into SVG points string
-  const getSvgPoints = (coordinates) => {
-    if (!coordinates || coordinates.length === 0) return "";
-    return coordinates
-      .map(pt => {
+  // ── Build SVG points string for a coordinate array ────────────────────────
+  const getSvgPoints = useCallback(
+    (coordinates) => {
+      if (!coordinates || coordinates.length === 0) return "";
+      const parts = [];
+      for (const pt of coordinates) {
         const lat = pt.latitude != null ? pt.latitude : pt[0];
         const lng = pt.longitude != null ? pt.longitude : pt[1];
+        if (!isFinite(lat) || !isFinite(lng)) continue;
         const { svgX, svgY } = projectPoint(lat, lng);
-        return `${svgX.toFixed(1)},${svgY.toFixed(1)}`;
-      })
-      .join(" ");
-  };
+        parts.push(`${svgX.toFixed(1)},${svgY.toFixed(1)}`);
+      }
+      return parts.join(" ");
+    },
+    [projectPoint]
+  );
 
-  // Mouse pan handlers
+  // ── Mouse pan handlers ────────────────────────────────────────────────────
   const handleMouseDown = (e) => {
     setIsDragging(true);
     dragStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
   };
-
   const handleMouseMove = (e) => {
     if (!isDragging) return;
-    setPan({
-      x: e.clientX - dragStart.current.x,
-      y: e.clientY - dragStart.current.y,
-    });
+    setPan({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
   };
+  const handleMouseUp = () => setIsDragging(false);
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+  // ── Passive wheel zoom (no preventDefault — avoids browser warning) ───────
+  const handleWheel = useCallback((e) => {
+    // Do NOT call e.preventDefault() — wheel listeners are passive in modern browsers
+    setZoom((z) => e.deltaY < 0 ? Math.min(z * 1.15, 12) : Math.max(z / 1.15, 0.5));
+  }, []);
 
-  // Mouse wheel zoom
-  const handleWheel = (e) => {
-    e.preventDefault();
-    if (e.deltaY < 0) {
-      setZoom(z => Math.min(z * 1.2, 8));
-    } else {
-      setZoom(z => Math.max(z / 1.2, 0.6));
-    }
-  };
+  // Attach wheel listener manually so we can pass { passive: true }
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener("wheel", handleWheel, { passive: true });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
 
-  // Zoom controls
-  const zoomIn = () => setZoom(z => Math.min(z * 1.3, 8));
-  const zoomOut = () => setZoom(z => Math.max(z / 1.3, 0.6));
+  const zoomIn = () => setZoom((z) => Math.min(z * 1.3, 12));
+  const zoomOut = () => setZoom((z) => Math.max(z / 1.3, 0.5));
   const resetView = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
+
+  // ── Memoised SVG paths ────────────────────────────────────────────────────
+  const renderedSvgPaths = useMemo(() => {
+    const svgs = [];
+
+    for (let idx = 0; idx < polylines.length; idx++) {
+      const poly = polylines[idx];
+      const props = poly.props || {};
+      const coords = props.coordinates;
+      if (!Array.isArray(coords) || coords.length < 2) continue;
+
+      const pointsStr = getSvgPoints(coords);
+      if (!pointsStr) continue;
+
+      const strokeColor = props.strokeColor || "#475569";
+      const strokeWidth = props.strokeWidth || 3;
+      const isHighlight =
+        strokeColor === "#00C48C" ||
+        strokeColor === "#FF5E1A" ||
+        strokeColor === "rgba(0,196,140,0.5)";
+
+      // Heuristic: if first and last coords are the same or coords.length > 4 with
+      // a repeated point, treat as polygon (building footprint)
+      const firstPt = coords[0];
+      const lastPt = coords[coords.length - 1];
+      const firstLat = firstPt?.latitude ?? firstPt?.[0];
+      const firstLng = firstPt?.longitude ?? firstPt?.[1];
+      const lastLat = lastPt?.latitude ?? lastPt?.[0];
+      const lastLng = lastPt?.longitude ?? lastPt?.[1];
+      const isPolygon =
+        coords.length >= 4 &&
+        Math.abs(firstLat - lastLat) < 0.00001 &&
+        Math.abs(firstLng - lastLng) < 0.00001;
+
+      if (isPolygon) {
+        svgs.push(
+          <polygon
+            key={`p-${idx}`}
+            points={pointsStr}
+            fill="#DDE3ED"
+            stroke="#8A9BBD"
+            strokeWidth={1}
+            strokeLinejoin="round"
+            opacity={0.9}
+          />
+        );
+      } else {
+        svgs.push(
+          <polyline
+            key={`l-${idx}`}
+            points={pointsStr}
+            fill="none"
+            stroke={isHighlight ? strokeColor : "#6B7A99"}
+            strokeWidth={isHighlight ? strokeWidth + 2 : Math.max(strokeWidth * 0.8, 1.5)}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={isHighlight ? 1 : 0.75}
+          />
+        );
+      }
+    }
+
+    return svgs;
+  }, [polylines, getSvgPoints]);
+
+  // ── Memoised HTML marker layer ────────────────────────────────────────────
+  const renderedMarkers = useMemo(() => {
+    return markers.map((m, idx) => {
+      const props = m.props || {};
+      const coord = props.coordinate;
+      if (!coord || coord.latitude == null || coord.longitude == null) return null;
+      if (!isFinite(coord.latitude) || !isFinite(coord.longitude)) return null;
+
+      const { x, y } = projectPoint(coord.latitude, coord.longitude);
+
+      return (
+        <div
+          key={`marker-${idx}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onPress?.();
+          }}
+          style={{
+            position: "absolute",
+            left: x,
+            top: y,
+            transform: "translate(-50%, -50%)",
+            cursor: "pointer",
+            zIndex: 20,
+            pointerEvents: "auto",
+          }}
+          title={props.title || ""}
+        >
+          {/* If <Marker> has children (e.g. custom bubble), render them */}
+          {props.children ? (
+            <div style={{ transform: `scale(${1 / Math.sqrt(zoom)})`, transformOrigin: "center center" }}>
+              {props.children}
+            </div>
+          ) : (
+            <div
+              style={{
+                backgroundColor: "#00C48C",
+                padding: "3px 7px",
+                borderRadius: "10px",
+                color: "#FFFFFF",
+                fontSize: "11px",
+                fontWeight: "bold",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+                border: "1.5px solid rgba(255,255,255,0.6)",
+                whiteSpace: "nowrap",
+                transform: `scale(${1 / Math.sqrt(zoom)})`,
+                transformOrigin: "center center",
+              }}
+            >
+              {props.title || "📍"}
+            </div>
+          )}
+        </div>
+      );
+    });
+  }, [markers, projectPoint, zoom]);
+
+  // ─── RENDER ──────────────────────────────────────────────────────────────
+
+  const dataCount = markers.length + polylines.length;
 
   return (
     <View style={[styles.root, style]}>
-      {/* Zoom Control Buttons */}
+      {/* Zoom Controls */}
       <View style={styles.controls}>
         <TouchableOpacity style={styles.ctrlBtn} onPress={zoomIn}>
           <Text style={styles.ctrlText}>+</Text>
@@ -164,20 +378,28 @@ export default function MapView({ style, children, initialRegion, region }) {
           <Text style={styles.ctrlText}>−</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.ctrlBtn} onPress={resetView}>
-          <Text style={[styles.ctrlText, { fontSize: 10, fontWeight: "800" }]}>RESET</Text>
+          <Text style={[styles.ctrlText, { fontSize: 9 }]}>RESET</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Main Map Container (Whitish / Light Slate Theme) */}
+      {/* Data count badge (debug, shown while loading) */}
+      {dataCount === 0 && (
+        <View style={styles.loadingBadge}>
+          <Text style={styles.loadingText}>Loading campus map…</Text>
+        </View>
+      )}
+
+      {/* Canvas */}
       <div
         ref={containerRef}
         style={{
           width: "100%",
           height: "100%",
           position: "relative",
-          backgroundColor: "#F1F5F9",
-          backgroundImage: "radial-gradient(#CBD5E1 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
+          backgroundColor: "#F0F4FA",
+          backgroundImage:
+            "radial-gradient(#C8D3E8 1px, transparent 1px)",
+          backgroundSize: "20px 20px",
           overflow: "hidden",
           cursor: isDragging ? "grabbing" : "grab",
           userSelect: "none",
@@ -186,7 +408,7 @@ export default function MapView({ style, children, initialRegion, region }) {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
+        // No onWheel here — attached via addEventListener with passive:true
       >
         <div
           style={{
@@ -195,100 +417,39 @@ export default function MapView({ style, children, initialRegion, region }) {
             position: "absolute",
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: "center center",
-            transition: isDragging ? "none" : "transform 0.1s ease-out",
+            transition: isDragging ? "none" : "transform 0.08s ease-out",
           }}
         >
-          {/* SVG Vector Layer for Buildings, Roads & Walkways */}
+          {/* SVG vector layer — buildings and paths */}
           <svg
             viewBox="0 0 1000 1000"
             preserveAspectRatio="none"
-            style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }}
+            style={{
+              width: "100%",
+              height: "100%",
+              position: "absolute",
+              top: 0,
+              left: 0,
+            }}
           >
-            {polylines.map((poly, idx) => {
-              const props = poly.props || {};
-              const coords = props.coordinates || [];
-              const pointsStr = getSvgPoints(coords);
-              if (!pointsStr) return null;
-
-              // Distinguish building polygons vs paths
-              const isClosedPolygon = coords.length > 3 &&
-                coords[0]?.latitude === coords[coords.length - 1]?.latitude &&
-                coords[0]?.longitude === coords[coords.length - 1]?.longitude;
-
-              if (isClosedPolygon) {
-                return (
-                  <polygon
-                    key={`bldg-poly-${idx}`}
-                    points={pointsStr}
-                    fill="#E2E8F0"
-                    stroke="#94A3B8"
-                    strokeWidth={2}
-                    strokeLinejoin="round"
-                  />
-                );
-              }
-
-              // Path / Road stroke style
-              const stroke = props.strokeColor || "#475569";
-              const isHighlight = stroke === "#00C48C" || stroke === "#FF5E1A";
-              return (
-                <polyline
-                  key={`road-poly-${idx}`}
-                  points={pointsStr}
-                  fill="none"
-                  stroke={stroke}
-                  strokeWidth={isHighlight ? 6 : 4}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity={isHighlight ? 1 : 0.75}
-                />
-              );
-            })}
+            {/* Light map background */}
+            <rect x="0" y="0" width="1000" height="1000" fill="#F0F4FA" />
+            {renderedSvgPaths}
           </svg>
 
-          {/* HTML Layer for Map Markers */}
-          {markers.map((m, idx) => {
-            const props = m.props || {};
-            const coord = props.coordinate;
-            if (!coord || coord.latitude == null || coord.longitude == null) return null;
-
-            const { x, y } = projectPoint(coord.latitude, coord.longitude);
-            return (
-              <div
-                key={`web-marker-${idx}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  props.onPress?.();
-                }}
-                style={{
-                  position: "absolute",
-                  left: x,
-                  top: y,
-                  transform: `scale(${1 / Math.sqrt(zoom)}) translate(-50%, -50%)`,
-                  transformOrigin: "top left",
-                  cursor: "pointer",
-                  zIndex: 20,
-                }}
-                title={props.title || ""}
-              >
-                {props.children || (
-                  <div style={{
-                    backgroundColor: "#00C48C",
-                    padding: "4px 8px",
-                    borderRadius: "12px",
-                    color: "#FFFFFF",
-                    fontSize: "11px",
-                    fontWeight: "bold",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-                    border: "1px solid #ffffff",
-                    whiteSpace: "nowrap",
-                  }}>
-                    {props.title || "📍"}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {/* HTML marker layer */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
+            }}
+          >
+            {renderedMarkers}
+          </div>
         </div>
       </div>
     </View>
@@ -298,7 +459,7 @@ export default function MapView({ style, children, initialRegion, region }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#F0F4FA",
     position: "relative",
     overflow: "hidden",
   },
@@ -306,7 +467,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 16,
     right: 16,
-    zIndex: 100,
+    zIndex: 200,
     flexDirection: "column",
     gap: 6,
   },
@@ -316,7 +477,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: "#C8D3E8",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -329,5 +490,19 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  loadingBadge: {
+    position: "absolute",
+    bottom: 16,
+    left: 16,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    zIndex: 200,
+  },
+  loadingText: {
+    color: "#475569",
+    fontSize: 12,
   },
 });
