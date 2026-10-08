@@ -97,13 +97,19 @@ function applyBundledCampusMapPackage() {
 /** Merge Firestore data into the in-memory CAMPUS_MAP_DATA. */
 applyBundledCampusMapPackage();
 
+/**
+ * Merge live Firestore data into CAMPUS_MAP_DATA.
+ *
+ * IMPORTANT: buildings, paths, routingNodes, routingEdges are QGIS geometry
+ * that lives in the bundled veritas-map.json export. Firestore only stores
+ * admin-managed points (locations, rideStops). We never let Firestore
+ * overwrite the QGIS geometry — doing so would replace 1914 buildings with
+ * whatever old data happens to be in the Firestore document.
+ */
 function applyCampusData(nextData) {
-  if (Array.isArray(nextData?.locations))     CAMPUS_MAP_DATA.locations     = clone(nextData.locations);
-  if (Array.isArray(nextData?.rideStops))     CAMPUS_MAP_DATA.rideStops     = clone(nextData.rideStops);
-  if (Array.isArray(nextData?.paths))         CAMPUS_MAP_DATA.paths         = nextData.paths.map(normalizeShape);
-  if (Array.isArray(nextData?.buildings))     CAMPUS_MAP_DATA.buildings     = nextData.buildings.map(normalizeShape);
-  if (Array.isArray(nextData?.routingNodes))  CAMPUS_MAP_DATA.routingNodes  = clone(nextData.routingNodes);
-  if (Array.isArray(nextData?.routingEdges))  CAMPUS_MAP_DATA.routingEdges  = clone(nextData.routingEdges);
+  if (Array.isArray(nextData?.locations))  CAMPUS_MAP_DATA.locations  = clone(nextData.locations);
+  if (Array.isArray(nextData?.rideStops))  CAMPUS_MAP_DATA.rideStops  = clone(nextData.rideStops);
+  // buildings, paths, routingNodes, routingEdges: always from bundled JSON — never from Firestore.
 }
 
 const CAMPUS_DOC = doc(db, "campusData", "main");
