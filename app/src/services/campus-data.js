@@ -100,16 +100,14 @@ applyBundledCampusMapPackage();
 /**
  * Merge live Firestore data into CAMPUS_MAP_DATA.
  *
- * IMPORTANT: buildings, paths, routingNodes, routingEdges are QGIS geometry
- * that lives in the bundled veritas-map.json export. Firestore only stores
- * admin-managed points (locations, rideStops). We never let Firestore
- * overwrite the QGIS geometry — doing so would replace 1914 buildings with
- * whatever old data happens to be in the Firestore document.
+ * DISABLED: The bundled veritas-map.json (from npm run map:export) is the
+ * single source of truth for ALL map data. The Firestore campusData/main
+ * document contains stale legacy data that must not overwrite the QGIS export.
+ *
+ * To update map data: edit in QGIS → export GeoJSON → npm run map:export → push.
  */
-function applyCampusData(nextData) {
-  if (Array.isArray(nextData?.locations))  CAMPUS_MAP_DATA.locations  = clone(nextData.locations);
-  if (Array.isArray(nextData?.rideStops))  CAMPUS_MAP_DATA.rideStops  = clone(nextData.rideStops);
-  // buildings, paths, routingNodes, routingEdges: always from bundled JSON — never from Firestore.
+function applyCampusData(_nextData) {
+  // intentionally empty — bundled JSON only
 }
 
 const CAMPUS_DOC = doc(db, "campusData", "main");
