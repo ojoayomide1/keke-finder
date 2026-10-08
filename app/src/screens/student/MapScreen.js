@@ -288,8 +288,18 @@ export default function MapScreen() {
     return { latitude: 6.9, longitude: 4.95, latitudeDelta: 0.012, longitudeDelta: 0.012 };
   }, [rideStops.length, locations.length]);
 
-  // Memoize static map layers so they don't re-render on every state change
+  // On web: pass static campus geometry as a direct prop to avoid creating
+  // thousands of React elements as children (which stalls the browser).
+  const webCampusData = useMemo(() =>
+    Platform.OS === "web"
+      ? { buildings: campusBuildings, paths: campusPaths, locations }
+      : null,
+    [campusBuildings, campusPaths, locations]
+  );
+
+  // On native: memoize static map layers as children (react-native-maps API)
   const campusPathPolylines = useMemo(() =>
+    Platform.OS === "web" ? [] :
     campusPaths.map((path, i) => (
       <Polyline
         key={`p-${i}`}
@@ -302,6 +312,7 @@ export default function MapScreen() {
   );
 
   const campusBuildingPolylines = useMemo(() =>
+    Platform.OS === "web" ? [] :
     campusBuildings.map((b, i) => {
       const coords = b.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
       return (
@@ -361,8 +372,9 @@ export default function MapScreen() {
         showsUserLocation
         showsMyLocationButton={false}
         onRegionChange={r => setZoomDelta(r.latitudeDelta)}
+        campusData={webCampusData}
       >
-        {/* Static campus layers - memoized */}
+        {/* Static campus layers — native only (web uses campusData prop instead) */}
         {campusPathPolylines}
         {campusBuildingPolylines}
 
