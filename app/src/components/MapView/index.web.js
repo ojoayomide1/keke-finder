@@ -1,48 +1,36 @@
 /**
- * index.web.js — Web MapView using React-Leaflet.
+ * index.web.js — Web MapView using Leaflet.
  *
- * On web:  react-leaflet (OpenStreetMap tiles, real zoom/pan, category markers)
- * On native: react-native-maps (unchanged — this file is never loaded on native)
+ * - Plain light background (no OSM tiles — no visual clutter)
+ * - Campus buildings + roads drawn as clean SVG vectors
+ * - Category markers: coloured circle + emoji, NO label unless clicked
+ * - Click marker → popup shows name + category
+ * - Full scroll/zoom/pan from Leaflet
  *
- * campusData prop (web-only):
- *   { buildings, paths, locations, rideStops }
- *   Passed directly from MapScreen so we never create 1000+ React children.
- *
- * Dynamic overlays (walk route, rider pin, etc.) still use the standard
- * <Marker> / <Polyline> children API — there are only a handful at a time.
+ * Native (iOS/Android) uses react-native-maps — this file is never loaded there.
  */
 
-import React, {
-  useEffect,
-  useRef,
-  useMemo,
-} from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import { View, StyleSheet } from "react-native";
 
-// ─── Re-exported constants (match react-native-maps API) ─────────────────────
 export const PROVIDER_DEFAULT = "default";
 export const PROVIDER_GOOGLE  = "google";
 
-// ─── Stub components — return null, detected via displayName ─────────────────
+// ─── Stub components (return null, detected via displayName) ─────────────────
 export function Marker({ coordinate, title, description, onPress, children }) {
   return null;
 }
 Marker.displayName = "MapViewMarker";
 
-export function Polyline({
-  coordinates, strokeColor, strokeWidth, lineDashPattern,
-}) {
+export function Polyline({ coordinates, strokeColor, strokeWidth, lineDashPattern }) {
   return null;
 }
 Polyline.displayName = "MapViewPolyline";
 
-// ─── Type helpers ─────────────────────────────────────────────────────────────
-function isMarker(el) {
-  return el?.type?.displayName === "MapViewMarker";
-}
-function isPolyline(el) {
-  return el?.type?.displayName === "MapViewPolyline";
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function isMarker(el)   { return el?.type?.displayName === "MapViewMarker";   }
+function isPolyline(el) { return el?.type?.displayName === "MapViewPolyline"; }
+
 function flattenChildren(nodes, out = []) {
   React.Children.forEach(nodes, (child) => {
     if (!child) return;
@@ -55,92 +43,116 @@ function flattenChildren(nodes, out = []) {
   return out;
 }
 
-// ─── Category → emoji + color ────────────────────────────────────────────────
-const CATEGORY_STYLE = {
-  boys_hostel:  { emoji: "🛏️",  color: "#2563eb", label: "Boys Hostel"  },
-  girls_hostel: { emoji: "🛏️",  color: "#db2777", label: "Girls Hostel" },
-  faculty:      { emoji: "🎓",  color: "#7c3aed", label: "Faculty"      },
-  Faculty:      { emoji: "🎓",  color: "#7c3aed", label: "Faculty"      },
-  block:        { emoji: "🏢",  color: "#475569", label: "Block"        },
-  hall:         { emoji: "🏛️",  color: "#ea580c", label: "Hall"         },
-  restaurant:   { emoji: "🍽️",  color: "#16a34a", label: "Restaurant"   },
-  resturant:    { emoji: "🍽️",  color: "#16a34a", label: "Restaurant"   },
-  gate:         { emoji: "🚧",  color: "#0f766e", label: "Gate"         },
-  sport:        { emoji: "⚽",  color: "#dc2626", label: "Sport"        },
-  service:      { emoji: "ℹ️",  color: "#0891b2", label: "Service"      },
-  shop:         { emoji: "🛒",  color: "#ca8a04", label: "Shop"         },
-  pickup:       { emoji: "🛺",  color: "#00c48c", label: "Pickup Stop"  },
+// ─── Category styles ──────────────────────────────────────────────────────────
+const CAT = {
+  boys_hostel:  { emoji: "🛏️", color: "#2563eb", label: "Boys Hostel"    },
+  girls_hostel: { emoji: "🛏️", color: "#db2777", label: "Girls Hostel"   },
+  faculty:      { emoji: "🎓", color: "#7c3aed", label: "Faculty"        },
+  Faculty:      { emoji: "🎓", color: "#7c3aed", label: "Faculty"        },
+  block:        { emoji: "🏢", color: "#475569", label: "Block"          },
+  hall:         { emoji: "🏛️", color: "#ea580c", label: "Hall"           },
+  restaurant:   { emoji: "🍽️", color: "#16a34a", label: "Restaurant"     },
+  resturant:    { emoji: "🍽️", color: "#16a34a", label: "Restaurant"     },
+  gate:         { emoji: "🚧", color: "#0f766e", label: "Gate"           },
+  sport:        { emoji: "⚽", color: "#dc2626", label: "Sports"         },
+  service:      { emoji: "ℹ️", color: "#0891b2", label: "Service"        },
+  shop:         { emoji: "🛒", color: "#ca8a04", label: "Shop"           },
+  pickup:       { emoji: "🛺", color: "#00c48c", label: "Pickup / Stop"  },
 };
 
-function getCatStyle(category) {
-  return CATEGORY_STYLE[category] ?? { emoji: "📍", color: "#64748b", label: category ?? "Place" };
+function cat(category) {
+  return CAT[category] ?? { emoji: "📍", color: "#64748b", label: category ?? "Place" };
 }
 
-// ─── Build a Leaflet DivIcon for a category ───────────────────────────────────
-function makeDivIcon(L, category, isStop = false) {
-  const { emoji, color } = getCatStyle(category);
-  const html = `
-    <div style="
-      background:${color};
-      color:#fff;
-      width:32px;height:32px;
+function makeDivIcon(L, style, size = 30) {
+  return L.divIcon({
+    html: `<div style="
+      width:${size}px;height:${size}px;
+      background:${style.color};
       border-radius:50%;
       display:flex;align-items:center;justify-content:center;
-      font-size:16px;
-      border:2.5px solid rgba(255,255,255,0.85);
-      box-shadow:0 2px 6px rgba(0,0,0,0.35);
-      cursor:pointer;
-    ">${isStop ? "🛺" : emoji}</div>`;
-  return L.divIcon({
-    html,
-    className: "",
-    iconSize:   [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor:[0, -18],
+      font-size:${Math.round(size * 0.52)}px;
+      border:2px solid rgba(255,255,255,0.9);
+      box-shadow:0 2px 6px rgba(0,0,0,0.28);
+      cursor:pointer;box-sizing:border-box;
+    ">${style.emoji}</div>`,
+    className:  "",
+    iconSize:   [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor:[0, -(size / 2 + 4)],
   });
 }
 
-// ─── Main MapView component ───────────────────────────────────────────────────
-const MapView = React.forwardRef(function MapView({
-  style,
-  children,
-  initialRegion,
-  region,
-  campusData,
-  // native-only props ignored on web:
-  provider, mapType, showsUserLocation, showsMyLocationButton, onRegionChange,
-}, ref) {
-  const mapRef      = useRef(null);   // Leaflet map instance
-  const layerGroups = useRef({});     // { campus, overlayPoly, overlayMarker }
+// ─── Inject Leaflet CSS once ──────────────────────────────────────────────────
+function injectLeafletCss() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById("leaflet-css")) return;
+  const link = document.createElement("link");
+  link.id   = "leaflet-css";
+  link.rel  = "stylesheet";
+  link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+  document.head.appendChild(link);
+
+  // Clean up default Leaflet popup chrome so it matches the app style
+  const style = document.createElement("style");
+  style.textContent = `
+    .navcamp-popup .leaflet-popup-content-wrapper {
+      background: #1A1A22;
+      color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      border: 1px solid #2a2a35;
+      padding: 0;
+    }
+    .navcamp-popup .leaflet-popup-content {
+      margin: 10px 14px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .navcamp-popup .leaflet-popup-tip {
+      background: #1A1A22;
+    }
+    .navcamp-popup .leaflet-popup-close-button {
+      color: #888 !important;
+    }
+    .leaflet-container {
+      background: #F0F4FA !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// ─── MapView ──────────────────────────────────────────────────────────────────
+const MapView = React.forwardRef(function MapView(
+  {
+    style, children, initialRegion, region, campusData,
+    // native-only, ignored on web:
+    provider, mapType, showsUserLocation, showsMyLocationButton, onRegionChange,
+  },
+  ref
+) {
+  const leafletMap   = useRef(null);
+  const layers       = useRef({});
   const containerRef = useRef(null);
 
-  // ── Parse overlay children ────────────────────────────────────────────────
+  // ── Parse dynamic overlay children ──────────────────────────────────────
   const { overlayMarkers, overlayPolylines } = useMemo(() => {
     const flat = flattenChildren(children);
-    return {
-      overlayMarkers:   flat.filter(isMarker),
-      overlayPolylines: flat.filter(isPolyline),
-    };
+    return { overlayMarkers: flat.filter(isMarker), overlayPolylines: flat.filter(isPolyline) };
   }, [children]);
 
-  const buildings = campusData?.buildings  ?? [];
-  const paths     = campusData?.paths      ?? [];
-  const locations = campusData?.locations  ?? [];
-  const rideStops = campusData?.rideStops  ?? [];
+  const buildings = campusData?.buildings ?? [];
+  const paths     = campusData?.paths     ?? [];
+  const locations = campusData?.locations ?? [];
+  const rideStops = campusData?.rideStops ?? [];
 
-  // ── Bootstrap Leaflet once on mount ───────────────────────────────────────
+  // ── Init Leaflet map on mount ────────────────────────────────────────────
   useEffect(() => {
-    // Leaflet must be imported client-side (it accesses window/document)
+    if (!containerRef.current) return;
+    injectLeafletCss();
+
     let L;
     try { L = require("leaflet"); } catch { return; }
-
-    // Fix default marker icon path broken by bundlers
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-      iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-      shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    });
 
     const center = [
       initialRegion?.latitude  ?? region?.latitude  ?? 9.2868,
@@ -149,148 +161,184 @@ const MapView = React.forwardRef(function MapView({
 
     const map = L.map(containerRef.current, {
       center,
-      zoom:        16,
-      zoomControl: true,
-      attributionControl: true,
+      zoom:             16,
+      zoomControl:      true,
+      attributionControl: false,   // clean look — no OSM attribution bar
     });
-    mapRef.current = map;
+    leafletMap.current = map;
 
-    // ── Tile layer: OpenStreetMap ────────────────────────────────────────
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
-      maxZoom: 19,
-    }).addTo(map);
+    // ── Blank background tile — just a solid colour, no raster images ────
+    // Using a data-URI 1×1 transparent PNG as the tile URL means Leaflet
+    // manages zoom/pan/CRS correctly while rendering nothing behind our vectors.
+    L.tileLayer(
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      { attribution: "" }
+    ).addTo(map);
 
-    // ── Layer groups ────────────────────────────────────────────────────
-    layerGroups.current.campus        = L.layerGroup().addTo(map);
-    layerGroups.current.overlayPoly   = L.layerGroup().addTo(map);
-    layerGroups.current.overlayMarker = L.layerGroup().addTo(map);
+    // ── Layer groups ─────────────────────────────────────────────────────
+    layers.current.buildings      = L.layerGroup().addTo(map);
+    layers.current.paths          = L.layerGroup().addTo(map);
+    layers.current.locations      = L.layerGroup().addTo(map);
+    layers.current.overlayPoly    = L.layerGroup().addTo(map);
+    layers.current.overlayMarkers = L.layerGroup().addTo(map);
 
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
+    return () => { map.remove(); leafletMap.current = null; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Inject Leaflet CSS once ────────────────────────────────────────────────
+  // ── Expose imperative API via forwarded ref ──────────────────────────────
   useEffect(() => {
-    if (document.getElementById("leaflet-css")) return;
-    const link = document.createElement("link");
-    link.id   = "leaflet-css";
-    link.rel  = "stylesheet";
-    link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-    document.head.appendChild(link);
-  }, []);
+    if (!ref) return;
+    const api = {
+      animateToRegion(reg) {
+        leafletMap.current?.setView([reg.latitude, reg.longitude], 16, { animate: true });
+      },
+      fitToCoordinates(coords) {
+        if (!coords?.length || !leafletMap.current) return;
+        let L;
+        try { L = require("leaflet"); } catch { return; }
+        leafletMap.current.fitBounds(
+          L.latLngBounds(coords.map(c => [c.latitude, c.longitude])),
+          { padding: [40, 40] }
+        );
+      },
+    };
+    if (typeof ref === "function") ref(api);
+    else ref.current = api;
+  }, [ref]);
 
-  // ── Render static campus data ─────────────────────────────────────────────
+  // ── Render buildings ─────────────────────────────────────────────────────
   useEffect(() => {
-    const map = mapRef.current;
+    const map = leafletMap.current;
     if (!map) return;
-    let L;
-    try { L = require("leaflet"); } catch { return; }
+    let L; try { L = require("leaflet"); } catch { return; }
 
-    const group = layerGroups.current.campus;
+    const group = layers.current.buildings;
     group.clearLayers();
 
-    // Building polygons
     for (const b of buildings) {
       if (!b.points?.length) continue;
-      const latlngs = b.points.map(([lat, lng]) => [lat, lng]);
-      L.polygon(latlngs, {
-        color:       "#7A8BAD",
-        weight:      1.5,
+      L.polygon(b.points.map(([lat, lng]) => [lat, lng]), {
+        color:       "#8A9BBD",
+        weight:      1,
         fillColor:   "#C8D6EE",
-        fillOpacity: 0.55,
-      }).bindTooltip(b.name || b.id, { sticky: true, className: "navcamp-tooltip" })
-        .addTo(group);
-    }
-
-    // Roads & walkways
-    for (const p of paths) {
-      if (!p.points?.length) continue;
-      const latlngs = p.points.map(([lat, lng]) => [lat, lng]);
-      const isWalkway = p.type === "walkway";
-      L.polyline(latlngs, {
-        color:     isWalkway ? "#94A3B8" : "#64748B",
-        weight:    isWalkway ? 2 : 3,
-        dashArray: isWalkway ? "5, 4" : null,
-        opacity:   0.75,
+        fillOpacity: 0.6,
+        interactive: false,
       }).addTo(group);
     }
+  }, [buildings]);
 
-    // Location markers
+  // ── Render paths (roads + walkways) ──────────────────────────────────────
+  useEffect(() => {
+    const map = leafletMap.current;
+    if (!map) return;
+    let L; try { L = require("leaflet"); } catch { return; }
+
+    const group = layers.current.paths;
+    group.clearLayers();
+
+    for (const p of paths) {
+      if (!p.points?.length) continue;
+      const isWalkway = p.type === "walkway";
+      L.polyline(p.points.map(([lat, lng]) => [lat, lng]), {
+        color:     isWalkway ? "#94A3B8" : "#64748B",
+        weight:    isWalkway ? 1.5 : 2.5,
+        dashArray: isWalkway ? "4, 5" : null,
+        opacity:   0.7,
+        interactive: false,
+      }).addTo(group);
+    }
+  }, [paths]);
+
+  // ── Render location + stop markers ───────────────────────────────────────
+  useEffect(() => {
+    const map = leafletMap.current;
+    if (!map) return;
+    let L; try { L = require("leaflet"); } catch { return; }
+
+    const group = layers.current.locations;
+    group.clearLayers();
+
     for (const loc of locations) {
       if (!loc.lat || !loc.lng) continue;
-      const icon = makeDivIcon(L, loc.category);
-      const { label } = getCatStyle(loc.category);
-      L.marker([loc.lat, loc.lng], { icon })
-        .bindPopup(`<b>${loc.name}</b><br><small>${label}</small>`)
+      const style = cat(loc.category);
+      L.marker([loc.lat, loc.lng], { icon: makeDivIcon(L, style) })
+        .bindPopup(
+          `<div style="min-width:140px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:3px">${loc.name}</div>
+            <div style="color:#aaa;font-size:11px">${style.label}</div>
+          </div>`,
+          { className: "navcamp-popup" }
+        )
         .addTo(group);
     }
 
-    // Ride stop markers
     for (const stop of rideStops) {
       if (!stop.lat || !stop.lng) continue;
-      const icon = makeDivIcon(L, "pickup", true);
-      L.marker([stop.lat, stop.lng], { icon })
-        .bindPopup(`<b>${stop.name}</b><br><small>Pickup / Drop-off</small>`)
+      const style = cat("pickup");
+      L.marker([stop.lat, stop.lng], { icon: makeDivIcon(L, style, 26) })
+        .bindPopup(
+          `<div style="min-width:120px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:3px">${stop.name}</div>
+            <div style="color:#aaa;font-size:11px">Pickup / Drop-off</div>
+          </div>`,
+          { className: "navcamp-popup" }
+        )
         .addTo(group);
     }
 
-    // Auto-fit bounds to all features
-    const allPts = [
-      ...locations.map(l => [l.lat, l.lng]),
-      ...rideStops.map(s => [s.lat, s.lng]),
-    ].filter(([lat, lng]) => lat && lng);
-
-    if (allPts.length > 1) {
-      map.fitBounds(L.latLngBounds(allPts), { padding: [40, 40], maxZoom: 17 });
+    // Auto-fit to all markers when data first arrives
+    const pts = [
+      ...locations.filter(l => l.lat && l.lng).map(l => [l.lat, l.lng]),
+      ...rideStops.filter(s => s.lat && s.lng).map(s => [s.lat, s.lng]),
+    ];
+    if (pts.length > 1) {
+      let Lb; try { Lb = require("leaflet"); } catch { return; }
+      map.fitBounds(Lb.latLngBounds(pts), { padding: [50, 50], maxZoom: 17 });
     }
-  }, [buildings, paths, locations, rideStops]);
+  }, [locations, rideStops]);
 
-  // ── Render dynamic overlay polylines (walk route, trip line) ─────────────
+  // ── Render dynamic overlay polylines (walk route, trip dashes) ───────────
   useEffect(() => {
-    const map = mapRef.current;
+    const map = leafletMap.current;
     if (!map) return;
-    let L;
-    try { L = require("leaflet"); } catch { return; }
+    let L; try { L = require("leaflet"); } catch { return; }
 
-    const group = layerGroups.current.overlayPoly;
+    const group = layers.current.overlayPoly;
     group.clearLayers();
 
     for (const poly of overlayPolylines) {
       const coords = poly.props?.coordinates;
       if (!Array.isArray(coords) || coords.length < 2) continue;
-      const latlngs = coords.map(c => [c.latitude ?? c[0], c.longitude ?? c[1]]);
-      const color = poly.props?.strokeColor ?? "#00C48C";
-      L.polyline(latlngs, {
-        color,
-        weight:    (poly.props?.strokeWidth ?? 3) + 1,
-        dashArray: poly.props?.lineDashPattern ? "8, 6" : null,
-        opacity:   1,
-      }).addTo(group);
+      L.polyline(
+        coords.map(c => [c.latitude ?? c[0], c.longitude ?? c[1]]),
+        {
+          color:     poly.props?.strokeColor ?? "#00C48C",
+          weight:    (poly.props?.strokeWidth ?? 3) + 1,
+          dashArray: poly.props?.lineDashPattern ? "8, 6" : null,
+          opacity:   1,
+        }
+      ).addTo(group);
     }
   }, [overlayPolylines]);
 
-  // ── Render dynamic overlay markers (rider, user location) ────────────────
+  // ── Render dynamic overlay markers (rider pin, etc.) ─────────────────────
   useEffect(() => {
-    const map = mapRef.current;
+    const map = leafletMap.current;
     if (!map) return;
-    let L;
-    try { L = require("leaflet"); } catch { return; }
+    let L; try { L = require("leaflet"); } catch { return; }
 
-    const group = layerGroups.current.overlayMarker;
+    const group = layers.current.overlayMarkers;
     group.clearLayers();
 
     for (const m of overlayMarkers) {
       const coord = m.props?.coordinate;
-      if (!coord || !coord.latitude) continue;
+      if (!coord?.latitude) continue;
       const title = m.props?.title ?? "";
       const icon  = L.divIcon({
         html: `<div style="
           background:#00C48C;color:#fff;
-          padding:3px 8px;border-radius:10px;
-          font-size:11px;font-weight:700;
+          padding:4px 9px;border-radius:10px;
+          font-size:12px;font-weight:700;
           white-space:nowrap;
           box-shadow:0 2px 6px rgba(0,0,0,0.3);
           border:1.5px solid rgba(255,255,255,0.7);
@@ -304,31 +352,9 @@ const MapView = React.forwardRef(function MapView({
     }
   }, [overlayMarkers]);
 
-  // ── Expose animateToRegion / fitToCoordinates via forwarded ref ──────────
-  useEffect(() => {
-    if (!ref) return;
-    const api = {
-      animateToRegion(reg) {
-        mapRef.current?.setView([reg.latitude, reg.longitude], 16, { animate: true });
-      },
-      fitToCoordinates(coords) {
-        if (!coords?.length || !mapRef.current) return;
-        let L;
-        try { L = require("leaflet"); } catch { return; }
-        const bounds = L.latLngBounds(coords.map(c => [c.latitude, c.longitude]));
-        mapRef.current.fitBounds(bounds, { padding: [40, 40] });
-      },
-    };
-    if (typeof ref === "function") ref(api);
-    else ref.current = api;
-  }, [ref]);
-
   return (
     <View style={[styles.root, style]}>
-      <div
-        ref={containerRef}
-        style={{ width: "100%", height: "100%", position: "relative" }}
-      />
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
     </View>
   );
 });
@@ -336,8 +362,5 @@ const MapView = React.forwardRef(function MapView({
 export default MapView;
 
 const styles = StyleSheet.create({
-  root: {
-    flex:     1,
-    overflow: "hidden",
-  },
+  root: { flex: 1, overflow: "hidden" },
 });
