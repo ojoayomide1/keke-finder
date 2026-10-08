@@ -39,38 +39,41 @@ const LAYERS = {
 };
 
 function readGeoJson(layerName) {
-  const pathsToTry = [
-    path.join(SOURCE_DIR, `${layerName}.geojson`),
-    path.join(ROOT, `veritas_${layerName}.geojson`),
-    path.join(ROOT, `${layerName}.geojson`),
-  ];
+  // Only read from map-data/source/ — this is the single source of truth.
+  // Do NOT fall back to root-level geojson files; those are raw QGIS exports
+  // that should be processed into the source folder before running this script.
+  const filePath = path.join(SOURCE_DIR, `${layerName}.geojson`);
 
-  let combinedFeatures = [];
-  const seenIds = new Set();
-
-  for (const filePath of pathsToTry) {
-    if (!fs.existsSync(filePath)) continue;
-    try {
-      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      if (data.type === "FeatureCollection" && Array.isArray(data.features)) {
-        data.features.forEach((feat, idx) => {
-          if (!feat.properties) feat.properties = {};
-          const id = feat.properties.id || feat.id || `${layerName}_${idx + 1}`;
-          feat.properties.id = id;
-          if (!feat.properties.status) feat.properties.status = "open";
-
-          if (!seenIds.has(id)) {
-            seenIds.add(id);
-            combinedFeatures.push(feat);
-          }
-        });
-      }
-    } catch (err) {
-      console.warn(`[campus-map] Warning reading ${filePath}:`, err.message);
-    }
+  if (!fs.existsSync(filePath)) {
+    console.warn(`[campus-map] ${filePath} not found — layer '${layerName}' will be empty.`);
+    return { type: "FeatureCollection", features: [] };
   }
 
-  return { type: "FeatureCollection", features: combinedFeatures };
+  try {
+    const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    if (data.type !== "FeatureCollection" || !Array.isArray(data.features)) {
+      console.warn(`[campus-map] ${filePath} is not a valid FeatureCollection.`);
+      return { type: "FeatureCollection", features: [] };
+    }
+
+    const seenIds = new Set();
+    const features = [];
+    data.features.forEach((feat, idx) => {
+      if (!feat.properties) feat.properties = {};
+      const id = feat.properties.id || feat.id || `${layerName}_${idx + 1}`;
+      feat.properties.id = id;
+      if (!feat.properties.status) feat.properties.status = "open";
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        features.push(feat);
+      }
+    });
+
+    return { type: "FeatureCollection", features };
+  } catch (err) {
+    console.warn(`[campus-map] Error reading ${filePath}:`, err.message);
+    return { type: "FeatureCollection", features: [] };
+  }
 }
 
 function getFeatureId(feature) {
