@@ -292,9 +292,9 @@ export default function MapScreen() {
   // thousands of React elements as children (which stalls the browser).
   const webCampusData = useMemo(() =>
     Platform.OS === "web"
-      ? { buildings: campusBuildings, paths: campusPaths, locations }
+      ? { buildings: campusBuildings, paths: campusPaths, locations, rideStops }
       : null,
-    [campusBuildings, campusPaths, locations]
+    [campusBuildings, campusPaths, locations, rideStops]
   );
 
   // On native: memoize static map layers as children (react-native-maps API)
