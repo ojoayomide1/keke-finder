@@ -3,7 +3,7 @@ import { Animated, StyleSheet, Text } from "react-native";
 import useStore from "../../store";
 
 const COLORS = {
-  success: "#00C48C",
+  success: "#1E7A46",
   error:   "#ef4444",
   info:    "#3b82f6",
   warning: "#f59e0b",

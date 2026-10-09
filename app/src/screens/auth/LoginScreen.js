@@ -298,7 +298,7 @@ export default function LoginScreen() {
             activeOpacity={0.8}
           >
             {bioLoading ? (
-              <ActivityIndicator color="#0F0F13" />
+              <ActivityIndicator color="#F7F8FA" />
             ) : (
               <Text style={styles.bioBtnText}>Log in with Biometrics</Text>
             )}
@@ -348,7 +348,7 @@ export default function LoginScreen() {
             <TextInput
               style={styles.input}
               placeholder="Full Name"
-              placeholderTextColor="#666"
+              placeholderTextColor="#6B7280"
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
@@ -358,7 +358,7 @@ export default function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#666"
+            placeholderTextColor="#6B7280"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -369,7 +369,7 @@ export default function LoginScreen() {
             <TextInput
               style={[styles.input, styles.passwordInput]}
               placeholder="Password"
-              placeholderTextColor="#666"
+              placeholderTextColor="#6B7280"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
@@ -387,7 +387,7 @@ export default function LoginScreen() {
             <TextInput
               style={styles.input}
               placeholder="Phone Number"
-              placeholderTextColor="#666"
+              placeholderTextColor="#6B7280"
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
@@ -398,7 +398,7 @@ export default function LoginScreen() {
             <TextInput
               style={styles.input}
               placeholder="Matric Number"
-              placeholderTextColor="#666"
+              placeholderTextColor="#6B7280"
               value={matric}
               onChangeText={setMatric}
               autoCapitalize="characters"
@@ -410,7 +410,7 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Plate Number"
-                placeholderTextColor="#666"
+                placeholderTextColor="#6B7280"
                 value={plate}
                 onChangeText={setPlate}
                 autoCapitalize="characters"
@@ -443,7 +443,7 @@ export default function LoginScreen() {
           activeOpacity={0.8}
         >
           {loading
-            ? <ActivityIndicator color="#0F0F13" />
+            ? <ActivityIndicator color="#F7F8FA" />
             : <Text style={styles.submitBtnText}>
                 {mode === "login" ? "Login" : "Sign Up"}
               </Text>
@@ -457,50 +457,50 @@ export default function LoginScreen() {
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: "#0F0F13" },
+  root:   { flex: 1, backgroundColor: "#F7F8FA" },
   scroll: { flexGrow: 1, padding: 24, paddingTop: 80 },
 
   brand:      { alignItems: "center", marginBottom: 36 },
   brandText:  { fontSize: 42, fontWeight: "800", letterSpacing: -1 },
-  brandNav:   { color: "#FFFFFF" },
-  brandCamp:  { color: "#00C48C" },
-  tagline:    { color: "#666", marginTop: 6, fontSize: 15 },
+  brandNav:   { color: "#0F1117" },
+  brandCamp:  { color: "#1E7A46" },
+  tagline:    { color: "#6B7280", marginTop: 6, fontSize: 15 },
 
   bioBtn: {
     alignItems:       "center",
     justifyContent:   "center",
-    backgroundColor:  "#1A1A22",
+    backgroundColor:  "#0F1117",
     borderRadius:     14,
     paddingVertical:  15,
     borderWidth:      1,
-    borderColor:      "#00C48C",
+    borderColor:      "#1E7A46",
     marginBottom:     16,
   },
   bioBtnDisabled: { opacity: 0.5 },
-  bioBtnText:     { color: "#00C48C", fontWeight: "700", fontSize: 15 },
+  bioBtnText:     { color: "#1E7A46", fontWeight: "700", fontSize: 15 },
 
-  tabs:          { flexDirection: "row", backgroundColor: "#1A1A22", borderRadius: 12, padding: 4, marginBottom: 20 },
+  tabs:          { flexDirection: "row", backgroundColor: "#0F1117", borderRadius: 12, padding: 4, marginBottom: 20 },
   tab:           { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 9 },
-  tabActive:     { backgroundColor: "#00C48C" },
-  tabText:       { color: "#666", fontWeight: "600" },
-  tabTextActive: { color: "#0F0F13" },
+  tabActive:     { backgroundColor: "#1E7A46" },
+  tabText:       { color: "#6B7280", fontWeight: "600" },
+  tabTextActive: { color: "#F7F8FA" },
 
   roleRow:          { flexDirection: "row", gap: 10, marginBottom: 16 },
-  roleBtn:          { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: "#2a2a35" },
-  roleBtnActive:    { borderColor: "#00C48C", backgroundColor: "rgba(0,196,140,0.08)" },
-  roleBtnText:      { color: "#666", fontWeight: "600" },
-  roleBtnTextActive:{ color: "#00C48C" },
+  roleBtn:          { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: "#E2E6ED" },
+  roleBtnActive:    { borderColor: "#1E7A46", backgroundColor: "rgba(30,122,70,0.08)" },
+  roleBtnText:      { color: "#6B7280", fontWeight: "600" },
+  roleBtnTextActive:{ color: "#1E7A46" },
 
   form:  { gap: 12, marginBottom: 8 },
   input: {
-    backgroundColor:   "#1A1A22",
+    backgroundColor:   "#0F1117",
     borderRadius:      12,
     paddingHorizontal: 16,
     paddingVertical:   14,
-    color:             "#FFFFFF",
+    color:             "#0F1117",
     fontSize:          15,
     borderWidth:       1,
-    borderColor:       "#2a2a35",
+    borderColor:       "#E2E6ED",
   },
 
   // Password field with eye toggle
@@ -522,16 +522,16 @@ const styles = StyleSheet.create({
   eyeText: { fontSize: 18 },
 
   vehicleRow:          { flexDirection: "row", gap: 10 },
-  vehicleBtn:          { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: "#2a2a35" },
-  vehicleBtnActive:    { borderColor: "#00C48C", backgroundColor: "rgba(0,196,140,0.08)" },
-  vehicleBtnText:      { color: "#666", fontWeight: "600" },
-  vehicleBtnTextActive:{ color: "#00C48C" },
+  vehicleBtn:          { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: "#E2E6ED" },
+  vehicleBtnActive:    { borderColor: "#1E7A46", backgroundColor: "rgba(30,122,70,0.08)" },
+  vehicleBtnText:      { color: "#6B7280", fontWeight: "600" },
+  vehicleBtnTextActive:{ color: "#1E7A46" },
 
   error: { color: "#fca5a5", textAlign: "center", marginVertical: 8, fontSize: 13 },
 
-  submitBtn:         { backgroundColor: "#00C48C", borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 12 },
+  submitBtn:         { backgroundColor: "#1E7A46", borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 12 },
   submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText:     { color: "#0F0F13", fontWeight: "700", fontSize: 16 },
+  submitBtnText:     { color: "#F7F8FA", fontWeight: "700", fontSize: 16 },
 });
 
 

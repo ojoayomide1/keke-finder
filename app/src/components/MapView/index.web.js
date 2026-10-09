@@ -57,7 +57,7 @@ const CAT = {
   sport:        { emoji: "⚽", color: "#dc2626", label: "Sports"         },
   service:      { emoji: "ℹ️", color: "#0891b2", label: "Service"        },
   shop:         { emoji: "🛒", color: "#ca8a04", label: "Shop"           },
-  pickup:       { emoji: "🛺", color: "#00c48c", label: "Pickup / Stop"  },
+  pickup:       { emoji: "🛺", color: "#1E7A46", label: "Pickup / Stop"  },
 };
 
 function cat(category) {
@@ -238,6 +238,7 @@ const MapView = React.forwardRef(function MapView(
     L.geoJSON(fc, {
       style:       { color: "#8A9BBD", weight: 1, fillColor: "#C8D6EE", fillOpacity: 0.55, interactive: false },
       interactive: false,
+      renderer:    L.canvas(),
     }).addTo(group);
   }, [buildings]);
 
@@ -272,17 +273,19 @@ const MapView = React.forwardRef(function MapView(
       L.geoJSON(roads, {
         style:       { color: "#64748B", weight: 2.5, opacity: 0.7, interactive: false },
         interactive: false,
+        renderer:    L.canvas(),
       }).addTo(group);
     }
     if (walkways.features.length) {
       L.geoJSON(walkways, {
         style:       { color: "#94A3B8", weight: 1.5, dashArray: "4,5", opacity: 0.65, interactive: false },
         interactive: false,
+        renderer:    L.canvas(),
       }).addTo(group);
     }
   }, [paths]);
 
-  // ── Render location + stop markers — batched into layerGroup before adding ──
+  // ── Render location + stop markers — circleMarker (SVG/canvas, no DOM per marker) ──
   useEffect(() => {
     const map = leafletMap.current;
     if (!map) return;
@@ -291,39 +294,49 @@ const MapView = React.forwardRef(function MapView(
     const group = layers.current.locations;
     group.clearLayers();
 
-    // Build all markers into a temp group, then add group once (no per-marker re-render)
-    const tempGroup = L.layerGroup();
+    // Use L.canvas() renderer — batch-renders all circles in ONE canvas element
+    // instead of N separate SVG/DOM elements. Critical for mobile performance.
+    const renderer = L.canvas({ padding: 0.5 });
 
     for (const loc of locations) {
       if (!loc.lat || !loc.lng) continue;
       const style = cat(loc.category);
-      L.marker([loc.lat, loc.lng], { icon: makeDivIcon(L, style) })
-        .bindPopup(
-          `<div style="min-width:140px">
-            <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${loc.name}</div>
-            <div style="color:#6B7280;font-size:11px">${style.label}</div>
-          </div>`,
-          { className: "navcamp-popup" }
-        )
-        .addTo(tempGroup);
+      L.circleMarker([loc.lat, loc.lng], {
+        radius:      7,
+        color:       style.color,
+        fillColor:   style.color,
+        fillOpacity: 0.9,
+        weight:      2,
+        opacity:     1,
+        renderer,
+      }).bindPopup(
+        `<div style="min-width:140px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${loc.name}</div>
+          <div style="color:#6B7280;font-size:11px">${style.label}</div>
+        </div>`,
+        { className: "navcamp-popup" }
+      ).addTo(group);
     }
 
     for (const stop of rideStops) {
       if (!stop.lat || !stop.lng) continue;
       const style = cat("pickup");
-      L.marker([stop.lat, stop.lng], { icon: makeDivIcon(L, style, 26) })
-        .bindPopup(
-          `<div style="min-width:120px">
-            <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${stop.name}</div>
-            <div style="color:#6B7280;font-size:11px">Pickup / Drop-off</div>
-          </div>`,
-          { className: "navcamp-popup" }
-        )
-        .addTo(tempGroup);
+      L.circleMarker([stop.lat, stop.lng], {
+        radius:      8,
+        color:       style.color,
+        fillColor:   style.color,
+        fillOpacity: 0.9,
+        weight:      2.5,
+        opacity:     1,
+        renderer,
+      }).bindPopup(
+        `<div style="min-width:120px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${stop.name}</div>
+          <div style="color:#6B7280;font-size:11px">Pickup / Drop-off</div>
+        </div>`,
+        { className: "navcamp-popup" }
+      ).addTo(group);
     }
-
-    // Single addTo — one DOM update
-    tempGroup.eachLayer(layer => group.addLayer(layer));
 
     // Auto-fit to all markers when data first arrives
     const pts = [
@@ -331,8 +344,7 @@ const MapView = React.forwardRef(function MapView(
       ...rideStops.filter(s => s.lat && s.lng).map(s => [s.lat, s.lng]),
     ];
     if (pts.length > 1) {
-      let Lb; try { Lb = require("leaflet"); } catch { return; }
-      map.fitBounds(Lb.latLngBounds(pts), { padding: [50, 50], maxZoom: 17 });
+      map.fitBounds(L.latLngBounds(pts), { padding: [50, 50], maxZoom: 17 });
     }
   }, [locations, rideStops]);
 

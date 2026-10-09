@@ -23,7 +23,7 @@ export const CAMPUS_CATEGORY_META = {
   gate:         { label: "Gates",             icon: "archway",       color: "#0f766e" },
   sport:        { label: "Sports",            icon: "basketball",    color: "#dc2626" },
   service:      { label: "Services",          icon: "circle-info",   color: "#0891b2" },
-  pickup:       { label: "Pickup / Drop-off", icon: "car-side",      color: "#00c48c" },
+  pickup:       { label: "Pickup / Drop-off", icon: "car-side",      color: "#1E7A46" },
 };
 
 // â”€â”€â”€ STATIC CAMPUS DATA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

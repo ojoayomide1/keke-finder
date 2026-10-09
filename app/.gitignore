@@ -49,4 +49,7 @@ debug-request-*.json
 veritas_*.geojson*
 veritas_*.osm
 
+# Design assets (raw files — not for repo)
+NavCamp Logo Pack/
+
 
