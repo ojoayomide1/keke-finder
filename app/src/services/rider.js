@@ -69,13 +69,14 @@ export async function getRiderStatus(riderId) {
 }
 
 /**
- * Listen to incoming ride requests for this rider
+ * Listen to incoming ride requests for this rider.
+ * Shows both "searching" requests (just submitted) and "queued" requests
+ * (waiting because no rider was online when they submitted).
  */
 export function listenToRideRequests(riderId, callback) {
-  // Simple query - only filter by status, no ordering to avoid composite index
   const q = query(
     collection(db, "rideRequests"),
-    where("status", "==", "searching")
+    where("status", "in", ["searching", "queued"])
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -84,11 +85,11 @@ export function listenToRideRequests(riderId, callback) {
       requests.push({ id: doc.id, ...doc.data() });
     });
     
-    // Sort in memory by createdAt (newest first)
+    // Sort oldest first so riders see requests in fair order
     requests.sort((a, b) => {
-      const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-      const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-      return aTime - bTime; // asc order (oldest first for fairness)
+      const aTime = a.requestedAt?.toMillis ? a.requestedAt.toMillis() : 0;
+      const bTime = b.requestedAt?.toMillis ? b.requestedAt.toMillis() : 0;
+      return aTime - bTime;
     });
     
     callback(requests);
@@ -104,7 +105,7 @@ export async function acceptRideRequest(requestId, riderId) {
       const requestRef = doc(db, "rideRequests", requestId);
       const requestDoc = await transaction.get(requestRef);
       
-      if (!requestDoc.exists() || requestDoc.data().status !== "searching") {
+      if (!requestDoc.exists() || !["searching", "queued"].includes(requestDoc.data().status)) {
         throw new Error("Ride request no longer available");
       }
 
@@ -149,6 +150,7 @@ export async function acceptRideRequest(requestId, riderId) {
         rideData = {
           requestIds: [requestId],
           riderId,
+          riderName: requestData.riderName ?? null,
           passengers: {
             [requestData.studentId]: {
               studentId: requestData.studentId,
@@ -162,6 +164,11 @@ export async function acceptRideRequest(requestId, riderId) {
             }
           },
           stopQueue,
+          seats: {
+            total: 3,
+            occupied: 1,
+            available: 2,
+          },
           status: "matched",
           fare: TOTAL_FARE_KOBO,
           riderShare: RIDER_SHARE_KOBO,
@@ -169,6 +176,7 @@ export async function acceptRideRequest(requestId, riderId) {
           paymentMethod: requestData.paymentMethod ?? "wallet",
           createdAt: serverTimestamp(),
           matchedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         };
         
         transaction.set(rideRef, rideData);

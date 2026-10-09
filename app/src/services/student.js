@@ -298,13 +298,14 @@ export async function cancelRide({ requestId, rideId, studentId }) {
     const rideRef  = doc(db, "rides", rideId);
     const rideSnap = await getDoc(rideRef);
     if (rideSnap.exists()) {
-      const ride        = rideSnap.data();
+      const ride         = rideSnap.data();
       const updatedQueue = (ride.stopQueue ?? []).filter(s => s.passengerId !== studentId);
+      const seats        = ride.seats ?? { total: 3, occupied: 1, available: 2 };
       await updateDoc(rideRef, {
         stopQueue:                                            updatedQueue,
         [`passengers.${studentId}.pickupStatus`]:            "cancelled",
-        "seats.occupied":  Math.max(0, (ride.seats.occupied  || 1) - 1),
-        "seats.available": Math.min(ride.seats.total, (ride.seats.available || 0) + 1),
+        "seats.occupied":  Math.max(0, (seats.occupied  || 1) - 1),
+        "seats.available": Math.min(seats.total || 3, (seats.available || 0) + 1),
         updatedAt:         serverTimestamp(),
       });
     }
