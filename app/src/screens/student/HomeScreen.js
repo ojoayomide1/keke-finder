@@ -50,13 +50,13 @@ import { sendLocalNotification } from "../../services/notifications";
 // ─── COLOURS ─────────────────────────────────────────────────────────────────
 
 const C = {
-  bg:      "#0F0F13",
-  surface: "#1A1A22",
-  border:  "#2a2a35",
+  bg:      "#F7F8FA",
+  surface: "#0F1117",
+  border:  "#E2E6ED",
   green:   "#1E7A46",
   red:     "#ef4444",
-  text:    "#FFFFFF",
-  sub:     "#888",
+  text:    "#0F1117",
+  sub:     "#6B7280",
   pill: {
     searching: "#f59e0b",
     matched:   "#1E7A46",
@@ -516,7 +516,7 @@ export default function StudentHomeScreen({ navigation }) {
               disabled={!canRequest || requesting}
             >
               {requesting
-                ? <ActivityIndicator color="#0F0F13" />
+                ? <ActivityIndicator color="#F7F8FA" />
                 : <Text style={styles.primaryBtnText}>Request Keke</Text>
               }
             </TouchableOpacity>
@@ -609,7 +609,7 @@ export default function StudentHomeScreen({ navigation }) {
                   onPress={handlePay}
                   disabled={payingNow}
                 >
-                  {payingNow ? <ActivityIndicator color="#0F0F13" /> : <Text style={styles.primaryBtnText}>Pay Now {formatNaira(liveSummary.fare)}</Text>}
+                  {payingNow ? <ActivityIndicator color="#F7F8FA" /> : <Text style={styles.primaryBtnText}>Pay Now {formatNaira(liveSummary.fare)}</Text>}
                 </TouchableOpacity>
               )
             ) : (
@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
 
   primaryBtn:         { backgroundColor: C.green, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 10 },
   primaryBtnDisabled: { opacity: 0.5 },
-  primaryBtnText:     { color: "#0F0F13", fontWeight: "700", fontSize: 16 },
+  primaryBtnText:     { color: "#F7F8FA", fontWeight: "700", fontSize: 16 },
 
   dangerBtn:     { borderRadius: 12, paddingVertical: 16, alignItems: "center", borderWidth: 1, borderColor: C.red, backgroundColor: "rgba(239,68,68,0.08)" },
   dangerBtnText: { color: C.red, fontWeight: "600", fontSize: 16 },

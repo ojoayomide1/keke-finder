@@ -32,14 +32,14 @@ import { calculateCampusRoute } from "../../services/campus-router";
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
 const C = {
-  bg:      "#0F0F13",
-  surface: "#1A1A22",
-  border:  "#2a2a35",
+  bg:      "#F7F8FA",
+  surface: "#0F1117",
+  border:  "#E2E6ED",
   green:   "#1E7A46",
   orange:  "#FF5E1A",
   red:     "#ef4444",
-  text:    "#FFFFFF",
-  sub:     "#888",
+  text:    "#0F1117",
+  sub:     "#6B7280",
 };
 
 const CATEGORY_EMOJI = {
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   routeBannerStats:  { color: C.sub, fontSize: 12, marginTop: 2 },
   routeBannerActions:{ flexDirection: "row", alignItems: "center", gap: 8, marginLeft: 8 },
   goNowBtn:          { backgroundColor: C.green, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12 },
-  goNowBtnText:      { color: "#0F0F13", fontWeight: "700", fontSize: 13 },
+  goNowBtnText:      { color: "#F7F8FA", fontWeight: "700", fontSize: 13 },
   cancelRouteBtn:    { width: 30, height: 30, borderRadius: 15, backgroundColor: C.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.border },
   cancelRouteBtnText:{ color: C.sub, fontSize: 14 },
 
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   goBtn:         { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: C.surface, borderWidth: 1, borderColor: C.green },
   goBtnActive:   { backgroundColor: C.green },
   goBtnText:     { color: C.green, fontSize: 14, fontWeight: "700" },
-  goBtnTextActive:{ color: "#0F0F13" },
+  goBtnTextActive:{ color: "#F7F8FA" },
 
   emptyText: { color: C.sub, textAlign: "center", paddingTop: 30, fontSize: 14 },
 });

@@ -52,13 +52,13 @@ import {
 // ─── COLOURS ─────────────────────────────────────────────────────────────────
 
 const C = {
-  bg:        "#0F0F13",
-  surface:   "#1A1A22",
-  border:    "#2a2a35",
+  bg:        "#F7F8FA",
+  surface:   "#0F1117",
+  border:    "#E2E6ED",
   green:     "#1E7A46",
   greenMute: "rgba(30,122,70,0.12)",
-  text:      "#FFFFFF",
-  sub:       "#888",
+  text:      "#0F1117",
+  sub:       "#6B7280",
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -303,8 +303,8 @@ export default function ProfileScreen() {
                   <Switch
                     value={bioEnabled}
                     onValueChange={handleBiometricToggle}
-                    trackColor={{ false: "#2a2a35", true: C.greenMute }}
-                    thumbColor={bioEnabled ? C.green : "#888"}
+                    trackColor={{ false: "#E2E6ED", true: C.greenMute }}
+                    thumbColor={bioEnabled ? C.green : "#6B7280"}
                   />
                 )}
               </View>
@@ -429,8 +429,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems:      "center",
     borderWidth:     1,
-    borderColor:     "#2a2a35",
+    borderColor:     "#E2E6ED",
     marginBottom:    12,
   },
-  helpText: { color: "#FFFFFF", fontWeight: "600" },
+  helpText: { color: "#0F1117", fontWeight: "600" },
 });

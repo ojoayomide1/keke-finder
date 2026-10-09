@@ -38,16 +38,16 @@ import useStore from "../../store";
 const CATEGORIES = ["Ride Issue", "Payment", "App Bug", "Safety", "Other"];
 
 const C = {
-  bg:        "#0F0F13",
-  surface:   "#1A1A22",
-  surface2:  "#22222c",
-  border:    "#2a2a35",
+  bg:        "#F7F8FA",
+  surface:   "#0F1117",
+  surface2:  "#F0F2F5",
+  border:    "#E2E6ED",
   green:     "#1E7A46",
   greenMute: "rgba(30,122,70,0.12)",
-  text:      "#FFFFFF",
-  sub:       "#888",
+  text:      "#0F1117",
+  sub:       "#6B7280",
   error:     "#ef4444",
-  overlay:   "rgba(0,0,0,0.72)",
+  overlay:   "rgba(0,0,0,0.5)",
 };
 
 // ─── COMPONENT ───────────────────────────────────────────────────────────────

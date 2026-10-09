@@ -35,13 +35,13 @@ import { getNextRideAction, completeNextStop } from "../../services/rider";
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
 const C = {
-  bg:        "#0F0F13",
-  surface:   "#1A1A22",
-  border:    "#2a2a35",
+  bg:        "#F7F8FA",
+  surface:   "#0F1117",
+  border:    "#E2E6ED",
   orange:    "#FF5E1A",
   green:     "#1E7A46",
-  text:      "#FFFFFF",
-  sub:       "#888",
+  text:      "#0F1117",
+  sub:       "#6B7280",
 };
 
 // Default map region (Ibadan)
@@ -77,7 +77,7 @@ function NextStopPanel({ ride, onComplete, loading }) {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#0F0F13" size="small" />
+          <ActivityIndicator color="#F7F8FA" size="small" />
         ) : (
           <Text style={styles.completeBtnText}>
             Mark as {nextAction.type === "pickup" ? "Picked Up" : "Dropped Off"}
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     alignItems:      "center",
   },
   completeBtnDisabled: { opacity: 0.6 },
-  completeBtnText:     { color: "#0F0F13", fontWeight: "700", fontSize: 16 },
+  completeBtnText:     { color: "#F7F8FA", fontWeight: "700", fontSize: 16 },
 
   // Fit button
   fitButton: {

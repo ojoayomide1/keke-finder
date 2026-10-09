@@ -45,14 +45,14 @@ import {
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
 const C = {
-  bg:        "#0F0F13",
-  surface:   "#1A1A22",
-  border:    "#2a2a35",
+  bg:        "#F7F8FA",
+  surface:   "#0F1117",
+  border:    "#E2E6ED",
   orange:    "#FF5E1A",
   orangeMute: "rgba(255,94,26,0.12)",
   green:     "#1E7A46",
-  text:      "#FFFFFF",
-  sub:       "#888",
+  text:      "#0F1117",
+  sub:       "#6B7280",
   error:     "#fca5a5",
 };
 
@@ -460,7 +460,7 @@ export default function RiderEarningsScreen() {
               disabled={submitting}
             >
               {submitting ? (
-                <ActivityIndicator color="#0F0F13" />
+                <ActivityIndicator color="#F7F8FA" />
               ) : (
                 <Text style={styles.submitBtnText}>Submit Request</Text>
               )}
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
     alignItems:      "center",
     marginBottom:    24,
   },
-  withdrawBtnText: { color: "#0F0F13", fontWeight: "700", fontSize: 16 },
+  withdrawBtnText: { color: "#F7F8FA", fontWeight: "700", fontSize: 16 },
 
   tabs: {
     flexDirection:   "row",
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   tab:           { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 9 },
   tabActive:     { backgroundColor: C.orange },
   tabText:       { color: C.sub, fontWeight: "600" },
-  tabTextActive: { color: "#0F0F13" },
+  tabTextActive: { color: "#F7F8FA" },
 
   listContainer: { paddingBottom: 100 },
 
@@ -634,5 +634,5 @@ const styles = StyleSheet.create({
     marginBottom:    40,
   },
   submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText:     { color: "#0F0F13", fontWeight: "700", fontSize: 16 },
+  submitBtnText:     { color: "#F7F8FA", fontWeight: "700", fontSize: 16 },
 });

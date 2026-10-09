@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   toast: {
     maxWidth:          520,
     width:             "100%",
-    backgroundColor:   "#1A1A22",
+    backgroundColor:   "#0F1117",
     borderWidth:       1,
     borderRadius:      12,
     paddingHorizontal: 14,
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     shadowOffset:      { width: 0, height: 6 },
   },
   text: {
-    color:      "#FFFFFF",
+    color:      "#0F1117",
     fontSize:   14,
     fontWeight: "700",
     lineHeight: 19,

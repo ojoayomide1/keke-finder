@@ -55,13 +55,13 @@ import SupportModal from "../shared/SupportModal";
 // ─── COLOURS ─────────────────────────────────────────────────────────────────
 
 const C = {
-  bg:        "#0F0F13",
-  surface:   "#1A1A22",
-  border:    "#2a2a35",
+  bg:        "#F7F8FA",
+  surface:   "#0F1117",
+  border:    "#E2E6ED",
   orange:    "#FF5E1A",
   orangeMute: "rgba(255,94,26,0.12)",
-  text:      "#FFFFFF",
-  sub:       "#888",
+  text:      "#0F1117",
+  sub:       "#6B7280",
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -329,8 +329,8 @@ export default function RiderProfileScreen() {
                   <Switch
                     value={bioEnabled}
                     onValueChange={handleBiometricToggle}
-                    trackColor={{ false: "#2a2a35", true: C.orangeMute }}
-                    thumbColor={bioEnabled ? C.orange : "#888"}
+                    trackColor={{ false: "#E2E6ED", true: C.orangeMute }}
+                    thumbColor={bioEnabled ? C.orange : "#6B7280"}
                   />
                 )}
               </View>
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
 
   statusBadge:    { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   onlineBadge:    { backgroundColor: C.orangeMute },
-  offlineBadge:   { backgroundColor: "#2a2a35" },
+  offlineBadge:   { backgroundColor: "#E2E6ED" },
   statusText:     { fontSize: 11, fontWeight: "700", letterSpacing: 1 },
   onlineText:     { color: C.orange },
   offlineText:    { color: C.sub },
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     alignItems:     "center",
     justifyContent: "center",
   },
-  avatarText: { color: "#FFFFFF", fontWeight: "700" },
+  avatarText: { color: "#0F1117", fontWeight: "700" },
   profileText: { flex: 1 },
   profileName:  { color: C.text, fontSize: 20, fontWeight: "700", marginBottom: 4 },
   profilePlate: { color: C.orange, fontSize: 14, fontWeight: "600", marginBottom: 2 },

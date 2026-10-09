@@ -53,15 +53,15 @@ import { db, doc, setDoc, serverTimestamp } from "../../config/firebase";
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
 const C = {
-  bg:        "#0F0F13",
-  surface:   "#1A1A22",
-  border:    "#2a2a35", 
+  bg:        "#F7F8FA",
+  surface:   "#0F1117",
+  border:    "#E2E6ED", 
   green:     "#1E7A46",
   greenMute: "rgba(30,122,70,0.12)",
   orange:    "#FF5E1A",
   orangeMute: "rgba(255,94,26,0.12)",
-  text:      "#FFFFFF",
-  sub:       "#888",
+  text:      "#0F1117",
+  sub:       "#6B7280",
   error:     "#fca5a5",
 };
 
@@ -145,7 +145,7 @@ function RideRequestCard({ request, onAccept, onDecline, accepting }) {
           disabled={accepting}
         >
           {accepting ? (
-            <ActivityIndicator color="#0F0F13" size="small" />
+            <ActivityIndicator color="#F7F8FA" size="small" />
           ) : (
             <Text style={styles.acceptBtnText}>Accept</Text>
           )}
@@ -219,7 +219,7 @@ function ActiveRideCard({ ride, onNextStop, actionLoading }) {
           disabled={actionLoading}
         >
           {actionLoading ? (
-            <ActivityIndicator color="#0F0F13" size="small" />
+            <ActivityIndicator color="#F7F8FA" size="small" />
           ) : (
             <Text style={styles.nextActionText}>{nextAction.label}</Text>
           )}
@@ -782,7 +782,7 @@ const styles = StyleSheet.create({
   declineBtn:     { backgroundColor: C.bg, borderWidth: 1, borderColor: C.border },
   declineBtnText: { color: C.sub, fontWeight: "600" },
   acceptBtn:      { backgroundColor: C.green },
-  acceptBtnText:  { color: "#0F0F13", fontWeight: "700" },
+  acceptBtnText:  { color: "#F7F8FA", fontWeight: "700" },
 
   activeCard: {
     backgroundColor: C.surface,
@@ -823,7 +823,7 @@ const styles = StyleSheet.create({
   rideStatus:    { color: C.sub, fontSize: 13, marginTop: 8, marginBottom: 12 },
 
   nextActionBtn:  { backgroundColor: C.green, marginTop: 8 },
-  nextActionText: { color: "#0F0F13", fontWeight: "700" },
+  nextActionText: { color: "#F7F8FA", fontWeight: "700" },
 
   emptyState: {
     alignItems:     "center",
@@ -839,7 +839,7 @@ const styles = StyleSheet.create({
     overflow:        "hidden",
     borderWidth:     1,
     borderColor:     C.border,
-    backgroundColor: "#0F0F13",
+    backgroundColor: "#F7F8FA",
   },
   map: { 
     flex: 1,

@@ -58,16 +58,16 @@ import {
 // ─── COLOURS ─────────────────────────────────────────────────────────────────
 
 const C = {
-  bg:        "#0F0F13",
-  surface:   "#1A1A22",
-  border:    "#2a2a35",
+  bg:        "#F7F8FA",
+  surface:   "#0F1117",
+  border:    "#E2E6ED",
   green:     "#1E7A46",
   greenMute: "rgba(30,122,70,0.12)",
   red:       "#ef4444",
   redMute:   "rgba(239,68,68,0.12)",
   orange:    "#f59e0b",
-  text:      "#FFFFFF",
-  sub:       "#888",
+  text:      "#0F1117",
+  sub:       "#6B7280",
   card:      "#151519",
 };
 
@@ -270,7 +270,7 @@ function TopUpModal({ visible, onClose, onConfirm, loading, email }) {
           activeOpacity={0.8}
         >
           {loading
-            ? <ActivityIndicator color="#0F0F13" />
+            ? <ActivityIndicator color="#F7F8FA" />
             : <Text style={styles.primaryBtnText}>
                 Pay {isValid ? `₦${effectiveAmount.toLocaleString()}` : ""}
               </Text>
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   lowBadgeText:  { color: C.orange, fontSize: 12, fontWeight: "600" },
 
   topUpBtn:     { backgroundColor: C.green, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, marginTop: 8 },
-  topUpBtnText: { color: "#0F0F13", fontWeight: "700", fontSize: 15 },
+  topUpBtnText: { color: "#F7F8FA", fontWeight: "700", fontSize: 15 },
 
   // ── Debt banner
   debtBanner: {
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
   // ── Primary / cancel buttons (shared)
   primaryBtn:         { backgroundColor: C.green, borderRadius: 14, paddingVertical: 15, alignItems: "center", marginTop: 8 },
   primaryBtnDisabled: { opacity: 0.45 },
-  primaryBtnText:     { color: "#0F0F13", fontWeight: "700", fontSize: 15 },
+  primaryBtnText:     { color: "#F7F8FA", fontWeight: "700", fontSize: 15 },
   cancelBtn:          { paddingVertical: 13, alignItems: "center", borderRadius: 12, borderWidth: 1, borderColor: C.border, marginTop: 8 },
   cancelBtnText:      { color: C.sub, fontWeight: "600" },
 

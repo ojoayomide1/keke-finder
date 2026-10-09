@@ -45,14 +45,14 @@ import {
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
 const C = {
-  bg:      "#0F0F13",
-  surface: "#1A1A22",
-  border:  "#2a2a35",
+  bg:      "#F7F8FA",
+  surface: "#0F1117",
+  border:  "#E2E6ED",
   green:   "#1E7A46",
   red:     "#ef4444",
   orange:  "#FF5E1A",
-  text:    "#FFFFFF",
-  sub:     "#888",
+  text:    "#0F1117",
+  sub:     "#6B7280",
 };
 
 const SHEET_COLLAPSED = 80;
@@ -312,7 +312,7 @@ export default function MapScreen() {
       <Polyline
         key={`p-${i}`}
         coordinates={path.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))}
-        strokeColor="#2a2a35"
+        strokeColor="#E2E6ED"
         strokeWidth={3}
       />
     )),
@@ -517,7 +517,7 @@ export default function MapScreen() {
                   </View>
                 ) : (
                   <TouchableOpacity style={styles.primaryBtn} onPress={handlePay} disabled={payingNow}>
-                    {payingNow ? <ActivityIndicator color="#0F0F13" /> : <Text style={styles.primaryBtnText}>Pay Now {formatNaira(liveSummary.fare)}</Text>}
+                    {payingNow ? <ActivityIndicator color="#F7F8FA" /> : <Text style={styles.primaryBtnText}>Pay Now {formatNaira(liveSummary.fare)}</Text>}
                   </TouchableOpacity>
                 )
               ) : (
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
   rideRowValue: { color: C.text, fontSize: 13, fontWeight: "600" },
 
   primaryBtn:     { backgroundColor: C.green, borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 12 },
-  primaryBtnText: { color: "#0F0F13", fontWeight: "700", fontSize: 15 },
+  primaryBtnText: { color: "#F7F8FA", fontWeight: "700", fontSize: 15 },
   dangerBtn:      { borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 12, borderWidth: 1, borderColor: C.red, backgroundColor: "rgba(239,68,68,0.08)" },
   dangerBtnText:  { color: C.red, fontWeight: "600", fontSize: 15 },
 

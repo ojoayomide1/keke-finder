@@ -65,14 +65,14 @@ function StudentNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#0F0F13",
-          borderTopColor:  "#1e1e28",
+          backgroundColor: "#F7F8FA",
+          borderTopColor:  "#E2E6ED",
           paddingBottom:    insets.bottom + 6,
           paddingTop:       6,
           height:           insets.bottom + 60,
         },
         tabBarActiveTintColor:   "#1E7A46",
-        tabBarInactiveTintColor: "#555",
+        tabBarInactiveTintColor: "#9CA3AF",
         tabBarLabelStyle:        { fontSize: 11, fontWeight: "600" },
         tabBarIcon:              ({ focused }) => (
           <TabIcon label={route.name} focused={focused} />
@@ -117,14 +117,14 @@ function RiderNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#0F0F13",
-          borderTopColor:  "#1e1e28",
+          backgroundColor: "#F7F8FA",
+          borderTopColor:  "#E2E6ED",
           paddingBottom:    insets.bottom + 6,
           paddingTop:       6,
           height:           insets.bottom + 60,
         },
         tabBarActiveTintColor:   "#FF5E1A", // Orange for riders
-        tabBarInactiveTintColor: "#555",
+        tabBarInactiveTintColor: "#9CA3AF",
         tabBarLabelStyle:        { fontSize: 11, fontWeight: "600" },
         tabBarIcon:              ({ focused }) => (
           <RiderTabIcon label={route.name} focused={focused} />
@@ -225,7 +225,7 @@ export default function RootNavigator() {
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
-    backgroundColor: "#0F0F13",
+    backgroundColor: "#F7F8FA",
     alignItems: "center",
     justifyContent: "center"
   }

@@ -104,11 +104,11 @@ function injectLeafletCss() {
     .leaflet-tile-pane { display: none !important; }
 
     .navcamp-popup .leaflet-popup-content-wrapper {
-      background: #1A1A22;
-      color: #fff;
+      background: #FFFFFF;
+      color: #0F1117;
       border-radius: 10px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-      border: 1px solid #2a2a35;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      border: 1px solid #E2E6ED;
       padding: 0;
     }
     .navcamp-popup .leaflet-popup-content {
@@ -116,12 +116,12 @@ function injectLeafletCss() {
       font-size: 13px;
       line-height: 1.5;
     }
-    .navcamp-popup .leaflet-popup-tip { background: #1A1A22; }
-    .navcamp-popup .leaflet-popup-close-button { color: #888 !important; }
+    .navcamp-popup .leaflet-popup-tip { background: #FFFFFF; }
+    .navcamp-popup .leaflet-popup-close-button { color: #6B7280 !important; }
     .leaflet-control-zoom a {
-      background: #1A1A22 !important;
-      color: #fff !important;
-      border-color: #2a2a35 !important;
+      background: #FFFFFF !important;
+      color: #0F1117 !important;
+      border-color: #E2E6ED !important;
     }
     .leaflet-control-zoom a:hover { background: #2a2a35 !important; }
   `;
@@ -300,8 +300,8 @@ const MapView = React.forwardRef(function MapView(
       L.marker([loc.lat, loc.lng], { icon: makeDivIcon(L, style) })
         .bindPopup(
           `<div style="min-width:140px">
-            <div style="font-weight:700;font-size:14px;margin-bottom:3px">${loc.name}</div>
-            <div style="color:#aaa;font-size:11px">${style.label}</div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${loc.name}</div>
+            <div style="color:#6B7280;font-size:11px">${style.label}</div>
           </div>`,
           { className: "navcamp-popup" }
         )
@@ -314,8 +314,8 @@ const MapView = React.forwardRef(function MapView(
       L.marker([stop.lat, stop.lng], { icon: makeDivIcon(L, style, 26) })
         .bindPopup(
           `<div style="min-width:120px">
-            <div style="font-weight:700;font-size:14px;margin-bottom:3px">${stop.name}</div>
-            <div style="color:#aaa;font-size:11px">Pickup / Drop-off</div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${stop.name}</div>
+            <div style="color:#6B7280;font-size:11px">Pickup / Drop-off</div>
           </div>`,
           { className: "navcamp-popup" }
         )
