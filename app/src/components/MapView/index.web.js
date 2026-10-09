@@ -208,7 +208,7 @@ const MapView = React.forwardRef(function MapView(
     else ref.current = api;
   }, [ref]);
 
-  // ── Render buildings ─────────────────────────────────────────────────────
+  // ── Render buildings — single L.geoJSON call instead of 68 separate polygons ──
   useEffect(() => {
     const map = leafletMap.current;
     if (!map) return;
@@ -217,19 +217,31 @@ const MapView = React.forwardRef(function MapView(
     const group = layers.current.buildings;
     group.clearLayers();
 
-    for (const b of buildings) {
-      if (!b.points?.length) continue;
-      L.polygon(b.points.map(([lat, lng]) => [lat, lng]), {
-        color:       "#8A9BBD",
-        weight:      1,
-        fillColor:   "#C8D6EE",
-        fillOpacity: 0.6,
-        interactive: false,
-      }).addTo(group);
-    }
+    if (!buildings.length) return;
+
+    // Convert to GeoJSON FeatureCollection — one call, one SVG element
+    const fc = {
+      type: "FeatureCollection",
+      features: buildings
+        .filter(b => b.points?.length >= 3)
+        .map(b => ({
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            // GeoJSON is [lng, lat]; Leaflet points are [lat, lng]
+            coordinates: [b.points.map(([lat, lng]) => [lng, lat])],
+          },
+          properties: { name: b.name || b.id },
+        })),
+    };
+
+    L.geoJSON(fc, {
+      style:       { color: "#8A9BBD", weight: 1, fillColor: "#C8D6EE", fillOpacity: 0.55, interactive: false },
+      interactive: false,
+    }).addTo(group);
   }, [buildings]);
 
-  // ── Render paths (roads + walkways) ──────────────────────────────────────
+  // ── Render paths — single L.geoJSON call instead of 48 separate polylines ──
   useEffect(() => {
     const map = leafletMap.current;
     if (!map) return;
@@ -238,20 +250,39 @@ const MapView = React.forwardRef(function MapView(
     const group = layers.current.paths;
     group.clearLayers();
 
+    if (!paths.length) return;
+
+    const roads    = { type: "FeatureCollection", features: [] };
+    const walkways = { type: "FeatureCollection", features: [] };
+
     for (const p of paths) {
       if (!p.points?.length) continue;
-      const isWalkway = p.type === "walkway";
-      L.polyline(p.points.map(([lat, lng]) => [lat, lng]), {
-        color:     isWalkway ? "#94A3B8" : "#64748B",
-        weight:    isWalkway ? 1.5 : 2.5,
-        dashArray: isWalkway ? "4, 5" : null,
-        opacity:   0.7,
+      const fc = p.type === "walkway" ? walkways : roads;
+      fc.features.push({
+        type: "Feature",
+        geometry: {
+          type: "LineString",
+          coordinates: p.points.map(([lat, lng]) => [lng, lat]),
+        },
+        properties: {},
+      });
+    }
+
+    if (roads.features.length) {
+      L.geoJSON(roads, {
+        style:       { color: "#64748B", weight: 2.5, opacity: 0.7, interactive: false },
+        interactive: false,
+      }).addTo(group);
+    }
+    if (walkways.features.length) {
+      L.geoJSON(walkways, {
+        style:       { color: "#94A3B8", weight: 1.5, dashArray: "4,5", opacity: 0.65, interactive: false },
         interactive: false,
       }).addTo(group);
     }
   }, [paths]);
 
-  // ── Render location + stop markers ───────────────────────────────────────
+  // ── Render location + stop markers — batched into layerGroup before adding ──
   useEffect(() => {
     const map = leafletMap.current;
     if (!map) return;
@@ -259,6 +290,9 @@ const MapView = React.forwardRef(function MapView(
 
     const group = layers.current.locations;
     group.clearLayers();
+
+    // Build all markers into a temp group, then add group once (no per-marker re-render)
+    const tempGroup = L.layerGroup();
 
     for (const loc of locations) {
       if (!loc.lat || !loc.lng) continue;
@@ -271,7 +305,7 @@ const MapView = React.forwardRef(function MapView(
           </div>`,
           { className: "navcamp-popup" }
         )
-        .addTo(group);
+        .addTo(tempGroup);
     }
 
     for (const stop of rideStops) {
@@ -285,8 +319,11 @@ const MapView = React.forwardRef(function MapView(
           </div>`,
           { className: "navcamp-popup" }
         )
-        .addTo(group);
+        .addTo(tempGroup);
     }
+
+    // Single addTo — one DOM update
+    tempGroup.eachLayer(layer => group.addLayer(layer));
 
     // Auto-fit to all markers when data first arrives
     const pts = [
