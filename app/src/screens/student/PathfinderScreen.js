@@ -13,6 +13,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -105,12 +106,13 @@ export default function PathfinderScreen({ navigation }) {
 
   const [locations,    setLocations]    = useState([]);
   const [userLocation, setUserLocation] = useState(null);
-  const [originId,     setOriginId]     = useState(null); // null = current location
+  const [originId,     setOriginId]     = useState(null);
   const [destId,       setDestId]       = useState(null);
   const [route,        setRoute]        = useState(null);
   const [routing,      setRouting]      = useState(false);
   const [filter,       setFilter]       = useState("all");
-  const [countdown,    setCountdown]    = useState(null); // null | number
+  const [search,       setSearch]       = useState("");
+  const [countdown,    setCountdown]    = useState(null);
 
   const countdownRef    = useRef(null);
   const unsubCampusRef  = useRef(null);
@@ -236,10 +238,14 @@ export default function PathfinderScreen({ navigation }) {
   }, []);
 
   // ── Filtered locations ──────────────────────────────────────────────────
-  const filteredLocations = useMemo(() =>
-    filter === "all" ? locations : locations.filter(l => l.category === filter),
-    [locations, filter]
-  );
+  const filteredLocations = useMemo(() => {
+    let result = filter === "all" ? locations : locations.filter(l => l.category === filter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(l => l.name.toLowerCase().includes(q));
+    }
+    return result;
+  }, [locations, filter, search]);
 
   const originName = originId === null ? "Current Location"
     : locations.find(l => l.id === originId)?.name ?? "Select origin";
@@ -318,6 +324,25 @@ export default function PathfinderScreen({ navigation }) {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* ── Search bar ──────────────────────────────────────────── */}
+      <View style={styles.searchBar}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search locations..."
+          placeholderTextColor={C.sub}
+          value={search}
+          onChangeText={setSearch}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+        />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch("")} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            <Text style={{ color: C.sub, fontSize: 16, paddingHorizontal: 4 }}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* ── Location list ───────────────────────────────────────── */}
       <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
@@ -399,6 +424,24 @@ const styles = StyleSheet.create({
   // Location list
   list:        { flex: 1 },
   listContent: { padding: 16, paddingBottom: 40 },
+
+  searchBar: {
+    flexDirection:   "row",
+    alignItems:      "center",
+    backgroundColor: C.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+    paddingHorizontal: 14,
+    paddingVertical:   8,
+    gap: 8,
+  },
+  searchIcon:  { fontSize: 15 },
+  searchInput: {
+    flex:      1,
+    color:     C.text,
+    fontSize:  14,
+    paddingVertical: Platform.OS === "ios" ? 6 : 2,
+  },
 
   currentLocCard: {
     backgroundColor: C.surface,

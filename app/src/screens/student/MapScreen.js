@@ -16,6 +16,7 @@ import {
   Animated,
   PanResponder,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -54,8 +55,8 @@ const C = {
   sub:     "#888",
 };
 
-const SHEET_COLLAPSED = 120;
-const SHEET_EXPANDED  = 340;
+const SHEET_COLLAPSED = 80;
+const SHEET_EXPANDED  = 360;
 
 const CATEGORY_EMOJI = {
   boys_hostel:  "🛏️",
@@ -290,11 +291,18 @@ export default function MapScreen() {
 
   // On web: pass static campus geometry as a direct prop to avoid creating
   // thousands of React elements as children (which stalls the browser).
+  // rideStops only included when there's an active ride — they shouldn't be
+  // visible on the map when idle.
   const webCampusData = useMemo(() =>
     Platform.OS === "web"
-      ? { buildings: campusBuildings, paths: campusPaths, locations, rideStops }
+      ? {
+          buildings: campusBuildings,
+          paths:     campusPaths,
+          locations,
+          rideStops: ridePhase !== "idle" ? rideStops : [],
+        }
       : null,
-    [campusBuildings, campusPaths, locations, rideStops]
+    [campusBuildings, campusPaths, locations, rideStops, ridePhase]
   );
 
   // On native: memoize static map layers as children (react-native-maps API)
@@ -322,7 +330,9 @@ export default function MapScreen() {
     [campusBuildings]
   );
 
+  // On native: location markers as children. On web: handled by campusData prop.
   const locationMarkers = useMemo(() =>
+    Platform.OS === "web" ? [] :
     locations.map(loc => {
       const meta = getCampusCategoryMeta(loc.category);
       return (
@@ -339,6 +349,7 @@ export default function MapScreen() {
   );
 
   const stopMarkers = useMemo(() =>
+    Platform.OS === "web" ? [] :
     rideStops.map(stop => (
       <Marker key={stop.id} coordinate={{ latitude: stop.lat, longitude: stop.lng }} title={stop.name}>
         <View style={styles.markerWrap}>
@@ -435,21 +446,33 @@ export default function MapScreen() {
       {/* ── BOTTOM SHEET — only when something is active ────────── */}
       {hasSheet && (
         <Animated.View style={[styles.sheet, { height: sheetHeight }]}>
+          {/* Drag handle — tap toggles, drag works on native */}
           <TouchableOpacity
             style={styles.handleArea}
-            activeOpacity={1}
+            activeOpacity={0.7}
             onPress={() => {
               const toValue = sheetAnim._value > 0.5 ? 0 : 1;
               Animated.spring(sheetAnim, { toValue, useNativeDriver: false, tension: 200, friction: 8 }).start();
             }}
-            {...panResponder.panHandlers}
+            {...(Platform.OS !== "web" ? panResponder.panHandlers : {})}
           >
             <View style={styles.handle} />
+            <Text style={styles.handleHint}>
+              {sheetAnim._value > 0.5 ? "▼ Collapse" : "▲ Expand"}
+            </Text>
           </TouchableOpacity>
+
+          {/* Scrollable content so nothing gets cut off */}
+          <ScrollView
+            style={styles.sheetScroll}
+            contentContainerStyle={styles.sheetContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
 
           {/* ── Active ride content */}
           {ridePhase !== "idle" && liveSummary && (
-            <View style={styles.sheetContent}>
+            <>
               <View style={styles.rideBanner}>
                 <Text style={styles.rideBannerTitle}>
                   {ridePhase === "onTrip" ? "On Trip" : "Keke is on the way"}
@@ -502,12 +525,12 @@ export default function MapScreen() {
                   {cancelling ? <ActivityIndicator color={C.red} /> : <Text style={styles.dangerBtnText}>Cancel Ride</Text>}
                 </TouchableOpacity>
               )}
-            </View>
+            </>
           )}
 
           {/* ── Walk route content */}
           {ridePhase === "idle" && walkRoute && (
-            <View style={styles.sheetContent}>
+            <>
               <View style={styles.walkHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.walkTitle}>Walking Route</Text>
@@ -542,8 +565,10 @@ export default function MapScreen() {
                   <Text style={styles.walkStatLabel}>Route type</Text>
                 </View>
               </View>
-            </View>
+            </>
           )}
+
+          </ScrollView>
         </Animated.View>
       )}
 
@@ -566,10 +591,18 @@ const styles = StyleSheet.create({
 
   recenterBtn: { position: "absolute", top: 60, right: 16, backgroundColor: C.surface, borderRadius: 20, width: 40, height: 40, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.border },
 
-  sheet: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderWidth: 1, borderColor: C.border },
-  handleArea: { alignItems: "center", paddingVertical: 12 },
+  sheet: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    backgroundColor: C.surface,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    borderWidth: 1, borderColor: C.border,
+    overflow: "hidden",
+  },
+  handleArea: { alignItems: "center", paddingTop: 10, paddingBottom: 6 },
   handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border },
-  sheetContent: { paddingHorizontal: 16, paddingBottom: Platform.OS === "ios" ? 24 : 12 },
+  handleHint: { color: C.sub, fontSize: 10, marginTop: 3 },
+  sheetScroll:  { flex: 1 },
+  sheetContent: { paddingHorizontal: 16, paddingBottom: Platform.OS === "ios" ? 28 : 16 },
 
   rideBanner:     { backgroundColor: "rgba(0,196,140,0.08)", borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: C.green },
   rideBannerTitle:{ color: C.green, fontWeight: "700", fontSize: 16, marginBottom: 2 },

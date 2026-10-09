@@ -12,7 +12,7 @@
  * History always visible at the bottom when idle.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -114,32 +115,71 @@ function InfoRow({ label, value }) {
 
 function StopPicker({ label, value, stops, onSelect }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const selected = stops.find(s => s.id === value);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return stops;
+    const q = query.toLowerCase();
+    return stops.filter(s => s.name.toLowerCase().includes(q));
+  }, [stops, query]);
+
+  function handleOpen() {
+    setQuery("");
+    setOpen(o => !o);
+  }
+
   return (
     <View style={styles.pickerWrap}>
       <Text style={styles.pickerLabel}>{label}</Text>
-      <TouchableOpacity style={styles.pickerBtn} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
-        <Text style={[styles.pickerBtnText, !selected && { color: C.sub }]}>
+      <TouchableOpacity style={styles.pickerBtn} onPress={handleOpen} activeOpacity={0.7}>
+        <Text style={[styles.pickerBtnText, !selected && { color: C.sub }]} numberOfLines={1}>
           {selected ? selected.name : `Select ${label}`}
         </Text>
         <Text style={{ color: C.sub, fontSize: 12 }}>{open ? "▲" : "▼"}</Text>
       </TouchableOpacity>
       {open && (
         <View style={styles.pickerDropdown}>
-          {stops.length === 0
-            ? <Text style={styles.pickerEmpty}>No stops available yet</Text>
-            : stops.map(stop => (
-                <TouchableOpacity
-                  key={stop.id}
-                  style={[styles.pickerOption, value === stop.id && styles.pickerOptionActive]}
-                  onPress={() => { onSelect(stop.id); setOpen(false); }}
-                >
-                  <Text style={[styles.pickerOptionText, value === stop.id && { color: C.green }]}>
-                    {stop.name}
-                  </Text>
-                </TouchableOpacity>
-              ))
-          }
+          {/* Search input */}
+          <View style={styles.pickerSearch}>
+            <Text style={styles.pickerSearchIcon}>🔍</Text>
+            <TextInput
+              style={styles.pickerSearchInput}
+              placeholder={`Search ${label.toLowerCase()}...`}
+              placeholderTextColor={C.sub}
+              value={query}
+              onChangeText={setQuery}
+              autoFocus
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={() => setQuery("")}>
+                <Text style={{ color: C.sub, fontSize: 16, paddingHorizontal: 6 }}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {/* Scrollable list */}
+          <ScrollView
+            style={styles.pickerList}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
+            {filtered.length === 0
+              ? <Text style={styles.pickerEmpty}>No stops match "{query}"</Text>
+              : filtered.map(stop => (
+                  <TouchableOpacity
+                    key={stop.id}
+                    style={[styles.pickerOption, value === stop.id && styles.pickerOptionActive]}
+                    onPress={() => { onSelect(stop.id); setOpen(false); setQuery(""); }}
+                  >
+                    <Text style={styles.pickerOptionEmoji}>🛺</Text>
+                    <Text style={[styles.pickerOptionText, value === stop.id && { color: C.green }]}>
+                      {stop.name}
+                    </Text>
+                    {value === stop.id && <Text style={{ color: C.green, fontSize: 14 }}>✓</Text>}
+                  </TouchableOpacity>
+                ))
+            }
+          </ScrollView>
         </View>
       )}
     </View>
@@ -704,11 +744,43 @@ const styles = StyleSheet.create({
     paddingVertical:   11,
   },
   pickerBtnText:      { color: C.text, fontSize: 14, flex: 1 },
-  pickerDropdown:     { backgroundColor: C.bg, borderRadius: 10, borderWidth: 1, borderColor: C.border, marginTop: 4, maxHeight: 200, overflow: "hidden" },
-  pickerOption:       { paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+  pickerDropdown:     {
+    backgroundColor: C.bg,
+    borderRadius:    10,
+    borderWidth:     1,
+    borderColor:     C.border,
+    marginTop:       4,
+    overflow:        "hidden",
+  },
+  pickerSearch: {
+    flexDirection:  "row",
+    alignItems:     "center",
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+    paddingHorizontal: 10,
+    paddingVertical:   6,
+  },
+  pickerSearchIcon:  { fontSize: 14, marginRight: 6 },
+  pickerSearchInput: {
+    flex:      1,
+    color:     C.text,
+    fontSize:  13,
+    paddingVertical: Platform.OS === "ios" ? 6 : 2,
+  },
+  pickerList:         { maxHeight: 220 },
+  pickerOption:       {
+    flexDirection:  "row",
+    alignItems:     "center",
+    gap:            8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
   pickerOptionActive: { backgroundColor: "rgba(0,196,140,0.08)" },
-  pickerOptionText:   { color: C.text, fontSize: 13 },
-  pickerEmpty:        { color: C.sub, padding: 12, textAlign: "center" },
+  pickerOptionEmoji:  { fontSize: 13 },
+  pickerOptionText:   { color: C.text, fontSize: 13, flex: 1 },
+  pickerEmpty:        { color: C.sub, padding: 14, textAlign: "center", fontSize: 13 },
 
   primaryBtn:         { backgroundColor: C.green, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 },
   primaryBtnDisabled: { opacity: 0.5 },
