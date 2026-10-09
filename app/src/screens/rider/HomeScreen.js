@@ -28,7 +28,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, PROVIDER_DEFAULT } from "../../components/MapView";
 import * as Location from "expo-location";
 
 import useStore from "../../store";
@@ -566,82 +565,6 @@ export default function RiderHomeScreen() {
           </View>
         )}
 
-        {/* ── Map View ────────────────────────────────────────── */}
-        {(activeRides.length > 0 || rideRequests.length > 0) && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Map</Text>
-            <View style={styles.mapContainer}>
-              <MapView
-                style={styles.map}
-                provider={PROVIDER_DEFAULT}
-                initialRegion={{
-                  latitude: 7.3775,
-                  longitude: 3.9470,
-                  latitudeDelta: 0.05,
-                  longitudeDelta: 0.05,
-                }}
-                mapType="none"
-                showsUserLocation={true}
-                followsUserLocation={true}
-                showsMyLocationButton={false}
-              >
-                {/* Pickup markers for pending requests */}
-                {rideRequests.map((request) => (
-                  <Marker
-                    key={`request-${request.id}`}
-                    coordinate={{
-                      latitude: request.pickup?.lat || 0,
-                      longitude: request.pickup?.lng || 0,
-                    }}
-                    title={`Pickup: ${request.studentName}`}
-                    description={request.pickup?.name || "Pickup location"}
-                    pinColor="orange"
-                  />
-                ))}
-
-                {/* Active ride markers */}
-                {activeRides.map((ride) => {
-                  const markers = [];
-                  
-                  // Pickup marker (if not completed)
-                  if (ride.pickupStatus === "pending") {
-                    markers.push(
-                      <Marker
-                        key={`pickup-${ride.id}`}
-                        coordinate={{
-                          latitude: ride.pickup?.lat || 0,
-                          longitude: ride.pickup?.lng || 0,
-                        }}
-                        title={`Pick up ${ride.studentName}`}
-                        description={ride.pickup?.name || "Pickup location"}
-                        pinColor="yellow"
-                      />
-                    );
-                  }
-
-                  // Dropoff marker
-                  if (ride.pickupStatus === "completed" && ride.dropoffStatus === "pending") {
-                    markers.push(
-                      <Marker
-                        key={`dropoff-${ride.id}`}
-                        coordinate={{
-                          latitude: ride.dropoff?.lat || 0,
-                          longitude: ride.dropoff?.lng || 0,
-                        }}
-                        title={`Drop off ${ride.studentName}`}
-                        description={ride.dropoff?.name || "Dropoff location"}
-                        pinColor="green"
-                      />
-                    );
-                  }
-
-                  return markers;
-                })}
-              </MapView>
-            </View>
-          </View>
-        )}
-
         {/* ── Empty States ────────────────────────────────────── */}
         {!isRiderOnline && (
           <View style={styles.emptyState}>
@@ -833,15 +756,4 @@ const styles = StyleSheet.create({
   emptySub:   { color: C.sub, fontSize: 14, textAlign: "center" },
 
   // Map styles
-  mapContainer: {
-    height:          200,
-    borderRadius:    12,
-    overflow:        "hidden",
-    borderWidth:     1,
-    borderColor:     C.border,
-    backgroundColor: "#F7F8FA",
-  },
-  map: { 
-    flex: 1,
-  },
 });

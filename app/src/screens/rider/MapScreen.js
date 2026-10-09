@@ -95,27 +95,6 @@ function NextStopPanel({ ride, onComplete, loading }) {
   );
 }
 
-function StatusPanel({ rideRequests, activeRides, isOnline }) {
-  return (
-    <View style={styles.statusPanel}>
-      <View style={styles.statusRow}>
-        <View style={[styles.statusDot, isOnline ? styles.onlineDot : styles.offlineDot]} />
-        <Text style={styles.statusText}>
-          {isOnline ? "Online" : "Offline"}
-        </Text>
-      </View>
-      
-      {isOnline && (
-        <View style={styles.countsRow}>
-          <Text style={styles.countText}>
-            {rideRequests.length} requests • {activeRides.length} active
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
 export default function RiderMapScreen() {
@@ -312,13 +291,6 @@ export default function RiderMapScreen() {
         {getAllMarkers()}
       </MapView>
 
-      {/* ── Status Panel ──────────────────────────────────────── */}
-      <StatusPanel
-        rideRequests={rideRequests}
-        activeRides={activeRides}
-        isOnline={isRiderOnline}
-      />
-
       {/* ── Next Stop Panel ───────────────────────────────────── */}
       {currentRide && (
         <NextStopPanel
@@ -347,40 +319,6 @@ export default function RiderMapScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   map:  { flex: 1, backgroundColor: C.bg },
-
-  // Status panel (top)
-  statusPanel: {
-    position:        "absolute",
-    top:             60,
-    left:            20,
-    right:           20,
-    backgroundColor: C.surface,
-    borderRadius:    12,
-    padding:         12,
-    borderWidth:     1,
-    borderColor:     C.border,
-    shadowColor:     "#000",
-    shadowOffset:    { width: 0, height: 2 },
-    shadowOpacity:   0.25,
-    shadowRadius:    4,
-    elevation:       5,
-  },
-  statusRow: {
-    flexDirection: "row",
-    alignItems:    "center",
-    marginBottom:  4,
-  },
-  statusDot: {
-    width:        8,
-    height:       8,
-    borderRadius: 4,
-    marginRight:  8,
-  },
-  onlineDot:  { backgroundColor: C.green },
-  offlineDot: { backgroundColor: C.sub },
-  statusText: { color: C.text, fontSize: 16, fontWeight: "600" },
-  countsRow:  { marginTop: 4 },
-  countText:  { color: C.sub, fontSize: 14 },
 
   // Next stop panel (bottom)
   floatingPanel: {
