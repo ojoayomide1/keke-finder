@@ -34,21 +34,229 @@ const TOTAL_FARE_KOBO = 15000;         // ₦150.00
 // ─── RIDER STATUS MANAGEMENT ─────────────────────────────────────────────────
 
 /**
- * Set rider online/offline status
- * Uses separate riderStatus collection to avoid user document permission issues
+ * Set rider online/offline status.
+ * Going online creates a rides doc and immediately drains the waiting queue.
+ * Going offline marks the ride as completed (if no active passengers).
  */
-export async function setRiderStatus(riderId, isOnline) {
+export async function setRiderStatus(riderId, isOnline, riderName = null) {
   try {
     await setDoc(doc(db, "riderStatus", riderId), {
       riderId,
       isOnline,
-      lastSeen: serverTimestamp(),
+      lastSeen:  serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    return { success: true };
+
+    if (!isOnline) {
+      // Going offline — mark any waiting/matched ride as completed
+      const activeSnap = await getDocs(query(
+        collection(db, "rides"),
+        where("riderId", "==", riderId),
+        where("status", "in", ["waiting", "matched"])
+      ));
+      for (const d of activeSnap.docs) {
+        const ride = d.data();
+        const hasPending = (ride.stopQueue ?? []).some(s => s.status === "pending");
+        if (!hasPending) {
+          await updateDoc(d.ref, { status: "completed", updatedAt: serverTimestamp() });
+        }
+        // If has pending stops, leave them — rider needs to finish
+      }
+      return { success: true };
+    }
+
+    // Going online — find or create a ride doc
+    const existingSnap = await getDocs(query(
+      collection(db, "rides"),
+      where("riderId", "==", riderId),
+      where("status", "in", ["waiting", "matched", "onTrip"])
+    ));
+
+    let rideId;
+    if (!existingSnap.empty) {
+      // Resume existing ride
+      rideId = existingSnap.docs[0].id;
+    } else {
+      // Create fresh ride doc
+      const rideRef = await addDoc(collection(db, "rides"), {
+        riderId,
+        riderName: riderName ?? riderId,
+        status:    "waiting",
+        seats: { total: 3, occupied: 0, available: 3 },
+        currentLocation: null,
+        stopQueue:  [],
+        passengers: {},
+        requestIds: [],
+        createdAt:  serverTimestamp(),
+        updatedAt:  serverTimestamp(),
+      });
+      rideId = rideRef.id;
+    }
+
+    // Drain waiting queue into this ride
+    await drainWaitingQueue(rideId, riderId);
+
+    return { success: true, rideId };
   } catch (error) {
     console.error("Error updating rider status:", error);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Drain the waitingQueue into a ride — auto-match queued students.
+ * Also picks up any "searching" requests.
+ * Called when rider goes online and whenever the queue changes.
+ */
+export async function drainWaitingQueue(rideId, riderId) {
+  try {
+    const rideRef  = doc(db, "rides", rideId);
+    const rideSnap = await getDoc(rideRef);
+    if (!rideSnap.exists()) return;
+
+    const ride = rideSnap.data();
+    if (ride.riderId !== riderId) return;
+    if (!["waiting", "matched", "onTrip"].includes(ride.status)) return;
+
+    const seats = ride.seats ?? { total: 3, occupied: 0, available: 3 };
+    if (seats.available <= 0) return;
+
+    // 1. Process waitingQueue (students who queued before a rider was online)
+    const queueSnap = await getDocs(
+      query(collection(db, "waitingQueue"), orderBy("joinedAt"))
+    );
+
+    for (const queueDoc of queueSnap.docs) {
+      const queued = queueDoc.data();
+      if (queued.notified) continue;
+      if (!queued.requestId || !queued.studentId) continue;
+
+      try {
+        const matched = await runTransaction(db, async (tx) => {
+          const freshRide = await tx.get(rideRef);
+          if (!freshRide.exists()) return false;
+
+          const r     = freshRide.data();
+          const seats = r.seats ?? { total: 3, occupied: 0, available: 3 };
+          if (seats.available <= 0) return false;
+          if (queued.studentId in (r.passengers ?? {})) return false;
+
+          const request = {
+            studentId:   queued.studentId,
+            studentName: queued.studentName ?? "Student",
+            pickup:      queued.pickup,
+            dropoff:     queued.dropoff,
+            paymentMethod: queued.paymentMethod ?? "wallet",
+          };
+
+          const newStops = insertStopsIntoQueue(r.stopQueue ?? [], request);
+
+          tx.update(rideRef, {
+            stopQueue: newStops,
+            [`passengers.${queued.studentId}`]: {
+              studentId:     queued.studentId,
+              studentName:   queued.studentName ?? "Student",
+              pickup:        queued.pickup,
+              dropoff:       queued.dropoff,
+              pickupStatus:  "pending",
+              dropoffStatus: "pending",
+              fare:          TOTAL_FARE_KOBO,
+              paymentMethod: queued.paymentMethod ?? "wallet",
+            },
+            "seats.occupied":  (seats.occupied  ?? 0) + 1,
+            "seats.available": (seats.available ?? 3) - 1,
+            status:            r.status === "waiting" ? "matched" : r.status,
+            updatedAt:         serverTimestamp(),
+          });
+
+          tx.update(doc(db, "rideRequests", queued.requestId), {
+            status:        "matched",
+            matchedRideId: rideId,
+            riderId,
+            matchedAt:     serverTimestamp(),
+          });
+
+          tx.update(queueDoc.ref, { notified: true });
+          return true;
+        });
+
+        if (!matched) continue;
+
+        // Check if full after each match
+        const refreshed = await getDoc(rideRef);
+        if ((refreshed.data()?.seats?.available ?? 0) <= 0) break;
+      } catch (err) {
+        console.warn("[drainQueue] skipped queued student:", err.message);
+      }
+    }
+
+    // 2. Also pick up any "searching" requests that aren't queued yet
+    const searchingSnap = await getDocs(query(
+      collection(db, "rideRequests"),
+      where("status", "==", "searching")
+    ));
+
+    for (const reqDoc of searchingSnap.docs) {
+      const req = reqDoc.data();
+      if (!req.studentId) continue;
+
+      try {
+        const matched = await runTransaction(db, async (tx) => {
+          const freshRide = await tx.get(rideRef);
+          if (!freshRide.exists()) return false;
+
+          const r     = freshRide.data();
+          const seats = r.seats ?? { total: 3, occupied: 0, available: 3 };
+          if (seats.available <= 0) return false;
+          if (req.studentId in (r.passengers ?? {})) return false;
+
+          const request = {
+            studentId:    req.studentId,
+            studentName:  req.studentName ?? "Student",
+            pickup:       req.pickup,
+            dropoff:      req.dropoff,
+            paymentMethod: req.paymentMethod ?? "wallet",
+          };
+
+          const newStops = insertStopsIntoQueue(r.stopQueue ?? [], request);
+
+          tx.update(rideRef, {
+            stopQueue: newStops,
+            [`passengers.${req.studentId}`]: {
+              studentId:     req.studentId,
+              studentName:   req.studentName ?? "Student",
+              pickup:        req.pickup,
+              dropoff:       req.dropoff,
+              pickupStatus:  "pending",
+              dropoffStatus: "pending",
+              fare:          TOTAL_FARE_KOBO,
+              paymentMethod: req.paymentMethod ?? "wallet",
+            },
+            "seats.occupied":  (seats.occupied  ?? 0) + 1,
+            "seats.available": (seats.available ?? 3) - 1,
+            status:            r.status === "waiting" ? "matched" : r.status,
+            updatedAt:         serverTimestamp(),
+          });
+
+          tx.update(reqDoc.ref, {
+            status:        "matched",
+            matchedRideId: rideId,
+            riderId,
+            matchedAt:     serverTimestamp(),
+          });
+          return true;
+        });
+
+        if (!matched) continue;
+
+        const refreshed = await getDoc(rideRef);
+        if ((refreshed.data()?.seats?.available ?? 0) <= 0) break;
+      } catch (err) {
+        console.warn("[drainQueue] skipped searching request:", err.message);
+      }
+    }
+  } catch (err) {
+    console.warn("[drainWaitingQueue] error:", err.message);
   }
 }
 

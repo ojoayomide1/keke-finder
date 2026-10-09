@@ -44,10 +44,11 @@ import {
   fetchRiderStats,
   formatNaira,
   getNextRideAction,
+  drainWaitingQueue,
 } from "../../services/rider";
 import { listenToCampusActivity } from "../../services/campus-data";
 
-import { db, doc, setDoc, serverTimestamp } from "../../config/firebase";
+import { db, doc, setDoc, serverTimestamp, collection, query, where, onSnapshot } from "../../config/firebase";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
@@ -259,11 +260,11 @@ export default function RiderHomeScreen() {
 
   // Refs for cleanup
   const requestsUnsubscribe = useRef(null);
-  const ridesUnsubscribe = useRef(null);
+  const ridesUnsubscribe    = useRef(null);
   const earningsUnsubscribe = useRef(null);
   const activityUnsubscribe = useRef(null);
-  const locationWatcherRef = useRef(null);
-
+  const queueUnsubscribe    = useRef(null);
+  const locationWatcherRef  = useRef(null);
   const prevRequestCountRef = useRef(0);
 
   const riderId = currentUser?.uid;
@@ -368,6 +369,23 @@ export default function RiderHomeScreen() {
     // Set up listeners that sync to store
     if (isRiderOnline) {
       requestsUnsubscribe.current = listenToRideRequests(riderId, setRideRequests);
+
+      // Listen to waitingQueue — auto-drain whenever a new student queues
+      queueUnsubscribe.current = onSnapshot(
+        query(collection(db, "waitingQueue"), where("notified", "==", false)),
+        async () => {
+          // Find the rider's current active ride and drain the queue into it
+          const activeRidesSnap = await import("../../config/firebase").then(f =>
+            f.getDocs(f.query(f.collection(f.db, "rides"),
+              f.where("riderId", "==", riderId),
+              f.where("status", "in", ["waiting", "matched", "onTrip"])
+            ))
+          ).catch(() => null);
+          if (!activeRidesSnap || activeRidesSnap.empty) return;
+          const rideId = activeRidesSnap.docs[0].id;
+          await drainWaitingQueue(rideId, riderId);
+        }
+      );
     }
     
     ridesUnsubscribe.current = listenToActiveRides(riderId, setActiveRides);
@@ -384,6 +402,7 @@ export default function RiderHomeScreen() {
       ridesUnsubscribe.current?.();
       earningsUnsubscribe.current?.();
       activityUnsubscribe.current?.();
+      queueUnsubscribe.current?.();
     };
   }, [riderId, isRiderOnline]);
 
@@ -395,14 +414,18 @@ export default function RiderHomeScreen() {
     setStatusLoading(true);
     try {
       const newStatus = !isRiderOnline;
-      const result = await setRiderStatus(riderId, newStatus);
+      const result = await setRiderStatus(riderId, newStatus, name);
       
       if (result.success) {
         setRiderOnlineStatus(newStatus);
-        showToast(newStatus ? "You're now online" : "You're now offline", "success");
+        showToast(newStatus ? "You're now online — looking for riders..." : "You're now offline", "success");
         
-        // Set up or cleanup request listener
         if (newStatus) {
+          // Listen for active rides (auto-matched by setRiderStatus)
+          ridesUnsubscribe.current?.();
+          ridesUnsubscribe.current = listenToActiveRides(riderId, setActiveRides);
+          // Also keep listening for requests (for display purposes)
+          requestsUnsubscribe.current?.();
           requestsUnsubscribe.current = listenToRideRequests(riderId, setRideRequests);
         } else {
           requestsUnsubscribe.current?.();

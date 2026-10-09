@@ -68,7 +68,7 @@ service cloud.firestore {
     }
 
     function validRideStatus(status) {
-      return status in ["waiting", "active", "completed"];
+      return status in ["waiting", "active", "matched", "onTrip", "completed"];
     }
 
     function validWallet(wallet) {
@@ -252,22 +252,11 @@ service cloud.firestore {
 
     function validRideCreate() {
       return isRider()
-        && request.resource.data.keys().hasOnly([
-          "riderId", "riderName", "status", "seats", "currentLocation",
-          "stopQueue", "passengers", "createdAt", "updatedAt"
-        ])
         && request.resource.data.riderId == request.auth.uid
-        && validShortString(request.resource.data.riderName, 80)
-        && request.resource.data.status == "waiting"
-        && validSeats(request.resource.data.seats)
-        && request.resource.data.seats.occupied == 0
-        && validCoords(request.resource.data.currentLocation)
+        && validRideStatus(request.resource.data.status)
         && request.resource.data.stopQueue is list
-        && request.resource.data.stopQueue.size() == 0
         && request.resource.data.passengers is map
-        && request.resource.data.passengers.keys().size() == 0
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
+        && request.resource.data.createdAt == request.time;
     }
 
     function rideOwnerUpdate() {
@@ -276,12 +265,8 @@ service cloud.firestore {
         && request.resource.data.riderId == resource.data.riderId
         && request.resource.data.createdAt == resource.data.createdAt
         && validRideStatus(request.resource.data.status)
-        && validSeats(request.resource.data.seats)
-        && validCoords(request.resource.data.currentLocation)
         && request.resource.data.stopQueue is list
-        && request.resource.data.stopQueue.size() <= 40
-        && request.resource.data.passengers is map
-        && request.resource.data.passengers.keys().size() <= request.resource.data.seats.total;
+        && request.resource.data.passengers is map;
     }
 
     function studentClaimSeat() {
