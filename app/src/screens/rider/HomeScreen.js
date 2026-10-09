@@ -666,7 +666,7 @@ export default function RiderHomeScreen() {
 
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: C.bg },
-  scroll: { flex: 1, paddingHorizontal: 20, paddingTop: 60 },
+  scroll: { flex: 1, paddingHorizontal: 20, paddingTop: Platform.OS === 'web' ? 16 : Platform.OS === 'ios' ? 52 : 28 },
 
   header: {
     flexDirection:  "row",

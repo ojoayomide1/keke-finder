@@ -216,26 +216,25 @@ export default function ProfileScreen() {
   }
 
   function handleLogout() {
-    Alert.alert(
-      "Log Out",
-      "Are you sure you want to log out?",
-      [
+    const doLogout = async () => {
+      try {
+        await signOut(auth);
+        useStore.getState().clearCurrentUser();
+      } catch (err) {
+        showToast("Failed to log out.", "error");
+        console.error("[Profile] signOut error:", err);
+      }
+    };
+
+    if (Platform.OS === "web") {
+      // Alert.alert is a no-op on web — use native browser confirm
+      if (window.confirm("Are you sure you want to log out?")) doLogout();
+    } else {
+      Alert.alert("Log Out", "Are you sure you want to log out?", [
         { text: "Cancel", style: "cancel" },
-        {
-          text: "Log Out",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await signOut(auth);
-              useStore.getState().clearCurrentUser();
-            } catch (err) {
-              showToast("Failed to log out.", "error");
-              console.error("[Profile] signOut error:", err);
-            }
-          },
-        },
-      ]
-    );
+        { text: "Log Out", style: "destructive", onPress: doLogout },
+      ]);
+    }
   }
 
   return (
@@ -347,7 +346,7 @@ const styles = StyleSheet.create({
     alignItems:        "center",
     justifyContent:    "space-between",
     paddingHorizontal: 20,
-    paddingTop:        Platform.OS === "ios" ? 56 : 44,
+    paddingTop:        Platform.OS === 'web' ? 16 : Platform.OS === 'ios' ? 52 : 28,
     paddingBottom:     16,
     backgroundColor:   C.bg,
   },

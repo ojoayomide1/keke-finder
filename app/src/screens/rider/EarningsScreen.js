@@ -476,7 +476,7 @@ export default function RiderEarningsScreen() {
 
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: C.bg },
-  scroll: { flex: 1, paddingHorizontal: 20, paddingTop: 60 },
+  scroll: { flex: 1, paddingHorizontal: 20, paddingTop: Platform.OS === 'web' ? 16 : Platform.OS === 'ios' ? 52 : 28 },
 
   header: { marginBottom: 24 },
   title:    { color: C.text, fontSize: 28, fontWeight: "700", marginBottom: 4 },
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'web' ? 16 : Platform.OS === 'ios' ? 52 : 28,
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: C.border,

@@ -93,9 +93,16 @@ function injectLeafletCss() {
   link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
   document.head.appendChild(link);
 
-  // Clean up default Leaflet popup chrome so it matches the app style
   const style = document.createElement("style");
   style.textContent = `
+    /* Solid background — no tile grid, no glowing boxes */
+    .leaflet-container {
+      background: #EEF2FA !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    /* Hide any tile-loading placeholder boxes */
+    .leaflet-tile-pane { display: none !important; }
+
     .navcamp-popup .leaflet-popup-content-wrapper {
       background: #1A1A22;
       color: #fff;
@@ -109,15 +116,14 @@ function injectLeafletCss() {
       font-size: 13px;
       line-height: 1.5;
     }
-    .navcamp-popup .leaflet-popup-tip {
-      background: #1A1A22;
+    .navcamp-popup .leaflet-popup-tip { background: #1A1A22; }
+    .navcamp-popup .leaflet-popup-close-button { color: #888 !important; }
+    .leaflet-control-zoom a {
+      background: #1A1A22 !important;
+      color: #fff !important;
+      border-color: #2a2a35 !important;
     }
-    .navcamp-popup .leaflet-popup-close-button {
-      color: #888 !important;
-    }
-    .leaflet-container {
-      background: #F0F4FA !important;
-    }
+    .leaflet-control-zoom a:hover { background: #2a2a35 !important; }
   `;
   document.head.appendChild(style);
 }
@@ -163,17 +169,13 @@ const MapView = React.forwardRef(function MapView(
       center,
       zoom:             16,
       zoomControl:      true,
-      attributionControl: false,   // clean look — no OSM attribution bar
+      attributionControl: false,
     });
     leafletMap.current = map;
 
-    // ── Blank background tile — just a solid colour, no raster images ────
-    // Using a data-URI 1×1 transparent PNG as the tile URL means Leaflet
-    // manages zoom/pan/CRS correctly while rendering nothing behind our vectors.
-    L.tileLayer(
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-      { attribution: "" }
-    ).addTo(map);
+    // No tile layer at all — plain background set via CSS on .leaflet-container.
+    // Using a data-URI tile causes grey "loading" boxes on mobile; skipping it
+    // entirely and setting background colour directly is much cleaner and faster.
 
     // ── Layer groups ─────────────────────────────────────────────────────
     layers.current.buildings      = L.layerGroup().addTo(map);

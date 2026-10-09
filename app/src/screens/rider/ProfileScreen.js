@@ -31,6 +31,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -257,20 +258,23 @@ export default function RiderProfileScreen() {
   }
 
   function handleLogout() {
-    Alert.alert(
-      "Log Out",
-      "Are you sure you want to log out?",
-      [
+    const doLogout = async () => {
+      try {
+        await signOut(auth);
+        useStore.getState().clearCurrentUser();
+      } catch (err) {
+        showToast("Failed to log out.", "error");
+      }
+    };
+
+    if (Platform.OS === "web") {
+      if (window.confirm("Are you sure you want to log out?")) doLogout();
+    } else {
+      Alert.alert("Log Out", "Are you sure you want to log out?", [
         { text: "Cancel", style: "cancel" },
-        {
-          text: "Log Out",
-          style: "destructive", 
-          onPress: async () => {
-            await signOut(auth);
-          },
-        },
-      ]
-    );
+        { text: "Log Out", style: "destructive", onPress: doLogout },
+      ]);
+    }
   }
 
   return (
@@ -355,7 +359,7 @@ export default function RiderProfileScreen() {
 
 const styles = StyleSheet.create({
   root:          { flex: 1, backgroundColor: C.bg },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 48 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: Platform.OS === 'web' ? 16 : Platform.OS === 'ios' ? 52 : 28, paddingBottom: 48 },
 
   header: {
     flexDirection:  "row",
