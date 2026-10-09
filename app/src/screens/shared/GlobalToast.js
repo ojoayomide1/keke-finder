@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   toast: {
     maxWidth:          520,
     width:             "100%",
-    backgroundColor:   "#0F1117",
+    backgroundColor:   "#FFFFFF",
     borderWidth:       1,
     borderRadius:      12,
     paddingHorizontal: 14,

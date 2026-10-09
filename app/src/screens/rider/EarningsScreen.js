@@ -46,7 +46,7 @@ import {
 
 const C = {
   bg:        "#F7F8FA",
-  surface:   "#0F1117",
+  surface:   "#FFFFFF",
   border:    "#E2E6ED",
   orange:    "#FF5E1A",
   orangeMute: "rgba(255,94,26,0.12)",

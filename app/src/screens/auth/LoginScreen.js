@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   bioBtn: {
     alignItems:       "center",
     justifyContent:   "center",
-    backgroundColor:  "#0F1117",
+    backgroundColor:  "#FFFFFF",
     borderRadius:     14,
     paddingVertical:  15,
     borderWidth:      1,
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
   bioBtnDisabled: { opacity: 0.5 },
   bioBtnText:     { color: "#1E7A46", fontWeight: "700", fontSize: 15 },
 
-  tabs:          { flexDirection: "row", backgroundColor: "#0F1117", borderRadius: 12, padding: 4, marginBottom: 20 },
+  tabs:          { flexDirection: "row", backgroundColor: "#FFFFFF", borderRadius: 12, padding: 4, marginBottom: 20 },
   tab:           { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 9 },
   tabActive:     { backgroundColor: "#1E7A46" },
   tabText:       { color: "#6B7280", fontWeight: "600" },
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
 
   form:  { gap: 12, marginBottom: 8 },
   input: {
-    backgroundColor:   "#0F1117",
+    backgroundColor:   "#FFFFFF",
     borderRadius:      12,
     paddingHorizontal: 16,
     paddingVertical:   14,

@@ -56,7 +56,7 @@ import SupportModal from "../shared/SupportModal";
 
 const C = {
   bg:        "#F7F8FA",
-  surface:   "#0F1117",
+  surface:   "#FFFFFF",
   border:    "#E2E6ED",
   orange:    "#FF5E1A",
   orangeMute: "rgba(255,94,26,0.12)",
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     alignItems:     "center",
     justifyContent: "center",
   },
-  avatarText: { color: "#0F1117", fontWeight: "700" },
+  avatarText: { color: "#FFFFFF", fontWeight: "700" },
   profileText: { flex: 1 },
   profileName:  { color: C.text, fontSize: 20, fontWeight: "700", marginBottom: 4 },
   profilePlate: { color: C.orange, fontSize: 14, fontWeight: "600", marginBottom: 2 },

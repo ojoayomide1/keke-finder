@@ -33,7 +33,7 @@ import { calculateCampusRoute } from "../../services/campus-router";
 
 const C = {
   bg:      "#F7F8FA",
-  surface: "#0F1117",
+  surface: "#FFFFFF",
   border:  "#E2E6ED",
   green:   "#1E7A46",
   orange:  "#FF5E1A",

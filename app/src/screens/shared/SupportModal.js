@@ -39,8 +39,8 @@ const CATEGORIES = ["Ride Issue", "Payment", "App Bug", "Safety", "Other"];
 
 const C = {
   bg:        "#F7F8FA",
-  surface:   "#0F1117",
-  surface2:  "#F0F2F5",
+  surface:   "#FFFFFF",
+  surface2:  "#F5F7FA",
   border:    "#E2E6ED",
   green:     "#1E7A46",
   greenMute: "rgba(30,122,70,0.12)",

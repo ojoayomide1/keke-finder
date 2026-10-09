@@ -54,7 +54,7 @@ import { db, doc, setDoc, serverTimestamp } from "../../config/firebase";
 
 const C = {
   bg:        "#F7F8FA",
-  surface:   "#0F1117",
+  surface:   "#FFFFFF",
   border:    "#E2E6ED", 
   green:     "#1E7A46",
   greenMute: "rgba(30,122,70,0.12)",

@@ -28,15 +28,22 @@ import {
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from "../../components/MapView";
 import * as Location from "expo-location";
+import { Platform } from "react-native";
 
 import useStore from "../../store";
 import { getNextRideAction, completeNextStop } from "../../services/rider";
+import {
+  loadCampusDataFromFirestore,
+  getCampusLocationsForMap,
+  getCampusPaths,
+  getCampusBuildings,
+} from "../../services/campus-data";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
 const C = {
   bg:        "#F7F8FA",
-  surface:   "#0F1117",
+  surface:   "#FFFFFF",
   border:    "#E2E6ED",
   orange:    "#FF5E1A",
   green:     "#1E7A46",
@@ -122,7 +129,19 @@ export default function RiderMapScreen() {
 
   const [userLocation, setUserLocation] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [campusLocations, setCampusLocations] = useState([]);
+  const [campusPaths,     setCampusPaths]     = useState([]);
+  const [campusBuildings, setCampusBuildings] = useState([]);
   const mapRef = useRef(null);
+
+  // ── Load campus data ─────────────────────────────────────────────────────
+  useEffect(() => {
+    loadCampusDataFromFirestore().then(() => {
+      setCampusLocations(getCampusLocationsForMap());
+      setCampusPaths(getCampusPaths());
+      setCampusBuildings(getCampusBuildings());
+    });
+  }, []);
 
   // ── Get user location ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -288,6 +307,7 @@ export default function RiderMapScreen() {
         showsMyLocationButton={false}
         showsTraffic={false}
         showsBuildings={false}
+        campusData={Platform.OS === "web" ? { buildings: campusBuildings, paths: campusPaths, locations: campusLocations } : null}
       >
         {getAllMarkers()}
       </MapView>

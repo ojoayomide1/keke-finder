@@ -47,8 +47,8 @@ function flattenChildren(nodes, out = []) {
 const CAT = {
   boys_hostel:  { emoji: "🛏️", color: "#2563eb", label: "Boys Hostel"    },
   girls_hostel: { emoji: "🛏️", color: "#db2777", label: "Girls Hostel"   },
-  faculty:      { emoji: "🎓", color: "#7c3aed", label: "Faculty"        },
-  Faculty:      { emoji: "🎓", color: "#7c3aed", label: "Faculty"        },
+  faculty:      { emoji: "🎓", color: "#1E7A46", label: "Faculty"        },
+  Faculty:      { emoji: "🎓", color: "#1E7A46", label: "Faculty"        },
   block:        { emoji: "🏢", color: "#475569", label: "Block"          },
   hall:         { emoji: "🏛️", color: "#ea580c", label: "Hall"           },
   restaurant:   { emoji: "🍽️", color: "#16a34a", label: "Restaurant"     },
@@ -57,7 +57,7 @@ const CAT = {
   sport:        { emoji: "⚽", color: "#dc2626", label: "Sports"         },
   service:      { emoji: "ℹ️", color: "#0891b2", label: "Service"        },
   shop:         { emoji: "🛒", color: "#ca8a04", label: "Shop"           },
-  pickup:       { emoji: "🛺", color: "#1E7A46", label: "Pickup / Stop"  },
+  pickup:       { emoji: "🛺", color: "#F5A623", label: "Pickup / Stop"  },
 };
 
 function cat(category) {
@@ -322,10 +322,10 @@ const MapView = React.forwardRef(function MapView(
       if (!stop.lat || !stop.lng) continue;
       const style = cat("pickup");
       L.circleMarker([stop.lat, stop.lng], {
-        radius:      8,
-        color:       style.color,
-        fillColor:   style.color,
-        fillOpacity: 0.9,
+        radius:      10,
+        color:       "#FFFFFF",
+        fillColor:   "#F5A623",
+        fillOpacity: 1,
         weight:      2.5,
         opacity:     1,
         renderer,

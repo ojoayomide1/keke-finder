@@ -51,7 +51,7 @@ import { sendLocalNotification } from "../../services/notifications";
 
 const C = {
   bg:      "#F7F8FA",
-  surface: "#0F1117",
+  surface: "#FFFFFF",
   border:  "#E2E6ED",
   green:   "#1E7A46",
   red:     "#ef4444",
