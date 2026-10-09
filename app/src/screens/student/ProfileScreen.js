@@ -27,6 +27,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -54,8 +55,8 @@ const C = {
   bg:        "#0F0F13",
   surface:   "#1A1A22",
   border:    "#2a2a35",
-  green:     "#00C48C",
-  greenMute: "rgba(0,196,140,0.12)",
+  green:     "#1E7A46",
+  greenMute: "rgba(30,122,70,0.12)",
   text:      "#FFFFFF",
   sub:       "#888",
 };
@@ -241,10 +242,11 @@ export default function ProfileScreen() {
     <View style={styles.root}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
-        <View style={styles.wordmark}>
-          <Text style={styles.wordmarkNav}>Nav</Text>
-          <Text style={styles.wordmarkCamp}>Camp</Text>
-        </View>
+        <Image
+          source={require("../../../assets/navcamp-icon.png")}
+          style={styles.wordmarkLogo}
+          resizeMode="contain"
+        />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -351,9 +353,7 @@ const styles = StyleSheet.create({
     backgroundColor:   C.bg,
   },
   headerTitle:   { color: C.text, fontWeight: "800", fontSize: 24 },
-  wordmark:      { flexDirection: "row" },
-  wordmarkNav:   { color: C.text, fontWeight: "800", fontSize: 20 },
-  wordmarkCamp:  { color: C.green, fontWeight: "800", fontSize: 20 },
+  wordmarkLogo:  { width: 34, height: 34, borderRadius: 7 },
 
   avatarSection: { alignItems: "center", paddingVertical: 24 },
   avatar:        { alignItems: "center", justifyContent: "center", marginBottom: 14 },

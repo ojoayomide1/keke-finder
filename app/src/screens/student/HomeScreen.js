@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -52,13 +53,13 @@ const C = {
   bg:      "#0F0F13",
   surface: "#1A1A22",
   border:  "#2a2a35",
-  green:   "#00C48C",
+  green:   "#1E7A46",
   red:     "#ef4444",
   text:    "#FFFFFF",
   sub:     "#888",
   pill: {
     searching: "#f59e0b",
-    matched:   "#00C48C",
+    matched:   "#1E7A46",
     queued:    "#6366f1",
     cancelled: "#ef4444",
     completed: "#10b981",
@@ -433,10 +434,11 @@ export default function StudentHomeScreen({ navigation }) {
             </Text>
           </View>
         </View>
-        <View style={styles.wordmark}>
-          <Text style={styles.wordmarkNav}>Nav</Text>
-          <Text style={styles.wordmarkCamp}>Camp</Text>
-        </View>
+        <Image
+          source={require("../../../assets/navcamp-icon.png")}
+          style={styles.wordmarkLogo}
+          resizeMode="contain"
+        />
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -709,13 +711,11 @@ const styles = StyleSheet.create({
     borderBottomColor: C.border,
   },
   headerLeft:   { flexDirection: "row", alignItems: "center", gap: 14 },
-  avatar:       { width: 46, height: 46, borderRadius: 23, backgroundColor: "#00C48C22", alignItems: "center", justifyContent: "center" },
+  avatar:       { width: 46, height: 46, borderRadius: 23, backgroundColor: "#1E7A4622", alignItems: "center", justifyContent: "center" },
   avatarText:   { color: C.green, fontWeight: "700", fontSize: 16 },
   greeting:     { color: C.text, fontSize: 18, fontWeight: "700" },
   walletText:   { color: C.sub, fontSize: 13, marginTop: 2 },
-  wordmark:     { flexDirection: "row" },
-  wordmarkNav:  { color: C.text,  fontWeight: "800", fontSize: 22 },
-  wordmarkCamp: { color: C.green, fontWeight: "800", fontSize: 22 },
+  wordmarkLogo: { width: 38, height: 38, borderRadius: 8 },
 
   card: {
     backgroundColor: C.surface,
@@ -777,7 +777,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
-  pickerOptionActive: { backgroundColor: "rgba(0,196,140,0.08)" },
+  pickerOptionActive: { backgroundColor: "rgba(30,122,70,0.08)" },
   pickerOptionEmoji:  { fontSize: 14 },
   pickerOptionText:   { color: C.text, fontSize: 14, flex: 1 },
   pickerEmpty:        { color: C.sub, padding: 16, textAlign: "center", fontSize: 14 },
@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
     borderColor:     C.border,
     padding:         12,
   },
-  payMethodOptionActive: { borderColor: C.green, backgroundColor: "rgba(0,196,140,0.06)" },
+  payMethodOptionActive: { borderColor: C.green, backgroundColor: "rgba(30,122,70,0.06)" },
   payMethodRadio:        { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: C.border, alignItems: "center", justifyContent: "center" },
   payMethodRadioActive:  { borderColor: C.green },
   payMethodRadioDot:     { width: 9, height: 9, borderRadius: 5, backgroundColor: C.green },
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
   mapBtn:     { borderRadius: 12, paddingVertical: 12, alignItems: "center", borderWidth: 1, borderColor: C.green, marginBottom: 8, marginTop: 8 },
   mapBtnText: { color: C.green, fontWeight: "600", fontSize: 14 },
 
-  liveBanner:     { backgroundColor: "rgba(0,196,140,0.08)", borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: C.green },
+  liveBanner:     { backgroundColor: "rgba(30,122,70,0.08)", borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: C.green },
   liveBannerTitle:{ color: C.green, fontWeight: "700", fontSize: 16, marginBottom: 2 },
   liveBannerSub:  { color: C.sub, fontSize: 13 },
 

@@ -351,7 +351,7 @@ const MapView = React.forwardRef(function MapView(
       L.polyline(
         coords.map(c => [c.latitude ?? c[0], c.longitude ?? c[1]]),
         {
-          color:     poly.props?.strokeColor ?? "#00C48C",
+          color:     poly.props?.strokeColor ?? "#1E7A46",
           weight:    (poly.props?.strokeWidth ?? 3) + 1,
           dashArray: poly.props?.lineDashPattern ? "8, 6" : null,
           opacity:   1,
@@ -375,7 +375,7 @@ const MapView = React.forwardRef(function MapView(
       const title = m.props?.title ?? "";
       const icon  = L.divIcon({
         html: `<div style="
-          background:#00C48C;color:#fff;
+          background:#1E7A46;color:#fff;
           padding:4px 9px;border-radius:10px;
           font-size:12px;font-weight:700;
           white-space:nowrap;

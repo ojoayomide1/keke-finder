@@ -39,7 +39,7 @@ const C = {
   surface:   "#1A1A22",
   border:    "#2a2a35",
   orange:    "#FF5E1A",
-  green:     "#00C48C",
+  green:     "#1E7A46",
   text:      "#FFFFFF",
   sub:       "#888",
 };

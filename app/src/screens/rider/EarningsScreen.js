@@ -50,7 +50,7 @@ const C = {
   border:    "#2a2a35",
   orange:    "#FF5E1A",
   orangeMute: "rgba(255,94,26,0.12)",
-  green:     "#00C48C",
+  green:     "#1E7A46",
   text:      "#FFFFFF",
   sub:       "#888",
   error:     "#fca5a5",

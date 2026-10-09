@@ -13,8 +13,8 @@
     "android": {
       "package": "com.navcamp.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#1E7A46",
+        "foregroundImage": "./assets/navcamp-icon.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }

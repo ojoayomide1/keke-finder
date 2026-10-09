@@ -35,7 +35,7 @@ const C = {
   bg:      "#0F0F13",
   surface: "#1A1A22",
   border:  "#2a2a35",
-  green:   "#00C48C",
+  green:   "#1E7A46",
   orange:  "#FF5E1A",
   red:     "#ef4444",
   text:    "#FFFFFF",
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     alignItems:        "center",
     paddingHorizontal: 16,
     paddingVertical:   12,
-    backgroundColor:   "rgba(0,196,140,0.08)",
+    backgroundColor:   "rgba(30,122,70,0.08)",
     borderBottomWidth: 1,
     borderBottomColor: C.green,
   },
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   filterRow:    { flexGrow: 0, maxHeight: 56, borderBottomWidth: 1, borderBottomColor: C.border },
   filterContent:{ paddingHorizontal: 16, gap: 8, alignItems: "center" },
   filterChip:          { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
-  filterChipActive:    { borderColor: C.green, backgroundColor: "rgba(0,196,140,0.1)" },
+  filterChipActive:    { borderColor: C.green, backgroundColor: "rgba(30,122,70,0.1)" },
   filterChipText:      { color: C.sub, fontSize: 13, fontWeight: "600" },
   filterChipTextActive:{ color: C.green },
 
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
   locActions: { flexDirection: "row", gap: 8 },
 
   locBtn:            { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: C.border },
-  locBtnActiveGreen: { borderColor: C.green, backgroundColor: "rgba(0,196,140,0.08)" },
+  locBtnActiveGreen: { borderColor: C.green, backgroundColor: "rgba(30,122,70,0.08)" },
   locBtnText:        { color: C.sub, fontSize: 13, fontWeight: "600" },
 
   goBtn:         { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: C.surface, borderWidth: 1, borderColor: C.green },

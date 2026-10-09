@@ -71,7 +71,7 @@ function StudentNavigator() {
           paddingTop:       6,
           height:           insets.bottom + 60,
         },
-        tabBarActiveTintColor:   "#00C48C",
+        tabBarActiveTintColor:   "#1E7A46",
         tabBarInactiveTintColor: "#555",
         tabBarLabelStyle:        { fontSize: 11, fontWeight: "600" },
         tabBarIcon:              ({ focused }) => (
@@ -159,7 +159,7 @@ function RiderNavigator() {
 function SplashScreen() {
   return (
     <View style={styles.splash}>
-      <ActivityIndicator size="large" color="#00C48C" />
+      <ActivityIndicator size="large" color="#1E7A46" />
     </View>
   );
 }

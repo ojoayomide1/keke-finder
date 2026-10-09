@@ -48,7 +48,7 @@ const C = {
   bg:      "#0F0F13",
   surface: "#1A1A22",
   border:  "#2a2a35",
-  green:   "#00C48C",
+  green:   "#1E7A46",
   red:     "#ef4444",
   orange:  "#FF5E1A",
   text:    "#FFFFFF",
@@ -401,7 +401,7 @@ export default function MapScreen() {
           return (
             <Polyline
               coordinates={[stopCoord, destCoord]}
-              strokeColor="rgba(0,196,140,0.5)"
+              strokeColor="rgba(30,122,70,0.5)"
               strokeWidth={2}
               lineDashPattern={[6, 5]}
             />
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
   markerEmoji:  { fontSize: 14 },
   markerLabel:  { color: "#FFF", fontSize: 9, fontWeight: "700", backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 3, paddingVertical: 1, borderRadius: 3, marginTop: 2, maxWidth: 90, textAlign: "center" },
 
-  riderMarker: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(0,196,140,0.2)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: C.green },
+  riderMarker: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(30,122,70,0.2)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: C.green },
 
   recenterBtn: { position: "absolute", top: 60, right: 16, backgroundColor: C.surface, borderRadius: 20, width: 40, height: 40, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.border },
 
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
   sheetScroll:  { flex: 1 },
   sheetContent: { paddingHorizontal: 16, paddingBottom: Platform.OS === "ios" ? 28 : 16 },
 
-  rideBanner:     { backgroundColor: "rgba(0,196,140,0.08)", borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: C.green },
+  rideBanner:     { backgroundColor: "rgba(30,122,70,0.08)", borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: C.green },
   rideBannerTitle:{ color: C.green, fontWeight: "700", fontSize: 16, marginBottom: 2 },
   rideBannerSub:  { color: C.sub, fontSize: 13 },
 
