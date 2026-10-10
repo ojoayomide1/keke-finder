@@ -265,23 +265,25 @@ export default function RiderHomeScreen() {
   const activityUnsubscribe = useRef(null);
   const queueUnsubscribe    = useRef(null);
   const locationWatcherRef  = useRef(null);
-  const prevRequestCountRef = useRef(0);
 
   const riderId = currentUser?.uid;
 
-  // ── Notify rider on new requests ──────────────────────────────────────────
+  // ── Notify rider when a new passenger is auto-matched ──────────────────────
+  const prevActiveCountRef = useRef(0);
   useEffect(() => {
-    const prev = prevRequestCountRef.current;
-    const curr = rideRequests.length;
+    const prev = prevActiveCountRef.current;
+    const curr = activeRides.length;
     if (curr > prev && isRiderOnline) {
-      sendLocalNotification(
-        "New Ride Request!",
-        "A student needs a ride. Open the app to accept.",
-        { type: "newRequest" }
-      );
+      // New passenger auto-matched — show toast (not a popup, just a banner)
+      const latestRide = activeRides[0];
+      const passengers = latestRide ? Object.values(latestRide.passengers ?? {}) : [];
+      const latest = passengers[passengers.length - 1];
+      if (latest) {
+        showToast(`New passenger: ${latest.studentName}`, "success");
+      }
     }
-    prevRequestCountRef.current = curr;
-  }, [rideRequests.length]);
+    prevActiveCountRef.current = curr;
+  }, [activeRides.length]);
 
   // ── GPS location broadcaster ───────────────────────────────────────────────
   // Watches rider's position and writes to Firestore whenever they are online
