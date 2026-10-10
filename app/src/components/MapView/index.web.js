@@ -285,7 +285,7 @@ const MapView = React.forwardRef(function MapView(
     }
   }, [paths]);
 
-  // ── Render location + stop markers — circleMarker (SVG/canvas, no DOM per marker) ──
+  // ── Render location + stop markers — L.divIcon emoji markers ──────────
   useEffect(() => {
     const map = leafletMap.current;
     if (!map) return;
@@ -294,21 +294,18 @@ const MapView = React.forwardRef(function MapView(
     const group = layers.current.locations;
     group.clearLayers();
 
-    // Use L.canvas() renderer — batch-renders all circles in ONE canvas element
-    // instead of N separate SVG/DOM elements. Critical for mobile performance.
-    const renderer = L.canvas({ padding: 0.5 });
-
+    // Use L.divIcon for emoji markers — clear, no-lag rendering
     for (const loc of locations) {
       if (!loc.lat || !loc.lng) continue;
       const style = cat(loc.category);
-      L.circleMarker([loc.lat, loc.lng], {
-        radius:      7,
-        color:       style.color,
-        fillColor:   style.color,
-        fillOpacity: 0.9,
-        weight:      2,
-        opacity:     1,
-        renderer,
+      L.marker([loc.lat, loc.lng], {
+        icon: L.divIcon({
+          html: `<div style="width:28px;height:28px;background:${style.color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.2);">${style.emoji}</div>`,
+          className: '',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+          popupAnchor: [0, -16],
+        })
       }).bindPopup(
         `<div style="min-width:140px">
           <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${loc.name}</div>
@@ -320,15 +317,14 @@ const MapView = React.forwardRef(function MapView(
 
     for (const stop of rideStops) {
       if (!stop.lat || !stop.lng) continue;
-      const style = cat("pickup");
-      L.circleMarker([stop.lat, stop.lng], {
-        radius:      10,
-        color:       "#FFFFFF",
-        fillColor:   "#F5A623",
-        fillOpacity: 1,
-        weight:      2.5,
-        opacity:     1,
-        renderer,
+      L.marker([stop.lat, stop.lng], {
+        icon: L.divIcon({
+          html: `<div style="width:32px;height:32px;background:#F5A623;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.2);">🛺</div>`,
+          className: '',
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+          popupAnchor: [0, -18],
+        })
       }).bindPopup(
         `<div style="min-width:120px">
           <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${stop.name}</div>

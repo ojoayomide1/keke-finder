@@ -28,6 +28,7 @@ import {
 } from "react-native";
 
 import useStore from "../../store";
+import { db, doc, updateDoc, serverTimestamp } from "../../config/firebase";
 import {
   loadCampusDataFromFirestore,
   listenToCampusData,
@@ -253,6 +254,13 @@ export default function StudentHomeScreen({ navigation }) {
 
       if (summary.isCompleted) {
         setRidePhase("arrived");
+        // Mark the request as completed so history shows correctly
+        if (currentRequestId) {
+          updateDoc(doc(db, 'rideRequests', currentRequestId), {
+            status: 'completed',
+            completedAt: serverTimestamp(),
+          }).catch(() => {});
+        }
         clearRideState();
         showToast("You have arrived! Thanks for riding NavCamp.", "success");
       }
@@ -646,7 +654,8 @@ export default function StudentHomeScreen({ navigation }) {
               <Text style={styles.emptyText}>No rides yet.</Text>
             ) : (
               history.map(item => {
-                const isActive = ["searching", "matched", "queued"].includes(item.status);
+                const isActive = ["searching", "queued"].includes(item.status) || 
+                  (item.status === "matched" && !!item.matchedRideId && !item.completedAt);
                 return (
                   <View key={item.id} style={styles.historyCard}>
                     <View style={styles.historyRow}>

@@ -268,46 +268,52 @@ export async function requestRide({ studentId, studentName, pickupId, dropoffId,
 export async function cancelRide({ requestId, rideId, studentId }) {
   // Can't cancel after pickup
   if (rideId) {
-    const rideSnap = await getDoc(doc(db, "rides", rideId));
-    const ride     = rideSnap.exists() ? rideSnap.data() : null;
-    const passenger = ride?.passengers?.[studentId];
-    if (passenger?.pickupStatus === "completed") {
-      throw new Error("ALREADY_PICKED_UP");
+    try {
+      const rideSnap = await getDoc(doc(db, 'rides', rideId));
+      const ride = rideSnap.exists() ? rideSnap.data() : null;
+      if (ride?.passengers?.[studentId]?.pickupStatus === 'completed') {
+        throw new Error('ALREADY_PICKED_UP');
+      }
+    } catch (err) {
+      if (err.message === 'ALREADY_PICKED_UP') throw err;
+      // Ignore other errors - proceed with cancel
     }
   }
 
   // Cancel the request doc
   if (requestId) {
-    const requestRef  = doc(db, "rideRequests", requestId);
-    const requestSnap = await getDoc(requestRef);
-    const request     = requestSnap.exists() ? requestSnap.data() : null;
-
-    await updateDoc(requestRef, {
-      status:      "cancelled",
-      cancelledAt: serverTimestamp(),
-    });
-
-    // Remove from waiting queue if queued
-    if (request?.queueDocId) {
-      await deleteDoc(doc(db, "waitingQueue", request.queueDocId)).catch(() => {});
+    try {
+      const requestRef = doc(db, 'rideRequests', requestId);
+      const requestSnap = await getDoc(requestRef);
+      const request = requestSnap.exists() ? requestSnap.data() : null;
+      await updateDoc(requestRef, { status: 'cancelled', cancelledAt: serverTimestamp() });
+      if (request?.queueDocId) {
+        await deleteDoc(doc(db, 'waitingQueue', request.queueDocId)).catch(() => {});
+      }
+    } catch (err) {
+      console.warn('[cancelRide] request cancel failed:', err.message);
     }
   }
 
-  // Remove student from the ride
+  // Remove from ride (best effort)
   if (rideId) {
-    const rideRef  = doc(db, "rides", rideId);
-    const rideSnap = await getDoc(rideRef);
-    if (rideSnap.exists()) {
-      const ride         = rideSnap.data();
-      const updatedQueue = (ride.stopQueue ?? []).filter(s => s.passengerId !== studentId);
-      const seats        = ride.seats ?? { total: 3, occupied: 1, available: 2 };
-      await updateDoc(rideRef, {
-        stopQueue:                                            updatedQueue,
-        [`passengers.${studentId}.pickupStatus`]:            "cancelled",
-        "seats.occupied":  Math.max(0, (seats.occupied  || 1) - 1),
-        "seats.available": Math.min(seats.total || 3, (seats.available || 0) + 1),
-        updatedAt:         serverTimestamp(),
-      });
+    try {
+      const rideRef = doc(db, 'rides', rideId);
+      const rideSnap = await getDoc(rideRef);
+      if (rideSnap.exists()) {
+        const ride = rideSnap.data();
+        const seats = ride.seats ?? { total: 3, occupied: 1, available: 2 };
+        const updatedQueue = (ride.stopQueue ?? []).filter(s => s.passengerId !== studentId);
+        await updateDoc(rideRef, {
+          stopQueue: updatedQueue,
+          [`passengers.${studentId}.pickupStatus`]: 'cancelled',
+          'seats.occupied':  Math.max(0, (seats.occupied || 1) - 1),
+          'seats.available': Math.min(seats.total || 3, (seats.available || 0) + 1),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    } catch (err) {
+      console.warn('[cancelRide] ride update failed:', err.message);
     }
   }
 }
