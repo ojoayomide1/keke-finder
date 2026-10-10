@@ -88,11 +88,44 @@ service cloud.firestore {
 
     function validEarnings(earnings) {
       return earnings is map
-        && earnings.keys().hasOnly(["balance", "totalEarned", "lastPayout"])
+        && earnings.keys().hasOnly(["balance", "totalEarned", "lastPayout", "lastEarning"])
         && earnings.balance is int
         && earnings.totalEarned is int
         && earnings.balance >= 0
-        && earnings.totalEarned >= 0;
+        && earnings.totalEarned >= 0
+        && (
+          !("lastEarning" in earnings)
+          || (
+            earnings.lastEarning is map
+            && earnings.lastEarning.keys().hasOnly(["amount", "rideId", "earnedAt"])
+            && earnings.lastEarning.amount is int
+            && earnings.lastEarning.amount >= 0
+            && earnings.lastEarning.rideId is string
+            && earnings.lastEarning.rideId.size() > 0
+            && earnings.lastEarning.earnedAt == request.time
+          )
+        );
+    }
+
+    function validCashEarnings(cashEarnings) {
+      return cashEarnings is map
+        && cashEarnings.keys().hasOnly(["totalCollected", "rideCount", "lastCollection"])
+        && cashEarnings.totalCollected is int
+        && cashEarnings.totalCollected >= 0
+        && cashEarnings.rideCount is int
+        && cashEarnings.rideCount >= 0
+        && (
+          !("lastCollection" in cashEarnings)
+          || (
+            cashEarnings.lastCollection is map
+            && cashEarnings.lastCollection.keys().hasOnly(["amount", "rideId", "collectedAt"])
+            && cashEarnings.lastCollection.amount is int
+            && cashEarnings.lastCollection.amount >= 0
+            && cashEarnings.lastCollection.rideId is string
+            && cashEarnings.lastCollection.rideId.size() > 0
+            && cashEarnings.lastCollection.collectedAt == request.time
+          )
+        );
     }
 
     function validUserCreate(userId) {
@@ -155,6 +188,13 @@ service cloud.firestore {
         && isRider()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["earnings"])
         && validEarnings(request.resource.data.earnings);
+    }
+
+    function riderCashEarningsUpdate(userId) {
+      return isOwner(userId)
+        && isRider()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["cashEarnings"])
+        && validCashEarnings(request.resource.data.cashEarnings);
     }
 
     function adminRefundsRiderEarnings() {
@@ -493,6 +533,7 @@ service cloud.firestore {
         || studentDebtClearUpdate(userId)
         || riderChargesStudent(userId)
         || riderEarningsUpdate(userId)
+        || riderCashEarningsUpdate(userId)
         || adminRefundsRiderEarnings();
       allow delete: if false;
     }

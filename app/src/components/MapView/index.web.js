@@ -370,22 +370,25 @@ const MapView = React.forwardRef(function MapView(
       orange: "#FF5E1A",
       red: "#EF4444",
       blue: "#2563EB",
+      keke: "#F5A623",
     };
 
     for (const m of overlayMarkers) {
       const coord = m.props?.coordinate;
       if (!coord?.latitude) continue;
       const title = m.props?.title ?? "";
-      const color = pinColors[m.props?.pinColor] ?? "#1E7A46";
-      const glyph = m.props?.pinColor === "yellow" ? "P" : m.props?.pinColor === "green" ? "D" : "";
-      const icon  = L.divIcon({
+      const pinColor = m.props?.pinColor;
+      const color = pinColors[pinColor] ?? "#1E7A46";
+      const icon = pinColor === "keke"
+        ? makeDivIcon(L, cat("pickup"), 32)
+        : L.divIcon({
         html: `<div style="
           width:30px;height:30px;background:${color};color:#fff;
           border-radius:50% 50% 50% 6px;transform:rotate(-45deg);
           display:flex;align-items:center;justify-content:center;
           box-shadow:0 2px 8px rgba(15,17,23,0.28);
           border:2px solid #FFFFFF;box-sizing:border-box;
-        "><span style="transform:rotate(45deg);font-size:12px;font-weight:800;line-height:1">${glyph}</span></div>`,
+        "><span style="transform:rotate(45deg);font-size:12px;font-weight:800;line-height:1">${pinColor === "green" ? "D" : ""}</span></div>`,
         className:  "",
         iconSize:   [30, 30],
         iconAnchor: [15, 30],

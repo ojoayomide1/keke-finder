@@ -290,20 +290,34 @@ export default function MapScreen() {
     return { latitude: 6.9, longitude: 4.95, latitudeDelta: 0.012, longitudeDelta: 0.012 };
   }, [rideStops.length, locations.length]);
 
+  const visibleCampusLocations = useMemo(
+    () => locations.filter(loc => loc.category !== "pickup"),
+    [locations]
+  );
+
+  const activePickupStop = useMemo(() =>
+    liveSummary?.stopQueue?.find(s =>
+      s.type === "pickup" &&
+      s.status === "pending" &&
+      s.location?.lat &&
+      s.location?.lng
+    ) ?? null,
+    [liveSummary]
+  );
+
   // On web: pass static campus geometry as a direct prop to avoid creating
   // thousands of React elements as children (which stalls the browser).
-  // rideStops only included when there's an active ride — they shouldn't be
-  // visible on the map when idle.
+  // Static pickup-stop markers stay hidden; active ride pickup is rendered below.
   const webCampusData = useMemo(() =>
     Platform.OS === "web"
       ? {
           buildings: campusBuildings,
           paths:     campusPaths,
-          locations,
-          rideStops: ridePhase !== "idle" ? rideStops : [],
+          locations: visibleCampusLocations,
+          rideStops: [],
         }
       : null,
-    [campusBuildings, campusPaths]
+    [campusBuildings, campusPaths, visibleCampusLocations]
   );
 
   // On native: memoize static map layers as children (react-native-maps API)
@@ -331,8 +345,29 @@ export default function MapScreen() {
     [campusBuildings]
   );
 
-  // Campus and pickup/drop-off markers are intentionally hidden on the student map.
-  const locationMarkers = [];
+  const locationMarkers = useMemo(() =>
+    Platform.OS === "web" ? [] :
+    visibleCampusLocations.map((loc, i) => {
+      if (!loc.lat || !loc.lng) return null;
+      const meta = getCampusCategoryMeta(loc.category);
+      const emoji = CATEGORY_EMOJI[loc.category] || CATEGORY_EMOJI.block;
+      return (
+        <Marker
+          key={"loc-" + (loc.id ?? loc.name ?? i)}
+          coordinate={{ latitude: loc.lat, longitude: loc.lng }}
+          title={loc.name ?? loc.label ?? "Campus location"}
+          description={meta.label}
+        >
+          <View style={styles.markerWrap}>
+            <View style={[styles.markerBubble, { backgroundColor: meta.color }]}>
+              <Text style={styles.markerEmoji}>{emoji}</Text>
+            </View>
+          </View>
+        </Marker>
+      );
+    }),
+    [visibleCampusLocations]
+  );
   const stopMarkers = [];
 
   // Walk route polyline coords
@@ -385,11 +420,25 @@ export default function MapScreen() {
           ) : null;
         })()}
 
+        {/* Active pickup marker */}
+        {ridePhase === "matched" && activePickupStop && (
+          <Marker
+            coordinate={{ latitude: activePickupStop.location.lat, longitude: activePickupStop.location.lng }}
+            title="Pickup spot"
+            description={activePickupStop.locationLabel || activePickupStop.location.label || "Pickup location"}
+            pinColor="red"
+          />
+        )}
+
         {/* Live rider marker */}
         {riderLocation && (
-          <Marker coordinate={{ latitude: riderLocation.lat, longitude: riderLocation.lng }} title="Your Rider">
+          <Marker
+            coordinate={{ latitude: riderLocation.lat, longitude: riderLocation.lng }}
+            title="Your Rider"
+            pinColor="keke"
+          >
             <View style={styles.riderMarker}>
-              <Text style={{ fontSize: 20 }}>🛺</Text>
+              <Text style={{ fontSize: 20 }}>ðŸ›º</Text>
             </View>
           </Marker>
         )}
@@ -564,7 +613,7 @@ const styles = StyleSheet.create({
   markerEmoji:  { fontSize: 14 },
   markerLabel:  { color: "#FFF", fontSize: 9, fontWeight: "700", backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 3, paddingVertical: 1, borderRadius: 3, marginTop: 2, maxWidth: 90, textAlign: "center" },
 
-  riderMarker: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(30,122,70,0.2)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: C.green },
+  riderMarker: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#F5A623", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#FFFFFF" },
 
   recenterBtn: { position: "absolute", top: 60, right: 16, backgroundColor: C.surface, borderRadius: 20, width: 40, height: 40, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.border },
 

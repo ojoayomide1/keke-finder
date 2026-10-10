@@ -186,7 +186,7 @@ export default function RiderMapScreen() {
               }}
               title={`${isPickup ? "Pick up" : "Drop off"} ${stop.passengerName}`}
               description={stop.locationLabel || stop.location.name}
-              pinColor={isPickup ? "yellow" : "green"}
+              pinColor={isPickup ? "red" : "green"}
             />
           );
         }
@@ -296,8 +296,12 @@ export default function RiderMapScreen() {
             coordinate={userLocation}
             title="You"
             description="Current rider location"
-            pinColor="blue"
-          />
+            pinColor="keke"
+          >
+            <View style={styles.kekeMarker}>
+              <Text style={styles.kekeMarkerText}>ðŸ›º</Text>
+            </View>
+          </Marker>
         )}
         {getAllMarkers()}
         {routeCoordinates.length > 1 && (
@@ -385,6 +389,18 @@ const styles = StyleSheet.create({
   },
   completeBtnDisabled: { opacity: 0.6 },
   completeBtnText:     { color: "#F7F8FA", fontWeight: "700", fontSize: 16 },
+
+  kekeMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F5A623",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  kekeMarkerText: { fontSize: 20 },
 
   // Fit button
   fitButton: {
