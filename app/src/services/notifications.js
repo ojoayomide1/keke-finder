@@ -34,6 +34,7 @@ Notifications.setNotificationHandler({
  * @returns {string|null}  The Expo push token, or null if permission denied
  */
 export async function registerForPushNotifications(userId) {
+  if (Platform.OS === "web") return null;
   try {
     // Android requires an explicit notification channel
     if (Platform.OS === "android") {

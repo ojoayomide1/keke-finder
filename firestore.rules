@@ -537,6 +537,17 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.studentId);
     }
 
+
+    match /rideLocations/{riderId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isRider()
+        && request.auth.uid == riderId
+        && request.resource.data.riderId == request.auth.uid
+        && request.resource.data.lat is number
+        && request.resource.data.lng is number
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
     match /scheduledRides/{scheduleId} {
       allow get: if isOwner(resource.data.studentId);
       allow list: if isStudent();

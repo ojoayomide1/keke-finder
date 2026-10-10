@@ -17,7 +17,7 @@
  *  └──────────────────────────────┘
  */
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -48,7 +48,7 @@ import {
 } from "../../services/rider";
 import { listenToCampusActivity } from "../../services/campus-data";
 
-import { db, doc, setDoc, serverTimestamp, collection, query, where, onSnapshot } from "../../config/firebase";
+import { db, doc, setDoc, updateDoc, getDocs, serverTimestamp, collection, query, where, onSnapshot } from "../../config/firebase";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
@@ -231,7 +231,7 @@ function ActiveRideCard({ ride, onNextStop, actionLoading }) {
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
-export default function RiderHomeScreen() {
+export default function RiderHomeScreen({ navigation }) {
   const { 
     currentUser, 
     showToast,
@@ -265,9 +265,20 @@ export default function RiderHomeScreen() {
   const activityUnsubscribe = useRef(null);
   const queueUnsubscribe    = useRef(null);
   const locationWatcherRef  = useRef(null);
+  const prevActiveRideCountRef = useRef(0);
 
   const riderId = currentUser?.uid;
 
+  const drainOpenRide = useCallback(async () => {
+    if (!riderId || !isRiderOnline) return;
+    const openRidesSnap = await getDocs(query(
+      collection(db, "rides"),
+      where("riderId", "==", riderId),
+      where("status", "in", ["waiting", "matched", "onTrip"])
+    ));
+    if (openRidesSnap.empty) return;
+    await drainWaitingQueue(openRidesSnap.docs[0].id, riderId);
+  }, [riderId, isRiderOnline]);
   // ── Notify rider when a new passenger is auto-matched ──────────────────────
   const prevActiveCountRef = useRef(0);
   useEffect(() => {
@@ -285,6 +296,14 @@ export default function RiderHomeScreen() {
     prevActiveCountRef.current = curr;
   }, [activeRides.length]);
 
+  useEffect(() => {
+    const prev = prevActiveRideCountRef.current;
+    const curr = activeRides.length;
+    if (curr > 0 && prev === 0) {
+      navigation?.navigate?.("Map");
+    }
+    prevActiveRideCountRef.current = curr;
+  }, [activeRides.length, navigation]);
   // ── GPS location broadcaster ───────────────────────────────────────────────
   // Watches rider's position and writes to Firestore whenever they are online
   // and have active rides. Cleans up watcher on unmount or when conditions change.
@@ -292,8 +311,8 @@ export default function RiderHomeScreen() {
     let active = true;
 
     async function startWatching() {
-      // Only broadcast when online and has active rides
-      if (!riderId || !isRiderOnline || activeRides.length === 0) {
+      // Broadcast whenever online so matching/routing has a current position.
+      if (!riderId || !isRiderOnline) {
         // Stop any existing watcher if conditions no longer met
         if (locationWatcherRef.current) {
           locationWatcherRef.current.remove();
@@ -333,6 +352,17 @@ export default function RiderHomeScreen() {
               },
               { merge: true }
             );
+
+            const loc = { lat: latitude, lng: longitude };
+            const openRidesSnap = await getDocs(query(
+              collection(db, "rides"),
+              where("riderId", "==", riderId),
+              where("status", "in", ["waiting", "matched", "onTrip"])
+            ));
+            await Promise.all(openRidesSnap.docs.map((rideDoc) => updateDoc(rideDoc.ref, {
+              currentLocation: loc,
+              updatedAt: serverTimestamp(),
+            }).catch(() => {})));
           } catch (err) {
             // Silent fail — location updates are best-effort
             console.warn("[RiderHome] location write failed:", err);
@@ -350,7 +380,7 @@ export default function RiderHomeScreen() {
         locationWatcherRef.current = null;
       }
     };
-  }, [riderId, isRiderOnline, activeRides.length]);
+  }, [riderId, isRiderOnline]);
 
   // ── Initialize data and listeners ─────────────────────────────────────────
   useEffect(() => {
@@ -370,23 +400,15 @@ export default function RiderHomeScreen() {
 
     // Set up listeners that sync to store
     if (isRiderOnline) {
-      requestsUnsubscribe.current = listenToRideRequests(riderId, setRideRequests);
+      requestsUnsubscribe.current = listenToRideRequests(riderId, (requests) => {
+        setRideRequests(requests);
+        if (requests.length > 0) drainOpenRide();
+      });
 
-      // Listen to waitingQueue — auto-drain whenever a new student queues
+      // Listen to waitingQueue - auto-drain whenever a new student queues
       queueUnsubscribe.current = onSnapshot(
         query(collection(db, "waitingQueue"), where("notified", "==", false)),
-        async () => {
-          // Find the rider's current active ride and drain the queue into it
-          const activeRidesSnap = await import("../../config/firebase").then(f =>
-            f.getDocs(f.query(f.collection(f.db, "rides"),
-              f.where("riderId", "==", riderId),
-              f.where("status", "in", ["waiting", "matched", "onTrip"])
-            ))
-          ).catch(() => null);
-          if (!activeRidesSnap || activeRidesSnap.empty) return;
-          const rideId = activeRidesSnap.docs[0].id;
-          await drainWaitingQueue(rideId, riderId);
-        }
+        () => { drainOpenRide(); }
       );
     }
     
@@ -428,7 +450,10 @@ export default function RiderHomeScreen() {
           ridesUnsubscribe.current = listenToActiveRides(riderId, setActiveRides);
           // Also keep listening for requests (for display purposes)
           requestsUnsubscribe.current?.();
-          requestsUnsubscribe.current = listenToRideRequests(riderId, setRideRequests);
+          requestsUnsubscribe.current = listenToRideRequests(riderId, (requests) => {
+        setRideRequests(requests);
+        if (requests.length > 0) drainOpenRide();
+      });
         } else {
           requestsUnsubscribe.current?.();
           setRideRequests([]);

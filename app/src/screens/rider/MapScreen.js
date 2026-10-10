@@ -217,11 +217,18 @@ export default function RiderMapScreen() {
       });
     });
 
-    if (allCoordinates.length > 1 && mapRef.current) {
+    if (!mapRef.current) return;
+    if (allCoordinates.length > 1) {
       mapRef.current.fitToCoordinates(allCoordinates, {
-        edgePadding: { top: 100, right: 50, bottom: 200, left: 50 },
+        edgePadding: { top: 80, right: 50, bottom: 220, left: 50 },
         animated: true,
       });
+    } else if (allCoordinates.length === 1) {
+      mapRef.current.animateToRegion({
+        ...allCoordinates[0],
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008,
+      }, 400);
     }
   }
 
@@ -237,10 +244,20 @@ export default function RiderMapScreen() {
     return nextAction !== null;
   });
 
+  const routeCoordinates = [];
+  if (userLocation) routeCoordinates.push(userLocation);
+  if (currentRide?.stopQueue?.length) {
+    currentRide.stopQueue.forEach((stop) => {
+      if (stop.status === "pending" && stop.location?.lat && stop.location?.lng) {
+        routeCoordinates.push({ latitude: stop.location.lat, longitude: stop.location.lng });
+      }
+    });
+  }
+
   const initialRegion = userLocation ? {
     ...userLocation,
-    latitudeDelta: 0.02,
-    longitudeDelta: 0.02,
+    latitudeDelta: 0.008,
+    longitudeDelta: 0.008,
   } : DEFAULT_REGION;
 
   return (
@@ -260,7 +277,22 @@ export default function RiderMapScreen() {
         showsBuildings={false}
         campusData={Platform.OS === "web" ? { buildings: campusBuildings, paths: campusPaths, locations: campusLocations } : null}
       >
+        {userLocation && (
+          <Marker
+            coordinate={userLocation}
+            title="You"
+            description="Current rider location"
+            pinColor="blue"
+          />
+        )}
         {getAllMarkers()}
+        {routeCoordinates.length > 1 && (
+          <Polyline
+            coordinates={routeCoordinates}
+            strokeColor={C.orange}
+            strokeWidth={4}
+          />
+        )}
       </MapView>
 
       {/* ── Next Stop Panel ───────────────────────────────────── */}

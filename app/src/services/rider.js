@@ -166,6 +166,9 @@ export async function drainWaitingQueue(rideId, riderId) {
             },
             "seats.occupied":  (seats.occupied  ?? 0) + 1,
             "seats.available": (seats.available ?? 3) - 1,
+            fare:              (r.fare ?? 0) + TOTAL_FARE_KOBO,
+            riderShare:        (r.riderShare ?? 0) + RIDER_SHARE_KOBO,
+            adminShare:        (r.adminShare ?? 0) + ADMIN_SHARE_KOBO,
             status:            r.status === "waiting" ? "matched" : r.status,
             updatedAt:         serverTimestamp(),
           });
@@ -236,6 +239,9 @@ export async function drainWaitingQueue(rideId, riderId) {
             },
             "seats.occupied":  (seats.occupied  ?? 0) + 1,
             "seats.available": (seats.available ?? 3) - 1,
+            fare:              (r.fare ?? 0) + TOTAL_FARE_KOBO,
+            riderShare:        (r.riderShare ?? 0) + RIDER_SHARE_KOBO,
+            adminShare:        (r.adminShare ?? 0) + ADMIN_SHARE_KOBO,
             status:            r.status === "waiting" ? "matched" : r.status,
             updatedAt:         serverTimestamp(),
           });
@@ -551,6 +557,13 @@ export async function completeNextStop(rideId) {
       }
 
       const rideData = rideDoc.data();
+      const riderRef = doc(db, "users", rideData.riderId);
+      const riderDoc = await transaction.get(riderRef);
+      const requestRefs = (rideData.requestIds ?? []).map((requestId) => doc(db, "rideRequests", requestId));
+      const requestDocs = [];
+      for (const requestRef of requestRefs) {
+        requestDocs.push(await transaction.get(requestRef));
+      }
       const stopQueue = rideData.stopQueue || [];
       
       // Find next pending stop
@@ -582,16 +595,14 @@ export async function completeNextStop(rideId) {
           updates.status = "completed";
           updates.completedAt = serverTimestamp();
 
-          for (const requestId of rideData.requestIds ?? []) {
-            transaction.update(doc(db, "rideRequests", requestId), {
-              status: "completed",
-              completedAt: serverTimestamp(),
-            });
-          }
-
-          const riderRef = doc(db, "users", rideData.riderId);
-          const riderDoc = await transaction.get(riderRef);
-
+          requestDocs.forEach((requestDoc, index) => {
+            if (requestDoc.exists() && requestDoc.data().status === "matched") {
+              transaction.update(requestRefs[index], {
+                status: "completed",
+                completedAt: serverTimestamp(),
+              });
+            }
+          });
           if (riderDoc.exists()) {
             const currentEarnings = riderDoc.data().earnings || { balance: 0, totalEarned: 0 };
             const passengerList = Object.values(rideData.passengers || {});
@@ -604,9 +615,10 @@ export async function completeNextStop(rideId) {
               const method = p.paymentMethod ?? "wallet";
               // Use the per-passenger rider share (riderShare stored on ride is the total)
               // We approximate per-passenger rider share from the ride-level ratio
+              const totalRiderShare = rideData.riderShare ?? (passengerList.length * RIDER_SHARE_KOBO);
               const perPassengerRiderShare = passengerList.length > 0
-                ? Math.floor(rideData.riderShare / passengerList.length)
-                : rideData.riderShare;
+                ? Math.floor(totalRiderShare / passengerList.length)
+                : RIDER_SHARE_KOBO;
               if (method === "cash") {
                 cashShare += perPassengerRiderShare;
               } else {
@@ -650,7 +662,7 @@ export async function completeNextStop(rideId) {
         stopType: nextStop.type,
         passengerName: nextStop.passengerName,
         isCompleted: updates.status === "completed",
-        earned: updates.status === "completed" ? rideData.riderShare : 0,
+        earned: updates.status === "completed" ? (rideData.riderShare ?? (Object.keys(rideData.passengers ?? {}).length * RIDER_SHARE_KOBO)) : 0,
       };
     });
 
