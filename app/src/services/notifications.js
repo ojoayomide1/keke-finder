@@ -99,6 +99,7 @@ export async function registerForPushNotifications(userId) {
  * @param {object} data   Optional extra payload attached to the notification
  */
 export async function sendLocalNotification(title, body, data = {}) {
+  if (Platform.OS === "web") return;
   try {
     await Notifications.scheduleNotificationAsync({
       content: {

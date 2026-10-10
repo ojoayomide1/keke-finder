@@ -153,6 +153,7 @@ export async function drainWaitingQueue(rideId, riderId) {
 
           tx.update(rideRef, {
             stopQueue: newStops,
+            requestIds: [...new Set([...(r.requestIds ?? []), queued.requestId])],
             [`passengers.${queued.studentId}`]: {
               studentId:     queued.studentId,
               studentName:   queued.studentName ?? "Student",
@@ -222,6 +223,7 @@ export async function drainWaitingQueue(rideId, riderId) {
 
           tx.update(rideRef, {
             stopQueue: newStops,
+            requestIds: [...new Set([...(r.requestIds ?? []), reqDoc.id])],
             [`passengers.${req.studentId}`]: {
               studentId:     req.studentId,
               studentName:   req.studentName ?? "Student",
@@ -579,6 +581,13 @@ export async function completeNextStop(rideId) {
         if (remainingStops.length === 0) {
           updates.status = "completed";
           updates.completedAt = serverTimestamp();
+
+          for (const requestId of rideData.requestIds ?? []) {
+            transaction.update(doc(db, "rideRequests", requestId), {
+              status: "completed",
+              completedAt: serverTimestamp(),
+            });
+          }
 
           const riderRef = doc(db, "users", rideData.riderId);
           const riderDoc = await transaction.get(riderRef);

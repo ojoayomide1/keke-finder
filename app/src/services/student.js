@@ -280,18 +280,14 @@ export async function cancelRide({ requestId, rideId, studentId }) {
     }
   }
 
-  // Cancel the request doc
+  // Cancel/leave queue must update the request doc; cleanup is best effort.
   if (requestId) {
-    try {
-      const requestRef = doc(db, 'rideRequests', requestId);
-      const requestSnap = await getDoc(requestRef);
-      const request = requestSnap.exists() ? requestSnap.data() : null;
-      await updateDoc(requestRef, { status: 'cancelled', cancelledAt: serverTimestamp() });
-      if (request?.queueDocId) {
-        await deleteDoc(doc(db, 'waitingQueue', request.queueDocId)).catch(() => {});
-      }
-    } catch (err) {
-      console.warn('[cancelRide] request cancel failed:', err.message);
+    const requestRef = doc(db, 'rideRequests', requestId);
+    const requestSnap = await getDoc(requestRef);
+    const request = requestSnap.exists() ? requestSnap.data() : null;
+    await updateDoc(requestRef, { status: 'cancelled', cancelledAt: serverTimestamp() });
+    if (request?.queueDocId) {
+      await deleteDoc(doc(db, 'waitingQueue', request.queueDocId)).catch(() => {});
     }
   }
 

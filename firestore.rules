@@ -368,18 +368,23 @@ service cloud.firestore {
     }
 
     function ownerCancelsOrHidesRequest() {
-      return requestOwnerBase()
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(["status", "cancelledAt", "deletedByStudent"])
+      // Student owns this request
+      return isSignedIn()
+        && resource.data.studentId == request.auth.uid
         && (
+          // Cancelling (searching or queued only)
           (
-            resource.data.status in ["searching", "queued"]
+            resource.data.status in ["searching", "queued", "matched"]
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["status", "cancelledAt"])
             && request.resource.data.status == "cancelled"
             && request.resource.data.cancelledAt == request.time
           )
           ||
+          // Soft-deleting from history (any status, just sets deletedByStudent)
           (
-            request.resource.data.status == resource.data.status
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["deletedByStudent"])
             && request.resource.data.deletedByStudent == true
           )
         );
@@ -503,17 +508,23 @@ service cloud.firestore {
     match /rideRequests/{requestId} {
       allow get: if isSignedIn() && (
         resource.data.studentId == request.auth.uid
-        || (
-          resource.data.matchedRideId is string
-          && get(/databases/$(database)/documents/rides/$(resource.data.matchedRideId)).data.riderId == request.auth.uid
-        )
+        || isRider()
       );
       allow list: if isStudent() || isRider();
       allow create: if validRideRequestCreate();
       allow update: if ownerMarksRequestMatched()
         || ownerMarksRequestQueued(requestId)
         || riderMarksQueuedRequestMatched()
-        || ownerCancelsOrHidesRequest();
+        || ownerCancelsOrHidesRequest()
+        // Rider marks request completed when ride finishes
+        || (
+          isRider()
+          && resource.data.status == "matched"
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["status", "completedAt"])
+          && request.resource.data.status == "completed"
+          && request.resource.data.completedAt == request.time
+        );
       allow delete: if false;
     }
 

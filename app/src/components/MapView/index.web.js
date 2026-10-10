@@ -10,7 +10,7 @@
  * Native (iOS/Android) uses react-native-maps — this file is never loaded there.
  */
 
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo, useState } from "react";
 import { View, StyleSheet } from "react-native";
 
 export const PROVIDER_DEFAULT = "default";
@@ -140,6 +140,7 @@ const MapView = React.forwardRef(function MapView(
   const leafletMap   = useRef(null);
   const layers       = useRef({});
   const containerRef = useRef(null);
+  const [zoomLevel, setZoomLevel] = useState(16);
 
   // ── Parse dynamic overlay children ──────────────────────────────────────
   const { overlayMarkers, overlayPolylines } = useMemo(() => {
@@ -172,6 +173,8 @@ const MapView = React.forwardRef(function MapView(
       attributionControl: false,
     });
     leafletMap.current = map;
+    setZoomLevel(map.getZoom());
+    map.on("zoomend", () => setZoomLevel(map.getZoom()));
 
     // No tile layer at all — plain background set via CSS on .leaflet-container.
     // Using a data-URI tile causes grey "loading" boxes on mobile; skipping it
@@ -294,19 +297,19 @@ const MapView = React.forwardRef(function MapView(
     const group = layers.current.locations;
     group.clearLayers();
 
-    // Use L.divIcon for emoji markers — clear, no-lag rendering
+    const visibleAtZoom = (category) => {
+      const key = String(category ?? "").toLowerCase();
+      if (["service", "shop", "restaurant", "resturant", "lounge", "sport"].includes(key)) {
+        return zoomLevel >= 17;
+      }
+      if (["hall", "block"].includes(key)) return zoomLevel >= 16;
+      return true;
+    };
+
     for (const loc of locations) {
-      if (!loc.lat || !loc.lng) continue;
+      if (!loc.lat || !loc.lng || !visibleAtZoom(loc.category)) continue;
       const style = cat(loc.category);
-      L.marker([loc.lat, loc.lng], {
-        icon: L.divIcon({
-          html: `<div style="width:28px;height:28px;background:${style.color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.2);">${style.emoji}</div>`,
-          className: '',
-          iconSize: [28, 28],
-          iconAnchor: [14, 14],
-          popupAnchor: [0, -16],
-        })
-      }).bindPopup(
+      L.marker([loc.lat, loc.lng], { icon: makeDivIcon(L, style, 26) }).bindPopup(
         `<div style="min-width:140px">
           <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${loc.name}</div>
           <div style="color:#6B7280;font-size:11px">${style.label}</div>
@@ -317,15 +320,8 @@ const MapView = React.forwardRef(function MapView(
 
     for (const stop of rideStops) {
       if (!stop.lat || !stop.lng) continue;
-      L.marker([stop.lat, stop.lng], {
-        icon: L.divIcon({
-          html: `<div style="width:32px;height:32px;background:#F5A623;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.2);">🛺</div>`,
-          className: '',
-          iconSize: [32, 32],
-          iconAnchor: [16, 16],
-          popupAnchor: [0, -18],
-        })
-      }).bindPopup(
+      const style = cat("pickup");
+      L.marker([stop.lat, stop.lng], { icon: makeDivIcon(L, style, 30) }).bindPopup(
         `<div style="min-width:120px">
           <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${stop.name}</div>
           <div style="color:#6B7280;font-size:11px">Pickup / Drop-off</div>
@@ -333,16 +329,7 @@ const MapView = React.forwardRef(function MapView(
         { className: "navcamp-popup" }
       ).addTo(group);
     }
-
-    // Auto-fit to all markers when data first arrives
-    const pts = [
-      ...locations.filter(l => l.lat && l.lng).map(l => [l.lat, l.lng]),
-      ...rideStops.filter(s => s.lat && s.lng).map(s => [s.lat, s.lng]),
-    ];
-    if (pts.length > 1) {
-      map.fitBounds(L.latLngBounds(pts), { padding: [50, 50], maxZoom: 17 });
-    }
-  }, [locations, rideStops]);
+  }, [locations, rideStops, zoomLevel]);
 
   // ── Render dynamic overlay polylines (walk route, trip dashes) ───────────
   useEffect(() => {
@@ -377,23 +364,43 @@ const MapView = React.forwardRef(function MapView(
     const group = layers.current.overlayMarkers;
     group.clearLayers();
 
+    const pinColors = {
+      green: "#1E7A46",
+      yellow: "#F5A623",
+      orange: "#FF5E1A",
+      red: "#EF4444",
+      blue: "#2563EB",
+    };
+
     for (const m of overlayMarkers) {
       const coord = m.props?.coordinate;
       if (!coord?.latitude) continue;
       const title = m.props?.title ?? "";
+      const color = pinColors[m.props?.pinColor] ?? "#1E7A46";
+      const glyph = m.props?.pinColor === "yellow" ? "P" : m.props?.pinColor === "green" ? "D" : "";
       const icon  = L.divIcon({
         html: `<div style="
-          background:#1E7A46;color:#fff;
-          padding:4px 9px;border-radius:10px;
-          font-size:12px;font-weight:700;
-          white-space:nowrap;
-          box-shadow:0 2px 6px rgba(0,0,0,0.3);
-          border:1.5px solid rgba(255,255,255,0.7);
-        ">${title || "📍"}</div>`,
+          width:30px;height:30px;background:${color};color:#fff;
+          border-radius:50% 50% 50% 6px;transform:rotate(-45deg);
+          display:flex;align-items:center;justify-content:center;
+          box-shadow:0 2px 8px rgba(15,17,23,0.28);
+          border:2px solid #FFFFFF;box-sizing:border-box;
+        "><span style="transform:rotate(45deg);font-size:12px;font-weight:800;line-height:1">${glyph}</span></div>`,
         className:  "",
-        iconAnchor: [0, 0],
+        iconSize:   [30, 30],
+        iconAnchor: [15, 30],
+        popupAnchor:[0, -30],
       });
       const marker = L.marker([coord.latitude, coord.longitude], { icon });
+      if (title || m.props?.description) {
+        marker.bindPopup(
+          `<div style="min-width:130px">
+            <div style="font-weight:700;font-size:14px;color:#0F1117">${title}</div>
+            ${m.props?.description ? `<div style="color:#6B7280;font-size:12px;margin-top:3px">${m.props.description}</div>` : ""}
+          </div>`,
+          { className: "navcamp-popup" }
+        );
+      }
       if (m.props?.onPress) marker.on("click", m.props.onPress);
       marker.addTo(group);
     }

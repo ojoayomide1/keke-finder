@@ -169,24 +169,6 @@ export default function RiderMapScreen() {
   function getAllMarkers() {
     const markers = [];
 
-    // Add ride request markers (orange)
-    rideRequests.forEach((request) => {
-      if (request.pickup?.lat && request.pickup?.lng) {
-        markers.push(
-          <Marker
-            key={`request-pickup-${request.id}`}
-            coordinate={{
-              latitude: request.pickup.lat,
-              longitude: request.pickup.lng,
-            }}
-            title={`Request: ${request.studentName}`}
-            description={request.pickup.name || "Pickup location"}
-            pinColor="orange"
-          />
-        );
-      }
-    });
-
     // Add active ride markers
     activeRides.forEach((ride) => {
       const stopQueue = ride.stopQueue || [];
@@ -222,16 +204,6 @@ export default function RiderMapScreen() {
       allCoordinates.push(userLocation);
     }
 
-    // Add request locations
-    rideRequests.forEach((request) => {
-      if (request.pickup?.lat && request.pickup?.lng) {
-        allCoordinates.push({
-          latitude: request.pickup.lat,
-          longitude: request.pickup.lng,
-        });
-      }
-    });
-
     // Add active ride locations
     activeRides.forEach((ride) => {
       const stopQueue = ride.stopQueue || [];
@@ -257,7 +229,7 @@ export default function RiderMapScreen() {
   useEffect(() => {
     const timer = setTimeout(fitToMarkers, 1000);
     return () => clearTimeout(timer);
-  }, [rideRequests, activeRides, userLocation]);
+  }, [activeRides, userLocation]);
 
   // Get current active ride for next stop panel
   const currentRide = activeRides.find((ride) => {
@@ -301,7 +273,7 @@ export default function RiderMapScreen() {
       )}
 
       {/* ── Fit to Markers Button ─────────────────────────────── */}
-      {(rideRequests.length > 0 || activeRides.length > 0) && (
+      {activeRides.length > 0 && (
         <TouchableOpacity
           style={styles.fitButton}
           onPress={fitToMarkers}
@@ -323,19 +295,22 @@ const styles = StyleSheet.create({
   // Next stop panel (bottom)
   floatingPanel: {
     position:        "absolute",
-    bottom:          100,
-    left:            20,
-    right:           20,
+    bottom:          0,
+    left:            0,
+    right:           0,
     backgroundColor: C.surface,
-    borderRadius:    16,
-    padding:         20,
-    borderWidth:     1,
+    borderTopLeftRadius:  22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: 20,
+    paddingTop:      18,
+    paddingBottom:   28,
+    borderTopWidth:  1,
     borderColor:     C.border,
     shadowColor:     "#000",
-    shadowOffset:    { width: 0, height: 4 },
-    shadowOpacity:   0.3,
-    shadowRadius:    6,
-    elevation:       8,
+    shadowOffset:    { width: 0, height: -3 },
+    shadowOpacity:   0.16,
+    shadowRadius:    10,
+    elevation:       12,
   },
   panelHeader: {
     flexDirection:  "row",
@@ -368,7 +343,7 @@ const styles = StyleSheet.create({
   // Fit button
   fitButton: {
     position:        "absolute",
-    bottom:          20,
+    bottom:          170,
     right:           20,
     width:           48,
     height:          48,
