@@ -404,24 +404,34 @@ export default function StudentHomeScreen({ navigation }) {
   }
 
   // ── Delete history ──────────────────────────────────────────────────────
-  function handleDeleteHistory(requestId) {
+  async function handleDeleteHistory(requestId) {
+    const remove = async () => {
+      try {
+        await deleteRideRecord(requestId);
+        setHistory((items) => items.filter((item) => item.id !== requestId));
+        showToast("Record removed.", "info");
+      } catch {
+        showToast("Failed to remove record.", "error");
+      }
+    };
+
+    if (Platform.OS === "web") {
+      if (window.confirm("Remove this ride from your history?")) await remove();
+      return;
+    }
+
     Alert.alert("Delete Record", "Remove this ride from your history?", [
       { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteRideRecord(requestId);
-            showToast("Record removed.", "info");
-          } catch {
-            showToast("Failed to remove record.", "error");
-          }
-        },
-      },
+      { text: "Delete", style: "destructive", onPress: remove },
     ]);
   }
 
+  function isLiveHistoryItem(item) {
+    if (item.deletedByStudent || item.completedAt || item.cancelledAt || item.paid) return false;
+    if (["completed", "cancelled"].includes(item.status)) return false;
+    if (["searching", "queued"].includes(item.status)) return true;
+    return ["matched", "onTrip"].includes(item.status) && !!item.matchedRideId;
+  }
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
   const name = currentUser?.name ?? currentUser?.displayName ?? "Student";
@@ -654,8 +664,7 @@ export default function StudentHomeScreen({ navigation }) {
               <Text style={styles.emptyText}>No rides yet.</Text>
             ) : (
               history.map(item => {
-                const isActive = ["searching", "queued"].includes(item.status) || 
-                  (item.status === "matched" && !!item.matchedRideId && !item.completedAt);
+                const isActive = isLiveHistoryItem(item);
                 return (
                   <View key={item.id} style={styles.historyCard}>
                     <View style={styles.historyRow}>

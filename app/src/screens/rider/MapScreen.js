@@ -18,7 +18,7 @@
  *  └──────────────────────────────┘
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -32,6 +32,7 @@ import { Platform } from "react-native";
 
 import useStore from "../../store";
 import { getNextRideAction, completeNextStop } from "../../services/rider";
+import { calculateCampusRoute } from "../../services/campus-router";
 import {
   loadCampusDataFromFirestore,
   getCampusLocationsForMap,
@@ -244,15 +245,28 @@ export default function RiderMapScreen() {
     return nextAction !== null;
   });
 
-  const routeCoordinates = [];
-  if (userLocation) routeCoordinates.push(userLocation);
-  if (currentRide?.stopQueue?.length) {
-    currentRide.stopQueue.forEach((stop) => {
+  const routeCoordinates = useMemo(() => {
+    const points = [];
+    if (userLocation) points.push({ lat: userLocation.latitude, lng: userLocation.longitude });
+    currentRide?.stopQueue?.forEach((stop) => {
       if (stop.status === "pending" && stop.location?.lat && stop.location?.lng) {
-        routeCoordinates.push({ latitude: stop.location.lat, longitude: stop.location.lng });
+        points.push({ lat: stop.location.lat, lng: stop.location.lng });
       }
     });
-  }
+
+    if (points.length < 2) return [];
+
+    const coords = [];
+    for (let i = 1; i < points.length; i++) {
+      const route = calculateCampusRoute(points[i - 1], points[i], { mode: "drive" });
+      const segment = route.points?.length ? route.points : [[points[i - 1].lat, points[i - 1].lng], [points[i].lat, points[i].lng]];
+      segment.forEach(([lat, lng], idx) => {
+        if (coords.length > 0 && idx === 0) return;
+        coords.push({ latitude: lat, longitude: lng });
+      });
+    }
+    return coords;
+  }, [currentRide, userLocation]);
 
   const initialRegion = userLocation ? {
     ...userLocation,

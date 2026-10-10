@@ -37,6 +37,7 @@ import {
   getCampusBuildings,
 } from "../../services/campus-data";
 import { formatNaira } from "../../services/ride-helpers";
+import { calculateCampusRoute } from "../../services/campus-router";
 import {
   cancelRide,
   payForRide,
@@ -302,7 +303,7 @@ export default function MapScreen() {
           rideStops: ridePhase !== "idle" ? rideStops : [],
         }
       : null,
-    [campusBuildings, campusPaths, locations, rideStops, ridePhase]
+    [campusBuildings, campusPaths]
   );
 
   // On native: memoize static map layers as children (react-native-maps API)
@@ -330,37 +331,9 @@ export default function MapScreen() {
     [campusBuildings]
   );
 
-  // On native: location markers as children. On web: handled by campusData prop.
-  const locationMarkers = useMemo(() =>
-    Platform.OS === "web" ? [] :
-    locations.map(loc => {
-      const meta = getCampusCategoryMeta(loc.category);
-      return (
-        <Marker key={loc.id} coordinate={{ latitude: loc.lat, longitude: loc.lng }} title={loc.name}>
-          <View style={styles.markerWrap}>
-            <View style={[styles.markerBubble, { backgroundColor: meta.color }]}>
-              <Text style={styles.markerEmoji}>{CATEGORY_EMOJI[loc.category] ?? "📍"}</Text>
-            </View>
-          </View>
-        </Marker>
-      );
-    }),
-    [locations]
-  );
-
-  const stopMarkers = useMemo(() =>
-    Platform.OS === "web" ? [] :
-    rideStops.map(stop => (
-      <Marker key={stop.id} coordinate={{ latitude: stop.lat, longitude: stop.lng }} title={stop.name}>
-        <View style={styles.markerWrap}>
-          <View style={[styles.markerBubble, { backgroundColor: C.green }]}>
-            <Text style={styles.markerEmoji}>🛺</Text>
-          </View>
-        </View>
-      </Marker>
-    )),
-    [rideStops]
-  );
+  // Campus and pickup/drop-off markers are intentionally hidden on the student map.
+  const locationMarkers = [];
+  const stopMarkers = [];
 
   // Walk route polyline coords
   const walkCoords = useMemo(
@@ -396,16 +369,20 @@ export default function MapScreen() {
 
         {/* Dashed line from stop to destination building when on trip */}
         {ridePhase === "onTrip" && liveSummary?.dropoffLat && liveSummary?.dropoffLng && riderLocation && (() => {
-          const stopCoord = { latitude: riderLocation.lat, longitude: riderLocation.lng };
-          const destCoord = { latitude: liveSummary.dropoffLat, longitude: liveSummary.dropoffLng };
-          return (
-            <Polyline
-              coordinates={[stopCoord, destCoord]}
-              strokeColor="rgba(30,122,70,0.5)"
-              strokeWidth={2}
-              lineDashPattern={[6, 5]}
-            />
+          const route = calculateCampusRoute(
+            { lat: riderLocation.lat, lng: riderLocation.lng },
+            { lat: liveSummary.dropoffLat, lng: liveSummary.dropoffLng },
+            { mode: "drive" }
           );
+          const coords = route.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+          return coords.length >= 2 ? (
+            <Polyline
+              coordinates={coords}
+              strokeColor="rgba(30,122,70,0.65)"
+              strokeWidth={3}
+              lineDashPattern={route.routed ? undefined : [6, 5]}
+            />
+          ) : null;
         })()}
 
         {/* Live rider marker */}
