@@ -153,6 +153,7 @@ const MapView = React.forwardRef(function MapView(
   const paths     = campusData?.paths     ?? [];
   const locations = campusData?.locations ?? [];
   const rideStops = campusData?.rideStops ?? [];
+  const staticMarkerOpacity = campusData?.dimStaticMarkers ? 0.24 : 1;
 
   // ── Init Leaflet map on mount ────────────────────────────────────────────
   useEffect(() => {
@@ -320,7 +321,7 @@ const MapView = React.forwardRef(function MapView(
     for (const loc of locations) {
       if (!loc.lat || !loc.lng || !visibleAtZoom(loc.category)) continue;
       const style = cat(loc.category);
-      L.marker([loc.lat, loc.lng], { icon: makeDivIcon(L, style, 26) }).bindPopup(
+      L.marker([loc.lat, loc.lng], { icon: makeDivIcon(L, style, 26), opacity: staticMarkerOpacity }).bindPopup(
         `<div style="min-width:140px">
           <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${loc.name}</div>
           <div style="color:#6B7280;font-size:11px">${style.label}</div>
@@ -332,7 +333,7 @@ const MapView = React.forwardRef(function MapView(
     for (const stop of rideStops) {
       if (!stop.lat || !stop.lng) continue;
       const style = cat("pickup");
-      L.marker([stop.lat, stop.lng], { icon: makeDivIcon(L, style, 30) }).bindPopup(
+      L.marker([stop.lat, stop.lng], { icon: makeDivIcon(L, style, 30), opacity: staticMarkerOpacity }).bindPopup(
         `<div style="min-width:120px">
           <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${stop.name}</div>
           <div style="color:#6B7280;font-size:11px">Pickup / Drop-off</div>
@@ -340,7 +341,7 @@ const MapView = React.forwardRef(function MapView(
         { className: "navcamp-popup" }
       ).addTo(group);
     }
-  }, [locations, rideStops, zoomLevel]);
+  }, [locations, rideStops, zoomLevel, staticMarkerOpacity]);
 
   // ── Render dynamic overlay polylines (walk route, trip dashes) ───────────
   useEffect(() => {

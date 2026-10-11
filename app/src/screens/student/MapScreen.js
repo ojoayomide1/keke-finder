@@ -315,6 +315,7 @@ export default function MapScreen() {
           paths:     campusPaths,
           locations: visibleCampusLocations,
           rideStops: [],
+          dimStaticMarkers: ridePhase !== "idle",
         }
       : null,
     [campusBuildings, campusPaths, visibleCampusLocations]
@@ -542,9 +543,15 @@ export default function MapScreen() {
                     <Text style={styles.primaryBtnText}>Paid {formatNaira(liveSummary.fare)}</Text>
                   </View>
                 ) : (
-                  <TouchableOpacity style={styles.primaryBtn} onPress={handlePay} disabled={payingNow}>
-                    {payingNow ? <ActivityIndicator color="#F7F8FA" /> : <Text style={styles.primaryBtnText}>Pay Now {formatNaira(liveSummary.fare)}</Text>}
-                  </TouchableOpacity>
+                  <View>
+                    <View style={styles.paymentNotice}>
+                      <Text style={styles.paymentNoticeTitle}>Payment required before drop-off</Text>
+                      <Text style={styles.paymentNoticeSub}>Your rider cannot complete this wallet ride until you pay.</Text>
+                    </View>
+                    <TouchableOpacity style={styles.primaryBtn} onPress={handlePay} disabled={payingNow}>
+                      {payingNow ? <ActivityIndicator color="#F7F8FA" /> : <Text style={styles.primaryBtnText}>Pay Now {formatNaira(liveSummary.fare)}</Text>}
+                    </TouchableOpacity>
+                  </View>
                 )
               ) : (
                 <TouchableOpacity style={styles.dangerBtn} onPress={handleCancel} disabled={cancelling}>
@@ -643,9 +650,12 @@ const styles = StyleSheet.create({
   dangerBtn:      { borderRadius: 12, paddingVertical: 13, alignItems: "center", marginTop: 12, borderWidth: 1, borderColor: C.red, backgroundColor: "rgba(239,68,68,0.08)" },
   dangerBtnText:  { color: C.red, fontWeight: "600", fontSize: 15 },
 
-  cashNotice:      { borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, padding: 14, marginTop: 12 },
-  cashNoticeTitle: { color: C.text, fontWeight: "700", fontSize: 14, marginBottom: 3 },
-  cashNoticeSub:   { color: C.sub, fontSize: 13 },
+  cashNotice:      { backgroundColor: "rgba(245,166,35,0.12)", borderRadius: 12, padding: 12, marginTop: 12, borderWidth: 1, borderColor: "rgba(245,166,35,0.35)" },
+  cashNoticeTitle: { color: C.text, fontWeight: "700", fontSize: 14, marginBottom: 2 },
+  cashNoticeSub:   { color: C.sub, fontSize: 12, lineHeight: 17 },
+  paymentNotice:      { backgroundColor: "rgba(239,68,68,0.08)", borderRadius: 12, padding: 12, marginTop: 12, borderWidth: 1, borderColor: "rgba(239,68,68,0.28)" },
+  paymentNoticeTitle: { color: C.red, fontWeight: "700", fontSize: 14, marginBottom: 2 },
+  paymentNoticeSub:   { color: C.sub, fontSize: 12, lineHeight: 17 },
 
   walkHeader:  { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   walkTitle:   { color: C.text, fontSize: 16, fontWeight: "700" },

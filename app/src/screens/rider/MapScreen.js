@@ -171,7 +171,7 @@ export default function RiderMapScreen() {
           showToast(`${action} completed`, "success");
         }
       } else {
-        showToast(result.error || "Action failed", "error");
+        showToast(result.error === "PAYMENT_REQUIRED" ? "Student must pay before drop-off can be completed." : (result.error || "Action failed"), "error");
       }
     } catch (error) {
       showToast("Stop completion failed", "error");
@@ -276,7 +276,7 @@ export default function RiderMapScreen() {
         showsMyLocationButton={false}
         showsTraffic={false}
         showsBuildings={false}
-        campusData={Platform.OS === "web" ? { buildings: campusBuildings, paths: campusPaths, locations: campusLocations } : null}
+        campusData={Platform.OS === "web" ? { buildings: campusBuildings, paths: campusPaths, locations: campusLocations, dimStaticMarkers: activeRides.length > 0 } : null}
         onPanDrag={handleManualMapMove}
       >
         {userLocation && (

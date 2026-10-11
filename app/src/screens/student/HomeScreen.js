@@ -334,6 +334,8 @@ export default function StudentHomeScreen({ navigation }) {
       if (err.message?.startsWith("DEBT_OUTSTANDING:")) {
         const amount = Number(err.message.split(":")[1] || 0);
         showToast(`Outstanding balance of ${formatNaira(amount)}. Top up to continue.`, "error");
+      } else if (err.message === "INSUFFICIENT_BALANCE") {
+        showToast("Insufficient wallet balance. Select cash or top up first.", "error");
       } else if (err.message === "SAME_STOP") {
         showToast("Pickup and drop-off cannot be the same stop.", "error");
       } else if (err.message === "STOP_NOT_FOUND") {

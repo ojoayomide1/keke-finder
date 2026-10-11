@@ -528,7 +528,7 @@ export default function RiderHomeScreen({ navigation }) {
           showToast(`${action} completed for ${result.passengerName}`, "success");
         }
       } else {
-        showToast(result.error || "Action failed", "error");
+        showToast(result.error === "PAYMENT_REQUIRED" ? "Student must pay before drop-off can be completed." : (result.error || "Action failed"), "error");
       }
     } catch (error) {
       showToast("Stop completion failed", "error");

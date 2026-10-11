@@ -53,6 +53,7 @@ const MAX_DETOUR_IDLE   = 800; // metres — max distance to wake up a waiting r
 
 // Fare split: rider gets 13/15 of the fare, admin gets 2/15
 const RIDER_SHARE_RATIO = 13 / 15;
+const TOTAL_FARE_KOBO = 15000; // Must match rider.js passenger fare while rides use fixed fare
 
 // ─── MATCHING ────────────────────────────────────────────────────────────────
 
@@ -206,9 +207,12 @@ async function claimSeat(rideId, requestId, request) {
  * @throws {Error} with messages: "DEBT_OUTSTANDING:<amount>", "SAME_STOP", "STOP_NOT_FOUND"
  */
 export async function requestRide({ studentId, studentName, pickupId, dropoffId, walletBalance, debt, paymentMethod = "wallet" }) {
-  // Debt gate only applies to wallet rides
+  // Wallet gates only apply to wallet rides. Cash remains available for testing.
   if (paymentMethod === "wallet" && debt?.amount > 0) {
     throw new Error(`DEBT_OUTSTANDING:${debt.amount}`);
+  }
+  if (paymentMethod === "wallet" && (walletBalance ?? 0) < TOTAL_FARE_KOBO) {
+    throw new Error("INSUFFICIENT_BALANCE");
   }
 
   if (!pickupId || !dropoffId) {

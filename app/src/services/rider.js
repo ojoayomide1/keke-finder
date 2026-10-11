@@ -587,6 +587,12 @@ export async function completeNextStop(rideId) {
         updates[`passengers.${nextStop.passengerId}.pickupStatus`] = "completed";
         updates.status = "onTrip";
       } else if (nextStop.type === "dropoff") {
+        const passenger = rideData.passengers?.[nextStop.passengerId];
+        const paymentMethod = passenger?.paymentMethod ?? "wallet";
+        if (paymentMethod === "wallet" && passenger?.paid !== true) {
+          throw new Error("PAYMENT_REQUIRED");
+        }
+
         updates[`passengers.${nextStop.passengerId}.dropoffStatus`] = "completed";
         
         // Check if all stops are completed
