@@ -109,10 +109,12 @@ export default function RiderMapScreen() {
 
   const [userLocation, setUserLocation] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [followRider, setFollowRider] = useState(true);
   const [campusLocations, setCampusLocations] = useState([]);
   const [campusPaths,     setCampusPaths]     = useState([]);
   const [campusBuildings, setCampusBuildings] = useState([]);
   const mapRef = useRef(null);
+  const locationWatcherRef = useRef(null);
 
   // ── Load campus data ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -125,6 +127,8 @@ export default function RiderMapScreen() {
 
   // ── Get user location ─────────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
@@ -133,15 +137,25 @@ export default function RiderMapScreen() {
       }
 
       try {
-        const location = await Location.getCurrentPositionAsync({});
-        setUserLocation({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        });
+        const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (!cancelled) {
+          setUserLocation({ latitude: location.coords.latitude, longitude: location.coords.longitude });
+        }
+
+        locationWatcherRef.current = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.Balanced, timeInterval: 2500, distanceInterval: 4 },
+          (pos) => setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
+        );
       } catch (error) {
         console.error("Error getting location:", error);
       }
     })();
+
+    return () => {
+      cancelled = true;
+      locationWatcherRef.current?.remove?.();
+      locationWatcherRef.current = null;
+    };
   }, []);
 
   // ── Handle stop completion ────────────────────────────────────────────────
@@ -167,106 +181,79 @@ export default function RiderMapScreen() {
   }
 
   // ── Get all markers ───────────────────────────────────────────────────────
-  function getAllMarkers() {
-    const markers = [];
+  // Fit map to markers ────────────────────────────────────────────────────
+  function centerOnRider() {
+    if (!mapRef.current || !userLocation) return;
+    setFollowRider(true);
+    mapRef.current.animateToRegion({
+      ...userLocation,
+      latitudeDelta: 0.006,
+      longitudeDelta: 0.006,
+    }, 450);
+  }
 
-    // Add active ride markers
+  function handleManualMapMove() {
+    setFollowRider(false);
+  }
+
+  // Get current active ride for next stop panel
+  const currentRide = activeRides.find((ride) => {
+    const action = getNextRideAction(ride);
+    return action !== null;
+  });
+  const nextAction = currentRide ? getNextRideAction(currentRide) : null;
+
+  const routeCoordinates = useMemo(() => {
+    if (!userLocation || !nextAction?.location?.lat || !nextAction?.location?.lng) return [];
+
+    const route = calculateCampusRoute(
+      { lat: userLocation.latitude, lng: userLocation.longitude },
+      { lat: nextAction.location.lat, lng: nextAction.location.lng },
+      { mode: "drive" }
+    );
+    const segment = route.points?.length
+      ? route.points
+      : [[userLocation.latitude, userLocation.longitude], [nextAction.location.lat, nextAction.location.lng]];
+
+    return segment.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+  }, [nextAction, userLocation]);
+
+  const rideMarkers = useMemo(() => {
+    const markers = [];
     activeRides.forEach((ride) => {
+      const rideNextAction = getNextRideAction(ride);
       const stopQueue = ride.stopQueue || [];
-      
+
       stopQueue.forEach((stop) => {
-        if (stop.status === "pending" && stop.location?.lat && stop.location?.lng) {
-          const isPickup = stop.type === "pickup";
-          markers.push(
-            <Marker
-              key={`${ride.id}-${stop.stopId}`}
-              coordinate={{
-                latitude: stop.location.lat,
-                longitude: stop.location.lng,
-              }}
-              title={`${isPickup ? "Pick up" : "Drop off"} ${stop.passengerName}`}
-              description={stop.locationLabel || stop.location.name}
-              pinColor={isPickup ? "red" : "green"}
-            />
-          );
-        }
+        if (stop.status !== "pending" || !stop.location?.lat || !stop.location?.lng) return;
+
+        const isPickup = stop.type === "pickup";
+        const isNext = ride.id === currentRide?.id && stop.stopId === nextAction?.stopId;
+        markers.push(
+          <Marker
+            key={ride.id + "-" + stop.stopId}
+            coordinate={{ latitude: stop.location.lat, longitude: stop.location.lng }}
+            title={(isPickup ? "Pick up" : "Drop off") + " " + stop.passengerName}
+            description={stop.locationLabel || stop.location.name}
+            pinColor={isPickup ? "red" : "green"}
+            active={isNext}
+            opacity={isNext || !rideNextAction ? 1 : 0.32}
+          />
+        );
       });
     });
 
     return markers;
-  }
+  }, [activeRides, currentRide?.id, nextAction?.stopId]);
 
-  // ── Fit map to markers ────────────────────────────────────────────────────
-  function fitToMarkers() {
-    const allCoordinates = [];
-
-    // Add user location
-    if (userLocation) {
-      allCoordinates.push(userLocation);
-    }
-
-    // Add active ride locations
-    activeRides.forEach((ride) => {
-      const stopQueue = ride.stopQueue || [];
-      stopQueue.forEach((stop) => {
-        if (stop.status === "pending" && stop.location?.lat && stop.location?.lng) {
-          allCoordinates.push({
-            latitude: stop.location.lat,
-            longitude: stop.location.lng,
-          });
-        }
-      });
-    });
-
-    if (!mapRef.current) return;
-    if (allCoordinates.length > 1) {
-      mapRef.current.fitToCoordinates(allCoordinates, {
-        edgePadding: { top: 80, right: 50, bottom: 220, left: 50 },
-        animated: true,
-      });
-    } else if (allCoordinates.length === 1) {
-      mapRef.current.animateToRegion({
-        ...allCoordinates[0],
-        latitudeDelta: 0.008,
-        longitudeDelta: 0.008,
-      }, 400);
-    }
-  }
-
-  // Fit to markers when data changes
   useEffect(() => {
-    const timer = setTimeout(fitToMarkers, 1000);
-    return () => clearTimeout(timer);
-  }, [activeRides, userLocation]);
-
-  // Get current active ride for next stop panel
-  const currentRide = activeRides.find((ride) => {
-    const nextAction = getNextRideAction(ride);
-    return nextAction !== null;
-  });
-
-  const routeCoordinates = useMemo(() => {
-    const points = [];
-    if (userLocation) points.push({ lat: userLocation.latitude, lng: userLocation.longitude });
-    currentRide?.stopQueue?.forEach((stop) => {
-      if (stop.status === "pending" && stop.location?.lat && stop.location?.lng) {
-        points.push({ lat: stop.location.lat, lng: stop.location.lng });
-      }
-    });
-
-    if (points.length < 2) return [];
-
-    const coords = [];
-    for (let i = 1; i < points.length; i++) {
-      const route = calculateCampusRoute(points[i - 1], points[i], { mode: "drive" });
-      const segment = route.points?.length ? route.points : [[points[i - 1].lat, points[i - 1].lng], [points[i].lat, points[i].lng]];
-      segment.forEach(([lat, lng], idx) => {
-        if (coords.length > 0 && idx === 0) return;
-        coords.push({ latitude: lat, longitude: lng });
-      });
-    }
-    return coords;
-  }, [currentRide, userLocation]);
+    if (!followRider || !userLocation || !mapRef.current) return;
+    mapRef.current.animateToRegion({
+      ...userLocation,
+      latitudeDelta: 0.006,
+      longitudeDelta: 0.006,
+    }, 350);
+  }, [followRider, userLocation]);
 
   const initialRegion = userLocation ? {
     ...userLocation,
@@ -290,6 +277,7 @@ export default function RiderMapScreen() {
         showsTraffic={false}
         showsBuildings={false}
         campusData={Platform.OS === "web" ? { buildings: campusBuildings, paths: campusPaths, locations: campusLocations } : null}
+        onPanDrag={handleManualMapMove}
       >
         {userLocation && (
           <Marker
@@ -297,13 +285,14 @@ export default function RiderMapScreen() {
             title="You"
             description="Current rider location"
             pinColor="keke"
+            active
           >
-            <View style={styles.kekeMarker}>
+            <View style={[styles.kekeGlow, styles.kekeMarker]}>
               <Text style={styles.kekeMarkerText}>ðŸ›º</Text>
             </View>
           </Marker>
         )}
-        {getAllMarkers()}
+        {rideMarkers}
         {routeCoordinates.length > 1 && (
           <Polyline
             coordinates={routeCoordinates}
@@ -326,7 +315,7 @@ export default function RiderMapScreen() {
       {activeRides.length > 0 && (
         <TouchableOpacity
           style={styles.fitButton}
-          onPress={fitToMarkers}
+          onPress={centerOnRider}
         >
           <Text style={styles.fitButtonText}>📍</Text>
         </TouchableOpacity>
@@ -391,16 +380,23 @@ const styles = StyleSheet.create({
   completeBtnText:     { color: "#F7F8FA", fontWeight: "700", fontSize: 16 },
 
   kekeMarker: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: "#F5A623",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
-  kekeMarkerText: { fontSize: 20 },
+  kekeMarkerText: { fontSize: 22 },
+  kekeGlow: {
+    shadowColor: "#F5A623",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 12,
+    elevation: 14,
+  },
 
   // Fit button
   fitButton: {

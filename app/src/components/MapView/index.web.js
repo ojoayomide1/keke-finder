@@ -133,13 +133,14 @@ const MapView = React.forwardRef(function MapView(
   {
     style, children, initialRegion, region, campusData,
     // native-only, ignored on web:
-    provider, mapType, showsUserLocation, showsMyLocationButton, onRegionChange,
+    provider, mapType, showsUserLocation, showsMyLocationButton, onRegionChange, onPanDrag,
   },
   ref
 ) {
   const leafletMap   = useRef(null);
   const layers       = useRef({});
   const containerRef = useRef(null);
+  const programmaticMoveRef = useRef(false);
   const [zoomLevel, setZoomLevel] = useState(16);
 
   // ── Parse dynamic overlay children ──────────────────────────────────────
@@ -174,7 +175,14 @@ const MapView = React.forwardRef(function MapView(
     });
     leafletMap.current = map;
     setZoomLevel(map.getZoom());
-    map.on("zoomend", () => setZoomLevel(map.getZoom()));
+    map.on("zoomend moveend", () => {
+      setZoomLevel(map.getZoom());
+      programmaticMoveRef.current = false;
+    });
+    map.on("dragstart zoomstart", () => {
+      if (programmaticMoveRef.current) return;
+      onPanDrag?.();
+    });
 
     // No tile layer at all — plain background set via CSS on .leaflet-container.
     // Using a data-URI tile causes grey "loading" boxes on mobile; skipping it
@@ -195,12 +203,15 @@ const MapView = React.forwardRef(function MapView(
     if (!ref) return;
     const api = {
       animateToRegion(reg) {
-        leafletMap.current?.setView([reg.latitude, reg.longitude], 16, { animate: true });
+        if (!leafletMap.current) return;
+        programmaticMoveRef.current = true;
+        leafletMap.current.setView([reg.latitude, reg.longitude], 16, { animate: true });
       },
       fitToCoordinates(coords) {
         if (!coords?.length || !leafletMap.current) return;
         let L;
         try { L = require("leaflet"); } catch { return; }
+        programmaticMoveRef.current = true;
         leafletMap.current.fitBounds(
           L.latLngBounds(coords.map(c => [c.latitude, c.longitude])),
           { padding: [40, 40] }
@@ -379,15 +390,32 @@ const MapView = React.forwardRef(function MapView(
       const title = m.props?.title ?? "";
       const pinColor = m.props?.pinColor;
       const color = pinColors[pinColor] ?? "#1E7A46";
+      const isActive = m.props?.active === true;
+      const markerOpacity = m.props?.opacity ?? 1;
       const icon = pinColor === "keke"
-        ? makeDivIcon(L, cat("pickup"), 32)
+        ? L.divIcon({
+            html: `<div style="
+              width:${isActive ? 44 : 32}px;height:${isActive ? 44 : 32}px;
+              background:#F5A623;border-radius:50%;
+              display:flex;align-items:center;justify-content:center;
+              font-size:${isActive ? 23 : 17}px;
+              border:3px solid #FFFFFF;box-sizing:border-box;
+              box-shadow:0 0 0 ${isActive ? 8 : 0}px rgba(245,166,35,0.22),0 0 ${isActive ? 22 : 8}px rgba(245,166,35,0.75);
+              opacity:${markerOpacity};
+            ">${cat("pickup").emoji}</div>`,
+            className: "",
+            iconSize: [isActive ? 44 : 32, isActive ? 44 : 32],
+            iconAnchor: [isActive ? 22 : 16, isActive ? 22 : 16],
+            popupAnchor: [0, -(isActive ? 26 : 20)],
+          })
         : L.divIcon({
         html: `<div style="
           width:30px;height:30px;background:${color};color:#fff;
           border-radius:50% 50% 50% 6px;transform:rotate(-45deg);
           display:flex;align-items:center;justify-content:center;
-          box-shadow:0 2px 8px rgba(15,17,23,0.28);
+          box-shadow:${isActive ? "0 0 0 7px rgba(239,68,68,0.18),0 0 18px rgba(239,68,68,0.58)" : "0 2px 8px rgba(15,17,23,0.28)"};
           border:2px solid #FFFFFF;box-sizing:border-box;
+          opacity:${markerOpacity};
         "><span style="transform:rotate(45deg);font-size:12px;font-weight:800;line-height:1">${pinColor === "green" ? "D" : ""}</span></div>`,
         className:  "",
         iconSize:   [30, 30],
