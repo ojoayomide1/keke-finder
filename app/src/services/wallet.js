@@ -146,16 +146,12 @@ export function listenToWallet(uid, onBalance, onTransactions, onTopUp) {
     query(
       collection(db, "walletTransactions"),
       where("userId", "==", uid),
+      orderBy("createdAt", "desc"),
       limit(50)
     ),
     (snap) => {
       const txs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      // Sort in memory to avoid composite index requirement
-      txs.sort((a, b) => {
-        const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-        return bTime - aTime;
-      });
+      // Already sorted desc by Firestore — no in-memory sort needed
       onTransactions(txs);
     },
     (err) => {

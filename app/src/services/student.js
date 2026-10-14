@@ -536,11 +536,11 @@ export function listenToQueue(queueDocId, callback) {
  * @returns {() => void} unsubscribe
  */
 export function listenToRideHistory(studentId, callback) {
-  // limit(50) keeps the listener cheap as history grows.
-  // No orderBy here to avoid a composite index requirement — we sort in memory.
+  // orderBy server-side (composite index: studentId ASC + requestedAt DESC).
   const q = query(
     collection(db, "rideRequests"),
     where("studentId", "==", studentId),
+    orderBy("requestedAt", "desc"),
     limit(50)
   );
 
@@ -553,12 +553,6 @@ export function listenToRideHistory(studentId, callback) {
         if (!data.deletedByStudent) {
           rides.push({ id: d.id, ...data });
         }
-      });
-      // Sort in memory to avoid composite index requirement
-      rides.sort((a, b) => {
-        const aTime = a.requestedAt?.toMillis ? a.requestedAt.toMillis() : 0;
-        const bTime = b.requestedAt?.toMillis ? b.requestedAt.toMillis() : 0;
-        return bTime - aTime; // desc
       });
       callback(rides);
     },
