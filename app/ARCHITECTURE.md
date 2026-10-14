@@ -303,11 +303,8 @@ App detects balance change via onSnapshot listener on users/{uid}
 
 Fare split on ride payment (runs client-side in a Firestore transaction):
 - Total fare: ₦150 (15,000 kobo)
-- Rider share: 13/15 = ₦130
-- Admin share: 2/15 = ₦20
-
-*(Note: the README states ₦100/₦50 split — verify which is live in `student.js`
-`TOTAL_FARE_KOBO` and `RIDER_SHARE_RATIO` constants before launch)*
+- Rider share: ₦100 (10,000 kobo)
+- Admin share: ₦50 (5,000 kobo)
 
 ---
 

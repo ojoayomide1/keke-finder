@@ -51,9 +51,10 @@ import {
 const MAX_DETOUR_ACTIVE = 300; // metres — max detour to join an active ride
 const MAX_DETOUR_IDLE   = 800; // metres — max distance to wake up a waiting rider
 
-// Fare split: rider gets 13/15 of the fare, admin gets 2/15
-const RIDER_SHARE_RATIO = 13 / 15;
-const TOTAL_FARE_KOBO = 15000; // Must match rider.js passenger fare while rides use fixed fare
+// Fare split: ₦150 total → ₦100 rider, ₦50 admin
+const RIDER_SHARE_KOBO = 10000; // ₦100.00 — must match rider.js
+const ADMIN_SHARE_KOBO = 5000;  // ₦50.00
+const TOTAL_FARE_KOBO  = 15000; // ₦150.00
 
 // ─── MATCHING ────────────────────────────────────────────────────────────────
 
@@ -355,8 +356,8 @@ export async function payForRide({ rideId, studentId }) {
 
     if (balance < fare) throw new Error("INSUFFICIENT_BALANCE");
 
-    const riderShare = Math.floor(fare * RIDER_SHARE_RATIO);
-    const adminShare = fare - riderShare;
+    const riderShare = RIDER_SHARE_KOBO;
+    const adminShare = ADMIN_SHARE_KOBO;
 
     // Deduct from student
     transaction.update(studentRef, {
