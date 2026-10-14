@@ -536,10 +536,12 @@ export function listenToQueue(queueDocId, callback) {
  * @returns {() => void} unsubscribe
  */
 export function listenToRideHistory(studentId, callback) {
-  // Simple query - only filter by studentId, no orderBy to avoid composite index
+  // limit(50) keeps the listener cheap as history grows.
+  // No orderBy here to avoid a composite index requirement — we sort in memory.
   const q = query(
     collection(db, "rideRequests"),
-    where("studentId", "==", studentId)
+    where("studentId", "==", studentId),
+    limit(50)
   );
 
   return onSnapshot(

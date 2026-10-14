@@ -1,6 +1,10 @@
+import { Platform } from "react-native";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   collection,
   addDoc,
   onSnapshot,
@@ -40,12 +44,29 @@ const firebaseConfig = {
   appId: "1:836112236677:web:bd2a64d87f093a3230e9ec"
 };
 
-import { Platform } from "react-native";
-
 // Prevent re-initializing on hot reload
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-export const db = getFirestore(app);
+// Initialize Firestore with offline persistence.
+// On web: use IndexedDB-backed persistent cache (multi-tab safe).
+// On native: Firestore's React Native SDK handles persistence automatically,
+//            so we fall back to getFirestore() to avoid double-init errors.
+let db;
+if (Platform.OS === "web") {
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch {
+    // initializeFirestore throws if called after getFirestore() on hot reload
+    db = getFirestore(app);
+  }
+} else {
+  db = getFirestore(app);
+}
+export { db };
 
 // Platform-aware Auth Persistence (browserLocalPersistence on Web, AsyncStorage on Native)
 let auth;

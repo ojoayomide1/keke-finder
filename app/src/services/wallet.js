@@ -287,10 +287,18 @@ export async function fetchProfileStats(uid) {
   try {
     const [requestSnap, txSnap] = await Promise.all([
       getDocs(
-        query(collection(db, "rideRequests"), where("studentId", "==", uid))
+        query(
+          collection(db, "rideRequests"),
+          where("studentId", "==", uid),
+          limit(200)
+        )
       ),
       getDocs(
-        query(collection(db, "walletTransactions"), where("userId", "==", uid))
+        query(
+          collection(db, "walletTransactions"),
+          where("userId", "==", uid),
+          limit(200)
+        )
       ),
     ]);
 
