@@ -1,4 +1,4 @@
-// js/nav.js — injects sidebar nav into every admin page
+// js/nav.js — sidebar nav + page loader for every admin page
 import { adminSignOut } from "./auth.js";
 
 const NAV_ITEMS = [
@@ -10,6 +10,34 @@ const NAV_ITEMS = [
   { href: "indoor-editor.html",icon: "🏢", label: "Indoor Editor"  },
   { href: "announcements.html",icon: "📢", label: "Announcements"  },
 ];
+
+/**
+ * Inject a full-screen loader. Returns { hide() } to dismiss it.
+ * Call at the top of each page's script, hide after requireAdmin() resolves.
+ */
+export function injectPageLoader() {
+  const el = document.createElement("div");
+  el.id = "page-loader";
+  el.style.cssText = "position:fixed;inset:0;background:#050508;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity 0.35s ease,visibility 0.35s ease;";
+  el.innerHTML = `
+    <style>
+      #page-loader .pl-ring{width:52px;height:52px;border-radius:50%;border:3px solid transparent;border-top-color:#c0392b;border-right-color:rgba(192,57,43,0.3);animation:pl-spin 0.9s linear infinite;filter:drop-shadow(0 0 10px rgba(192,57,43,0.65));}
+      @keyframes pl-spin{to{transform:rotate(360deg);}}
+      #page-loader .pl-text{font:700 11px/1 "Segoe UI",system-ui,sans-serif;letter-spacing:.3em;text-transform:uppercase;color:#e74c3c;animation:pl-pulse 1.6s ease-in-out infinite;}
+      @keyframes pl-pulse{0%,100%{opacity:.45;}50%{opacity:1;}}
+    </style>
+    <div class="pl-ring"></div>
+    <div class="pl-text">Loading…</div>
+  `;
+  document.body.prepend(el);
+  return {
+    hide() {
+      el.style.opacity = "0";
+      el.style.visibility = "hidden";
+      setTimeout(() => el.remove(), 380);
+    }
+  };
+}
 
 export function renderNav(adminName = "") {
   const current = window.location.pathname.split("/").pop() || "dashboard.html";
@@ -41,10 +69,9 @@ export function renderNav(adminName = "") {
   topbar.className = "mobile-topbar";
   topbar.innerHTML = `
     <button class="menu-btn" id="menu-btn" aria-label="Open menu">☰</button>
-    <span class="mobile-brand"><span>Nav</span><span style="color:#1E7A46">Camp</span> <small>Admin</small></span>
+    <span class="mobile-brand"><span>Nav</span><span style="color:#c0392b">Camp</span> <small>Admin</small></span>
   `;
 
-  // Overlay
   const overlay = document.createElement("div");
   overlay.className = "sidebar-overlay";
   overlay.id = "sidebar-overlay";
@@ -53,7 +80,6 @@ export function renderNav(adminName = "") {
   document.body.prepend(nav);
   document.body.prepend(topbar);
 
-  // Events
   document.getElementById("signout-btn").addEventListener("click", adminSignOut);
 
   document.getElementById("menu-btn").addEventListener("click", () => {
@@ -68,7 +94,5 @@ export function renderNav(adminName = "") {
 
   document.getElementById("sidebar-close").addEventListener("click", closeSidebar);
   document.getElementById("sidebar-overlay").addEventListener("click", closeSidebar);
-
-  // Close sidebar on nav link tap (mobile)
   nav.querySelectorAll("a").forEach(a => a.addEventListener("click", closeSidebar));
 }

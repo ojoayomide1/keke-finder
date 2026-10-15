@@ -1,148 +1,137 @@
 /**
  * indoor-data.js
  *
- * Loads indoor_places.json and normalizes it into a flat array of place records.
- * The UI and search function never touch the raw JSON structure.
+ * Loads indoor places from Firestore (indoorPlaces/main) at runtime.
+ * Falls back to the bundled indoor_places.json if Firestore is unavailable
+ * (offline mode, first load before cache warms up, etc.)
  *
- * Each place record shape:
+ * The admin panel and local indoor editor both write to Firestore.
+ * This file reads from Firestore so the app always reflects the latest data.
+ *
+ * Each normalized place record:
  * {
- *   id:           string,
- *   name:         string,
- *   type:         string,   // office | lecture_hall | lab | restroom | ...
- *   buildingId:   string,
- *   buildingName: string,
- *   floor:        number,
- *   floorLabel:   string,   // "Ground Floor", "First Floor", etc.
- *   room:         string,   // room name as entered in JSON
- *   occupant:     string | null,
- *   title:        string | null,
- *   department:   string | null,
- *   courses:      string[],  // split from "LAW 101, LAW 201"
- *   keywords:     string[],  // split from tags field
- *   hint:         string | null,  // from description field
- *   access:       string | null,
- *   status:       string | null,
- *   capacity:     number | null,
- *   gender:       string | null,
+ *   id, name, type, buildingId, buildingName,
+ *   floor, floorLabel, room,
+ *   occupant, title, department,
+ *   courses    string[]   from course CSV field
+ *   keywords   string[]   from tags CSV field
+ *   hint       string|null  from description field
+ *   steps      string[]   custom navigation steps (if set in editor)
+ *   entrance   string|null  outdoor entrance name for routing
+ *   floorPlan  string|null  image URL if available
+ *   access, status, capacity, gender
  * }
- *
- * JSON gaps (as of current indoor_places.json):
- * - No dedicated `keywords` field → using `tags` (comma-separated string)
- * - No dedicated `hint` field     → using `description`
- * - No `floorPlan` / image field  → Floor plan button hidden for all current entries
- * - `course` is a flat string     → split on comma at normalize time
- * - Only Faculty of Law has data  → all other buildings return empty
  */
 
-import RAW_INDOOR from "../../map-data/source/indoor_places.json";
+import { db, doc, getDoc } from "../config/firebase";
+import FALLBACK_JSON from "../../map-data/source/indoor_places.json";
 
-/** @type {import('./indoor-data').PlaceRecord[] | null} */
-let _cache = null;
+let _cache = null;     // normalized flat records
+let _rawCache = null;  // raw buildings object
 
-/**
- * Split a nullable comma-separated string into a trimmed string array.
- * @param {string | null | undefined} str
- * @returns {string[]}
- */
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
 function splitCsv(str) {
   if (!str) return [];
   return str.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-/**
- * Normalize the raw indoor JSON into a flat array of place records.
- * Call once at startup; result is cached.
- *
- * @returns {PlaceRecord[]}
- */
-export function loadIndoorPlaces() {
-  if (_cache) return _cache;
-
+function normalizeBuildings(buildings) {
   const records = [];
-
-  for (const [buildingId, building] of Object.entries(RAW_INDOOR)) {
+  for (const [buildingId, building] of Object.entries(buildings || {})) {
     const buildingName = building.name ?? buildingId;
-
     for (const floorObj of building.floors ?? []) {
       const floor      = floorObj.floor ?? 0;
-      const floorLabel = floorObj.label ?? `Floor ${floor}`;
-
+      const floorLabel = floorObj.label ?? (floor === 0 ? "Ground Floor" : `Floor ${floor}`);
       for (const room of floorObj.rooms ?? []) {
         records.push({
-          id:           room.id ?? `${buildingId}_f${floor}_${Math.random()}`,
-          name:         room.name ?? "Unnamed Room",
-          type:         room.room_type ?? "room",
+          id:          room.id   ?? `${buildingId}_f${floor}_${room.name}`,
+          name:        room.name ?? "Unnamed Room",
+          type:        room.room_type ?? "room",
           buildingId,
           buildingName,
           floor,
           floorLabel,
-          room:         room.name ?? "",
-          occupant:     room.occupant   ?? null,
-          title:        room.title      ?? null,
-          department:   room.department ?? null,
-          courses:      splitCsv(room.course),
-          keywords:     splitCsv(room.tags),
-          hint:         room.description ?? null,
-          access:       room.access  ?? null,
-          status:       room.status  ?? null,
-          capacity:     room.capacity ?? null,
-          gender:       room.gender  ?? null,
+          room:        room.name ?? "",
+          occupant:    room.occupant    ?? null,
+          title:       room.title       ?? null,
+          department:  room.department  ?? null,
+          courses:     splitCsv(room.course),
+          keywords:    splitCsv(room.tags),
+          hint:        room.hint || room.description || null,
+          steps:       Array.isArray(room.steps) ? room.steps : [],
+          entrance:    room.entrance    ?? null,
+          floorPlan:   room.floorPlan   ?? null,
+          access:      room.access      ?? null,
+          status:      room.status      ?? null,
+          capacity:    room.capacity    ?? null,
+          gender:      room.gender      ?? null,
         });
       }
     }
   }
-
-  _cache = records;
   return records;
 }
 
+// ─── PUBLIC API ───────────────────────────────────────────────────────────────
+
 /**
- * Bust the cache — call this after the indoor editor saves new data
- * so the next loadIndoorPlaces() call re-reads the file.
- * (Only relevant in development / hot-reload scenarios.)
+ * Fetch indoor data from Firestore and cache it.
+ * Call once when IndoorScreen mounts.
+ * Returns normalized place records array.
  */
-export function bustIndoorCache() {
-  _cache = null;
+export async function fetchIndoorPlaces() {
+  try {
+    const snap = await getDoc(doc(db, "indoorPlaces", "main"));
+    if (snap.exists()) {
+      const data = snap.data();
+      _rawCache = data.buildings ?? data ?? {};
+      // Strip metadata keys
+      delete _rawCache.updatedAt;
+      delete _rawCache.updatedBy;
+    } else {
+      // No Firestore data yet — use bundled fallback
+      _rawCache = FALLBACK_JSON;
+    }
+  } catch (err) {
+    console.warn("[indoor-data] Firestore unavailable, using bundled JSON:", err.message);
+    _rawCache = FALLBACK_JSON;
+  }
+  _cache = normalizeBuildings(_rawCache);
+  return _cache;
 }
 
 /**
- * Get all unique building entries from the raw JSON.
- * Used for the Browse view.
- *
- * @returns {{ id: string, name: string, floorCount: number }[]}
+ * Return cached records. Call fetchIndoorPlaces() first.
  */
+export function loadIndoorPlaces() {
+  return _cache ?? normalizeBuildings(FALLBACK_JSON);
+}
+
+/** Bust cache — call after admin saves to force a re-fetch */
+export function bustIndoorCache() {
+  _cache    = null;
+  _rawCache = null;
+}
+
 export function getIndoorBuildings() {
-  return Object.entries(RAW_INDOOR).map(([id, b]) => ({
+  const raw = _rawCache ?? FALLBACK_JSON;
+  return Object.entries(raw).map(([id, b]) => ({
     id,
     name:       b.name ?? id,
     floorCount: (b.floors ?? []).length,
   }));
 }
 
-/**
- * Get all floors for a given building.
- *
- * @param {string} buildingId
- * @returns {{ floor: number, label: string, roomCount: number }[]}
- */
 export function getIndoorFloors(buildingId) {
-  const building = RAW_INDOOR[buildingId];
-  if (!building) return [];
-  return (building.floors ?? []).map((f) => ({
+  const raw = _rawCache ?? FALLBACK_JSON;
+  return (raw[buildingId]?.floors ?? []).map((f) => ({
     floor:     f.floor ?? 0,
-    label:     f.label ?? `Floor ${f.floor}`,
+    label:     f.label ?? (f.floor === 0 ? "Ground Floor" : `Floor ${f.floor}`),
     roomCount: (f.rooms ?? []).length,
   }));
 }
 
-/**
- * Get all rooms on a specific floor of a building.
- * Returns full normalized place records.
- *
- * @param {string} buildingId
- * @param {number} floor
- * @returns {PlaceRecord[]}
- */
 export function getIndoorRooms(buildingId, floor) {
   return loadIndoorPlaces().filter(
     (p) => p.buildingId === buildingId && p.floor === floor

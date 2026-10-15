@@ -63,15 +63,17 @@
 
 <script type="module">
   import { requireAdmin } from "./js/auth.js";
-  import { renderNav }    from "./js/nav.js";
+  import { renderNav, injectPageLoader } from "./js/nav.js";
   import { db }           from "./js/firebase.js";
   import {
     collection, query, where, orderBy, limit, startAfter,
     onSnapshot, getDocs, doc, updateDoc,
   } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
-  const admin = await requireAdmin();
-  renderNav(admin.name);
+  const _loader = injectPageLoader();
+  const _loader = injectPageLoader(); const admin = await requireAdmin();
+  renderNav(admin.name); _loader.hide();
+  _loader.hide();
 
   function showToast(msg, isErr) {
     const t = document.getElementById("toast");

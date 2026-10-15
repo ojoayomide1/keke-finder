@@ -62,14 +62,16 @@
 
 <script type="module">
   import { requireAdmin } from "./js/auth.js";
-  import { renderNav }    from "./js/nav.js";
+  import { renderNav, injectPageLoader } from "./js/nav.js";
   import { db }           from "./js/firebase.js";
   import {
     collection, getDocs, doc, updateDoc, query, orderBy,
   } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
-  const admin = await requireAdmin();
-  renderNav(admin.name);
+  const _loader = injectPageLoader();
+  const _loader = injectPageLoader(); const admin = await requireAdmin();
+  renderNav(admin.name); _loader.hide();
+  _loader.hide();
 
   function fmt(kobo) { return "₦" + (Number(kobo||0)/100).toLocaleString("en-NG"); }
   function showToast(msg, isErr) {

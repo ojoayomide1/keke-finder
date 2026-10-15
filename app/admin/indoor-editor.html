@@ -51,14 +51,16 @@
 
 <script type="module">
   import { requireAdmin } from "./js/auth.js";
-  import { renderNav }    from "./js/nav.js";
+  import { renderNav, injectPageLoader } from "./js/nav.js";
   import { db }           from "./js/firebase.js";
   import {
     doc, getDoc, setDoc, serverTimestamp,
   } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
-  const admin = await requireAdmin();
-  renderNav(admin.name);
+  const _loader = injectPageLoader();
+  const _loader = injectPageLoader(); const admin = await requireAdmin();
+  renderNav(admin.name); _loader.hide();
+  _loader.hide();
 
   // ── Data lives in Firestore at indoorPlaces/main ──────────────────────
   // The local tools/indoor-editor reads/writes map-data/source/indoor_places.json
@@ -199,18 +201,27 @@
     document.getElementById("delete-room-btn").style.display = room ? "inline-flex" : "none";
 
     document.getElementById("room-form").innerHTML = `
-      ${field("name",        "Room name",    room?.name        ?? "",  "text")}
-      ${selectField("room_type","Room type", ROOM_TYPES, room?.room_type ?? "office")}
-      ${field("occupant",    "Occupant",     room?.occupant    ?? "",  "text")}
-      ${field("title",       "Title",        room?.title       ?? "",  "text")}
-      ${field("department",  "Department",   room?.department  ?? "",  "text")}
-      ${field("course",      "Courses (CSV)", room?.course      ?? "",  "text", "e.g. LAW 101, LAW 201")}
-      ${field("capacity",    "Capacity",     room?.capacity    ?? "",  "number")}
-      ${selectField("access","Access",       ["public","student","staff"], room?.access ?? "student")}
-      ${selectField("status","Status",       ["open","closed","restricted"], room?.status ?? "open")}
-      ${selectField("gender","Gender",       ["","male","female"], room?.gender ?? "")}
-      ${field("tags",        "Tags (CSV)",   room?.tags        ?? "",  "text", "e.g. dean,admin,office")}
-      ${field("description", "Hint / Description", room?.description ?? "", "text")}
+      ${field("name",        "Room name",         room?.name        ?? "", "text")}
+      ${selectField("room_type","Room type",       ROOM_TYPES, room?.room_type ?? "office")}
+      ${field("occupant",    "Occupant name",      room?.occupant    ?? "", "text", "e.g. Dr. A. Musa")}
+      ${field("title",       "Occupant title",     room?.title       ?? "", "text", "e.g. Dean, Faculty of Law")}
+      ${field("department",  "Department",         room?.department  ?? "", "text")}
+      ${field("course",      "Courses (CSV)",      room?.course      ?? "", "text", "e.g. LAW 101, LAW 201")}
+      ${field("capacity",    "Capacity",           room?.capacity    ?? "", "number")}
+      ${selectField("access","Access",             ["public","student","staff"], room?.access ?? "student")}
+      ${selectField("status","Status",             ["open","closed","restricted"], room?.status ?? "open")}
+      ${selectField("gender","Gender restriction", ["","male","female"], room?.gender ?? "")}
+      ${field("tags",        "Tags / Keywords (CSV)", room?.tags     ?? "", "text", "e.g. dean,admin,dsa,bursary")}
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Hint (shown in step 3 of directions)</label>
+        <input type="text" id="rf-hint" value="${(room?.hint||"").replace(/"/g,'&quot;')}" placeholder="e.g. Third door on the left after the stairwell" />
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Custom Navigation Steps (one per line — leave empty for auto-generated)</label>
+        <textarea id="rf-steps" rows="4" placeholder="Walk to the main gate&#10;Turn right past the chapel&#10;Room 204 is on your left">${(room?.steps||[]).join("\n")}</textarea>
+      </div>
+      ${field("entrance",    "Building entrance name (for outdoor routing)", room?.entrance ?? "", "text", "e.g. Faculty of Law main entrance")}
+      ${field("floorPlan",   "Floor plan image URL (optional)",              room?.floorPlan ?? "", "text", "https://…")}
     `;
 
     document.getElementById("modal-overlay").style.display = "block";
@@ -252,7 +263,11 @@
       status:      val("status")      || "open",
       gender:      val("gender")      || null,
       tags:        val("tags")        || null,
-      description: val("description") || null,
+      hint:        val("hint")        || null,
+      steps:       document.getElementById("rf-steps")?.value.split("\n").map(s=>s.trim()).filter(Boolean) ?? [],
+      entrance:    val("entrance")    || null,
+      floorPlan:   val("floorPlan")   || null,
+      description: val("hint")        || null, // keep description in sync with hint for legacy compat
       photo: null, notes: null, phone: null,
     };
 

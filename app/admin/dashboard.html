@@ -72,15 +72,17 @@
 <div id="toast"></div>
 <script type="module">
   import { requireAdmin } from "./js/auth.js";
-  import { renderNav }    from "./js/nav.js";
+  import { renderNav, injectPageLoader } from "./js/nav.js";
   import { db }           from "./js/firebase.js";
   import {
     collection, query, where, orderBy, limit,
     onSnapshot, getDocs, doc,
   } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
-  const admin = await requireAdmin();
-  renderNav(admin.name);
+  const _loader = injectPageLoader();
+  const _loader = injectPageLoader(); const admin = await requireAdmin();
+  renderNav(admin.name); _loader.hide();
+  _loader.hide();
 
   function fmt(k) { return "₦" + (Number(k||0)/100).toLocaleString("en-NG",{minimumFractionDigits:0}); }
   function timeAgo(ts) {
