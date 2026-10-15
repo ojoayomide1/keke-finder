@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NavCamp Admin — Wallet</title>
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<div class="main">
+  <div class="page-header">
+    <h1 class="page-title">💳 Wallet</h1>
+    <p class="page-sub">Transaction log, admin balance, manual adjustments</p>
+  </div>
+
+  <!-- Admin wallet summary -->
+  <div class="stats-grid" style="margin-bottom:24px">
+    <div class="stat-card">
+      <div class="stat-label">Admin Balance</div>
+      <div class="stat-value" id="admin-balance">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Commission</div>
+      <div class="stat-value" id="admin-total">—</div>
+    </div>
+  </div>
+
+  <!-- Manual credit/debit -->
+  <div class="card">
+    <div class="card-title">Manual Wallet Adjustment</div>
+    <p style="color:var(--sub);font-size:13px;margin-bottom:14px">Credit or debit a student's wallet. Creates an audit transaction record. Use carefully.</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Student UID</label>
+        <input type="text" id="adj-uid" placeholder="Firebase UID" />
+      </div>
+      <div class="form-group" style="max-width:120px">
+        <label>Type</label>
+        <select id="adj-type">
+          <option value="topup">Credit (topup)</option>
+          <option value="deduction">Debit</option>
+          <option value="refund">Refund</option>
+        </select>
+      </div>
+      <div class="form-group" style="max-width:130px">
+        <label>Amount (₦)</label>
+        <input type="number" id="adj-amount" placeholder="500" min="1" />
+      </div>
+      <div class="form-group">
+        <label>Reason</label>
+        <input type="text" id="adj-reason" placeholder="e.g. Refund for failed ride" />
+      </div>
+      <div>
+        <label style="visibility:hidden">Go</label>
+        <button class="btn btn-green" id="adj-btn">Apply</button>
+      </div>
+    </div>
+    <div id="adj-preview" style="display:none;background:var(--bg);border-radius:8px;padding:12px;font-size:13px;margin-top:4px"></div>
+  </div>
+
+  <!-- Transaction log -->
+  <div class="card">
+    <div class="card-title">Transaction Log</div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div class="form-group" style="max-width:160px">
+        <select id="tx-type-filter">
+          <option value="all">All types</option>
+          <option value="topup">Top-up</option>
+          <option value="deduction">Deduction</option>
+          <option value="earning">Earning</option>
+          <option value="commission">Commission</option>
+          <option value="refund">Refund</option>
+        </select>
+      </div>
+      <div class="form-group" style="max-width:220px">
+        <input type="search" id="tx-user-search" placeholder="Filter by UID…" />
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>User</th><th>Type</th><th>Amount</th><th>Balance After</th><th>Description</th><th>Time</th></tr>
+        </thead>
+        <tbody id="tx-tbody"><tr><td colspan="6" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="tx-load-more" style="margin-top:12px">Load more</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+  import { requireAdmin } from "./js/auth.js";
+  import { renderNav }    from "./js/nav.js";
+  import { db }           from "./js/firebase.js";
+  import {
+    collection, query, where, orderBy, limit, startAfter,
+    onSnapshot, getDocs, getDoc, doc, runTransaction,
+    addDoc, serverTimestamp, updateDoc,
+  } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+  const admin = await requireAdmin();
+  renderNav(admin.name);
+
+  function fmt(kobo) { return "₦" + (Number(kobo||0)/100).toLocaleString("en-NG"); }
+  function timeAgo(ts) {
+    if (!ts) return "—";
+    const d = ts.toDate ? ts.toDate() : new Date(ts.seconds*1000);
+    const diff = Date.now() - d.getTime();
+    if (diff < 60000) return "Just now";
+    if (diff < 3600000) return Math.floor(diff/60000) + "m ago";
+    return d.toLocaleDateString();
+  }
+  function showToast(msg, isErr) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.className = isErr ? "error show" : "show";
+    setTimeout(() => t.className = "", 3000);
+  }
+
+  const TX_BADGE = { topup:"badge-green", deduction:"badge-red", earning:"badge-blue", commission:"badge-orange", refund:"badge-green" };
+
+  // ── Admin wallet ────────────────────────────────────────────────────────
+  onSnapshot(doc(db, "adminWallet", "main"), (snap) => {
+    if (!snap.exists()) return;
+    document.getElementById("admin-balance").textContent = fmt(snap.data().balance     || 0);
+    document.getElementById("admin-total").textContent   = fmt(snap.data().totalEarned || 0);
+  });
+
+  // ── Manual adjustment ───────────────────────────────────────────────────
+  document.getElementById("adj-btn").addEventListener("click", async () => {
+    const uid    = document.getElementById("adj-uid").value.trim();
+    const type   = document.getElementById("adj-type").value;
+    const amount = Math.round(Number(document.getElementById("adj-amount").value) * 100); // to kobo
+    const reason = document.getElementById("adj-reason").value.trim();
+
+    if (!uid || !amount || amount <= 0) { showToast("Fill in UID and amount.", true); return; }
+    if (!reason) { showToast("Enter a reason.", true); return; }
+    if (!confirm(`Apply ${type} of ${fmt(amount)} to user ${uid}?\n\nReason: ${reason}`)) return;
+
+    try {
+      const userRef = doc(db, "users", uid);
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(userRef);
+        if (!snap.exists()) throw new Error("User not found");
+        const bal = snap.data().wallet?.balance ?? 0;
+        const newBal = type === "deduction" ? Math.max(0, bal - amount) : bal + amount;
+        tx.update(userRef, { "wallet.balance": newBal });
+        const txRef = doc(collection(db, "walletTransactions"));
+        tx.set(txRef, {
+          userId: uid, type, amount,
+          balanceBefore: bal, balanceAfter: newBal,
+          description: reason,
+          reference: null, rideId: null,
+          status: "success",
+          createdAt: serverTimestamp(),
+          adminAction: true,
+          adminUid: admin.uid,
+        });
+      });
+      showToast("Adjustment applied.");
+      document.getElementById("adj-uid").value    = "";
+      document.getElementById("adj-amount").value = "";
+      document.getElementById("adj-reason").value = "";
+    } catch(e) { showToast("Failed: " + e.message, true); }
+  });
+
+  // ── Transaction log ─────────────────────────────────────────────────────
+  let lastTxDoc = null;
+  let allTx = [];
+
+  async function loadTx(append = false) {
+    const typeVal = document.getElementById("tx-type-filter").value;
+    let q = query(collection(db, "walletTransactions"), orderBy("createdAt","desc"), limit(30));
+    if (typeVal !== "all") q = query(collection(db,"walletTransactions"), where("type","==",typeVal), orderBy("createdAt","desc"), limit(30));
+    if (append && lastTxDoc) q = query(q, startAfter(lastTxDoc));
+    const snap = await getDocs(q);
+    lastTxDoc = snap.docs[snap.docs.length-1] || null;
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!append) allTx = rows; else allTx = [...allTx, ...rows];
+    renderTx();
+  }
+
+  function renderTx() {
+    const q = document.getElementById("tx-user-search").value.toLowerCase();
+    const rows = q ? allTx.filter(t => t.userId?.toLowerCase().includes(q)) : allTx;
+    const tbody = document.getElementById("tx-tbody");
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No transactions.</td></tr>'; return; }
+    tbody.innerHTML = rows.map(t => `<tr>
+      <td style="font-size:11px">${t.userId?.slice(0,10)||"—"}…</td>
+      <td><span class="badge ${TX_BADGE[t.type]||'badge-grey'}">${t.type}</span></td>
+      <td>${fmt(t.amount)}</td>
+      <td>${fmt(t.balanceAfter)}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description||"—"}</td>
+      <td>${timeAgo(t.createdAt)}</td>
+    </tr>`).join("");
+  }
+
+  document.getElementById("tx-type-filter").addEventListener("change", () => { lastTxDoc = null; loadTx(); });
+  document.getElementById("tx-user-search").addEventListener("input", renderTx);
+  document.getElementById("tx-load-more").addEventListener("click", () => loadTx(true));
+
+  loadTx();
+</script>
+</body>
+</html>

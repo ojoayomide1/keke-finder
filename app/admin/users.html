@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NavCamp Admin — Users</title>
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<div class="main">
+  <div class="page-header">
+    <h1 class="page-title">👥 Users</h1>
+    <p class="page-sub">All registered students and riders</p>
+  </div>
+
+  <div class="form-row" style="margin-bottom:18px">
+    <div class="form-group" style="max-width:280px">
+      <input type="search" id="search" placeholder="Search name, email, matric…" />
+    </div>
+    <div class="form-group" style="max-width:140px">
+      <select id="role-filter">
+        <option value="all">All roles</option>
+        <option value="student">Students</option>
+        <option value="rider">Riders</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Matric / Plate</th>
+            <th>Wallet</th>
+            <th>Joined</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody"><tr><td colspan="7" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- User detail modal -->
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200" onclick="closeModal()"></div>
+<div id="user-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;padding:28px;width:420px;max-width:95vw;z-index:201">
+  <h2 style="font-size:17px;font-weight:700;margin-bottom:16px" id="modal-title">User Details</h2>
+  <div id="modal-body"></div>
+  <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+    <button class="btn btn-red btn-sm" id="suspend-btn" style="display:none">Suspend</button>
+    <button class="btn btn-green btn-sm" id="unsuspend-btn" style="display:none">Unsuspend</button>
+    <button class="btn btn-ghost btn-sm" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+  import { requireAdmin } from "./js/auth.js";
+  import { renderNav }    from "./js/nav.js";
+  import { db }           from "./js/firebase.js";
+  import {
+    collection, getDocs, doc, updateDoc, query, orderBy,
+  } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+  const admin = await requireAdmin();
+  renderNav(admin.name);
+
+  function fmt(kobo) { return "₦" + (Number(kobo||0)/100).toLocaleString("en-NG"); }
+  function showToast(msg, isErr) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.className = isErr ? "error show" : "show";
+    setTimeout(() => t.className = "", 3000);
+  }
+
+  let allUsers = [];
+
+  async function loadUsers() {
+    const snap = await getDocs(collection(db, "users"));
+    allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTable(allUsers);
+  }
+
+  function renderTable(users) {
+    const tbody = document.getElementById("users-tbody");
+    if (!users.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No users found.</td></tr>'; return; }
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td><strong>${u.name || "—"}</strong></td>
+        <td>${u.email || "—"}</td>
+        <td><span class="badge ${u.role==="student"?"badge-green":"badge-orange"}">${u.role||"?"}</span></td>
+        <td>${u.matricNo || u.plateNo || "—"}</td>
+        <td>${u.role==="student" ? fmt(u.wallet?.balance) : fmt(u.earnings?.balance)}</td>
+        <td>${u.createdAt?.toDate ? u.createdAt.toDate().toLocaleDateString() : "—"}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="openUser('${u.id}')">View</button></td>
+      </tr>
+    `).join("");
+  }
+
+  // Filter
+  function applyFilter() {
+    const q    = document.getElementById("search").value.toLowerCase();
+    const role = document.getElementById("role-filter").value;
+    renderTable(allUsers.filter(u => {
+      const matchRole = role === "all" || u.role === role;
+      const matchQ    = !q || [u.name, u.email, u.matricNo, u.plateNo].some(v => v?.toLowerCase().includes(q));
+      return matchRole && matchQ;
+    }));
+  }
+  document.getElementById("search").addEventListener("input", applyFilter);
+  document.getElementById("role-filter").addEventListener("change", applyFilter);
+
+  // Modal
+  window.openUser = function(uid) {
+    const u = allUsers.find(x => x.id === uid);
+    if (!u) return;
+    document.getElementById("modal-title").textContent = u.name || "User";
+    document.getElementById("modal-body").innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+        <div><strong>UID:</strong> ${u.id}</div>
+        <div><strong>Email:</strong> ${u.email}</div>
+        <div><strong>Role:</strong> ${u.role}</div>
+        ${u.matricNo ? `<div><strong>Matric:</strong> ${u.matricNo}</div>` : ""}
+        ${u.plateNo  ? `<div><strong>Plate:</strong>  ${u.plateNo}</div>` : ""}
+        ${u.phone    ? `<div><strong>Phone:</strong>  ${u.phone}</div>` : ""}
+        ${u.level    ? `<div><strong>Level:</strong>  ${u.level}</div>` : ""}
+        ${u.role==="student" ? `<div><strong>Wallet:</strong> ${fmt(u.wallet?.balance)}</div>` : ""}
+        ${u.role==="rider"   ? `<div><strong>Earnings:</strong> ${fmt(u.earnings?.balance)}</div>` : ""}
+        <div><strong>Status:</strong> ${u.suspended ? '<span class="badge badge-red">Suspended</span>' : '<span class="badge badge-green">Active</span>'}</div>
+      </div>
+    `;
+    const suspendBtn   = document.getElementById("suspend-btn");
+    const unsuspendBtn = document.getElementById("unsuspend-btn");
+    suspendBtn.style.display   = u.suspended ? "none" : "inline-flex";
+    unsuspendBtn.style.display = u.suspended ? "inline-flex" : "none";
+    suspendBtn.onclick   = () => setUserSuspended(uid, true);
+    unsuspendBtn.onclick = () => setUserSuspended(uid, false);
+    document.getElementById("modal-overlay").style.display = "block";
+    document.getElementById("user-modal").style.display    = "block";
+  };
+
+  window.closeModal = function() {
+    document.getElementById("modal-overlay").style.display = "none";
+    document.getElementById("user-modal").style.display    = "none";
+  };
+
+  async function setUserSuspended(uid, suspended) {
+    try {
+      await updateDoc(doc(db, "users", uid), { suspended });
+      allUsers = allUsers.map(u => u.id === uid ? { ...u, suspended } : u);
+      showToast(suspended ? "User suspended." : "User unsuspended.");
+      closeModal();
+      applyFilter();
+    } catch(e) { showToast("Failed: " + e.message, true); }
+  }
+
+  loadUsers();
+</script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NavCamp Admin — Keke Control</title>
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<div class="main">
+  <div class="page-header">
+    <h1 class="page-title">🎛️ Keke Control</h1>
+    <p class="page-sub">Feature flags, fares, ride stops, road closures</p>
+  </div>
+
+  <!-- Feature flags -->
+  <div class="card">
+    <div class="card-title">Feature Flags</div>
+    <div style="display:flex;flex-direction:column;gap:18px">
+
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:700;font-size:14px">Keke Ride Requests</div>
+          <div style="color:var(--sub);font-size:12px;margin-top:2px">Allow students to request rides. Disable this for MVP launch.</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="flag-rides" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:700;font-size:14px">Wallet Top-Up</div>
+          <div style="color:var(--sub);font-size:12px;margin-top:2px">Allow students to top up their wallets via Paystack.</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="flag-topup" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:700;font-size:14px">Rider Registration</div>
+          <div style="color:var(--sub);font-size:12px;margin-top:2px">Allow new riders to sign up to the platform.</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="flag-rider-reg" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+    </div>
+    <button class="btn btn-green" id="save-flags" style="margin-top:20px">Save Flags</button>
+  </div>
+
+  <!-- Fare settings -->
+  <div class="card">
+    <div class="card-title">Fare Settings</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Total Fare (₦)</label>
+        <input type="number" id="fare-total" placeholder="150" min="0" />
+      </div>
+      <div class="form-group">
+        <label>Rider Share (₦)</label>
+        <input type="number" id="fare-rider" placeholder="100" min="0" />
+      </div>
+      <div class="form-group">
+        <label>Admin Commission (₦)</label>
+        <input type="number" id="fare-admin" placeholder="50" min="0" />
+      </div>
+    </div>
+    <p style="color:var(--sub);font-size:12px;margin-bottom:14px">⚠️ These are display values only. Update the constants in student.js and rider.js to change actual charges.</p>
+    <button class="btn btn-green btn-sm" id="save-fares">Save Fare Reference</button>
+  </div>
+
+  <!-- Road closures -->
+  <div class="card">
+    <div class="card-title">Road / Path Closures</div>
+    <p style="color:var(--sub);font-size:13px;margin-bottom:14px">Mark a campus road or path as temporarily closed. The app will avoid it in routing. Geometry is managed in QGIS — this only sets operational overrides.</p>
+    <div id="closures-list" style="margin-bottom:14px"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Road / Path name or ID</label>
+        <input type="text" id="closure-id" placeholder="e.g. main_road_north" />
+      </div>
+      <div class="form-group">
+        <label>Reason</label>
+        <input type="text" id="closure-reason" placeholder="e.g. Construction work" />
+      </div>
+      <div>
+        <label style="visibility:hidden">Add</label>
+        <button class="btn btn-red" id="add-closure" style="margin-top:0">Close road</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ride stops overview -->
+  <div class="card">
+    <div class="card-title">Ride Stops</div>
+    <p style="color:var(--sub);font-size:13px;margin-bottom:14px">Ride stops come from the bundled map data (QGIS export). To add or move a stop, update the QGIS project and re-export.</p>
+    <div id="stops-list" class="loading">Loading stops…</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+  import { requireAdmin } from "./js/auth.js";
+  import { renderNav }    from "./js/nav.js";
+  import { db }           from "./js/firebase.js";
+  import {
+    doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp,
+    collection, getDocs,
+  } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+  const admin = await requireAdmin();
+  renderNav(admin.name);
+
+  const CONFIG_DOC = doc(db, "appConfig", "main");
+
+  function showToast(msg, isErr) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.className = isErr ? "error show" : "show";
+    setTimeout(() => t.className = "", 3000);
+  }
+
+  // ── Load + listen to config ─────────────────────────────────────────────
+  onSnapshot(CONFIG_DOC, (snap) => {
+    const d = snap.exists() ? snap.data() : {};
+    document.getElementById("flag-rides").checked     = d.ridesEnabled     ?? false;
+    document.getElementById("flag-topup").checked     = d.topupEnabled     ?? true;
+    document.getElementById("flag-rider-reg").checked = d.riderRegEnabled  ?? true;
+    document.getElementById("fare-total").value = d.fareTotalNaira ?? 150;
+    document.getElementById("fare-rider").value = d.fareRiderNaira ?? 100;
+    document.getElementById("fare-admin").value = d.fareAdminNaira ?? 50;
+    renderClosures(d.roadClosures ?? []);
+  });
+
+  // ── Save flags ──────────────────────────────────────────────────────────
+  document.getElementById("save-flags").addEventListener("click", async () => {
+    try {
+      await setDoc(CONFIG_DOC, {
+        ridesEnabled:    document.getElementById("flag-rides").checked,
+        topupEnabled:    document.getElementById("flag-topup").checked,
+        riderRegEnabled: document.getElementById("flag-rider-reg").checked,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      showToast("Flags saved.");
+    } catch(e) { showToast("Failed: " + e.message, true); }
+  });
+
+  // ── Save fare reference ─────────────────────────────────────────────────
+  document.getElementById("save-fares").addEventListener("click", async () => {
+    try {
+      await setDoc(CONFIG_DOC, {
+        fareTotalNaira: Number(document.getElementById("fare-total").value),
+        fareRiderNaira: Number(document.getElementById("fare-rider").value),
+        fareAdminNaira: Number(document.getElementById("fare-admin").value),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      showToast("Fare reference saved.");
+    } catch(e) { showToast("Failed: " + e.message, true); }
+  });
+
+  // ── Road closures ───────────────────────────────────────────────────────
+  let closures = [];
+
+  function renderClosures(list) {
+    closures = list;
+    const el = document.getElementById("closures-list");
+    if (!list.length) { el.innerHTML = '<p style="color:var(--sub);font-size:13px">No active closures.</p>'; return; }
+    el.innerHTML = list.map((c, i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span class="badge badge-red">Closed</span>
+        <strong style="font-size:13px">${c.id}</strong>
+        <span style="color:var(--sub);font-size:12px;flex:1">${c.reason || ""}</span>
+        <button class="btn btn-ghost btn-sm" onclick="removeClosure(${i})">Reopen</button>
+      </div>
+    `).join("");
+  }
+
+  document.getElementById("add-closure").addEventListener("click", async () => {
+    const id     = document.getElementById("closure-id").value.trim();
+    const reason = document.getElementById("closure-reason").value.trim();
+    if (!id) { showToast("Enter a road ID.", true); return; }
+    const updated = [...closures.filter(c => c.id !== id), { id, reason, closedAt: new Date().toISOString() }];
+    try {
+      await setDoc(CONFIG_DOC, { roadClosures: updated, updatedAt: serverTimestamp() }, { merge: true });
+      document.getElementById("closure-id").value     = "";
+      document.getElementById("closure-reason").value = "";
+      showToast("Road closed.");
+    } catch(e) { showToast("Failed: " + e.message, true); }
+  });
+
+  window.removeClosure = async function(index) {
+    const updated = closures.filter((_, i) => i !== index);
+    try {
+      await setDoc(CONFIG_DOC, { roadClosures: updated, updatedAt: serverTimestamp() }, { merge: true });
+      showToast("Road reopened.");
+    } catch(e) { showToast("Failed: " + e.message, true); }
+  };
+
+  // ── Ride stops (from campusData) ────────────────────────────────────────
+  const campusSnap = await getDoc(doc(db, "campusData", "main")).catch(() => null);
+  const stopsEl = document.getElementById("stops-list");
+  const stops = campusSnap?.data()?.mapData?.rideStops ?? [];
+  if (!stops.length) {
+    stopsEl.innerHTML = '<p style="color:var(--sub);font-size:13px">No stops in Firestore — stops come from bundled map data.</p>';
+  } else {
+    stopsEl.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Name</th><th>Lat</th><th>Lng</th></tr></thead>
+      <tbody>${stops.map(s => `<tr><td>${s.id}</td><td>${s.name}</td><td>${s.lat??'—'}</td><td>${s.lng??'—'}</td></tr>`).join("")}</tbody>
+    </table></div>`;
+  }
+</script>
+</body>
+</html>

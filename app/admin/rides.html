@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NavCamp Admin — Rides</title>
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<div class="main">
+  <div class="page-header">
+    <h1 class="page-title">🛺 Rides</h1>
+    <p class="page-sub">Live active rides and full request history</p>
+  </div>
+
+  <!-- Live active rides -->
+  <div class="card">
+    <div class="card-title">Active Rides <span id="live-badge" class="badge badge-green" style="font-size:11px;margin-left:6px">live</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Rider</th><th>Status</th><th>Passengers</th><th>Seats</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="active-tbody"><tr><td colspan="5" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Request history -->
+  <div class="card">
+    <div class="card-title">Ride Request History</div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div class="form-group" style="max-width:160px">
+        <select id="status-filter">
+          <option value="all">All statuses</option>
+          <option value="searching">Searching</option>
+          <option value="matched">Matched</option>
+          <option value="queued">Queued</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="form-group" style="max-width:200px">
+        <input type="search" id="req-search" placeholder="Search student name…" />
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Student</th><th>Pickup</th><th>Drop-off</th><th>Payment</th><th>Status</th><th>Time</th></tr>
+        </thead>
+        <tbody id="history-tbody"><tr><td colspan="6" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+      <button class="btn btn-ghost btn-sm" id="load-more">Load more</button>
+      <span id="history-count" style="color:var(--sub);font-size:12px"></span>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+  import { requireAdmin } from "./js/auth.js";
+  import { renderNav }    from "./js/nav.js";
+  import { db }           from "./js/firebase.js";
+  import {
+    collection, query, where, orderBy, limit, startAfter,
+    onSnapshot, getDocs, doc, updateDoc,
+  } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+  const admin = await requireAdmin();
+  renderNav(admin.name);
+
+  function showToast(msg, isErr) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.className = isErr ? "error show" : "show";
+    setTimeout(() => t.className = "", 3000);
+  }
+  function timeAgo(ts) {
+    if (!ts) return "—";
+    const d = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
+    const diff = Date.now() - d.getTime();
+    if (diff < 60000) return "Just now";
+    if (diff < 3600000) return Math.floor(diff/60000) + "m ago";
+    if (diff < 86400000) return Math.floor(diff/3600000) + "h ago";
+    return d.toLocaleDateString();
+  }
+  function statusBadge(s) {
+    const map = { searching:"badge-blue", matched:"badge-orange", queued:"badge-orange", completed:"badge-green", cancelled:"badge-grey", onTrip:"badge-green", waiting:"badge-blue" };
+    return `<span class="badge ${map[s]||'badge-grey'}">${s}</span>`;
+  }
+
+  // ── Active rides (live) ─────────────────────────────────────────────────
+  onSnapshot(
+    query(collection(db, "rides"), where("status", "in", ["waiting","matched","onTrip"])),
+    (snap) => {
+      const tbody = document.getElementById("active-tbody");
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No active rides.</td></tr>'; return; }
+      tbody.innerHTML = snap.docs.map(d => {
+        const r = d.data();
+        const pax = Object.keys(r.passengers||{}).length;
+        return `<tr>
+          <td>${r.riderName || d.id.slice(0,8)}</td>
+          <td>${statusBadge(r.status)}</td>
+          <td>${pax}</td>
+          <td>${r.seats?.available ?? "—"} free</td>
+          <td><button class="btn btn-red btn-sm" onclick="forceCancel('${d.id}')">Cancel</button></td>
+        </tr>`;
+      }).join("");
+    }
+  );
+
+  window.forceCancel = async function(rideId) {
+    if (!confirm("Force-cancel this ride? All passengers will see it as cancelled.")) return;
+    try {
+      await updateDoc(doc(db, "rides", rideId), { status: "completed" });
+      showToast("Ride cancelled.");
+    } catch(e) { showToast("Failed: " + e.message, true); }
+  };
+
+  // ── Request history ─────────────────────────────────────────────────────
+  let lastDoc = null;
+  let allReqs = [];
+
+  async function loadHistory(append = false) {
+    const statusVal = document.getElementById("status-filter").value;
+    let q = query(collection(db, "rideRequests"), orderBy("requestedAt", "desc"), limit(25));
+    if (statusVal !== "all") q = query(collection(db, "rideRequests"), where("status","==",statusVal), orderBy("requestedAt","desc"), limit(25));
+    if (append && lastDoc) q = query(q, startAfter(lastDoc));
+    const snap = await getDocs(q);
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    lastDoc = snap.docs[snap.docs.length - 1] || null;
+    if (!append) allReqs = rows; else allReqs = [...allReqs, ...rows];
+    document.getElementById("history-count").textContent = `${allReqs.length} requests loaded`;
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const q = document.getElementById("req-search").value.toLowerCase();
+    const rows = q ? allReqs.filter(r => r.studentName?.toLowerCase().includes(q)) : allReqs;
+    const tbody = document.getElementById("history-tbody");
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No requests found.</td></tr>'; return; }
+    tbody.innerHTML = rows.map(r => `<tr>
+      <td>${r.studentName || "—"}</td>
+      <td>${r.pickup?.label || "—"}</td>
+      <td>${r.dropoff?.label || "—"}</td>
+      <td>${r.paymentMethod || "—"}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td>${timeAgo(r.requestedAt)}</td>
+    </tr>`).join("");
+  }
+
+  document.getElementById("status-filter").addEventListener("change", () => { lastDoc = null; loadHistory(); });
+  document.getElementById("req-search").addEventListener("input", renderHistory);
+  document.getElementById("load-more").addEventListener("click", () => loadHistory(true));
+
+  loadHistory();
+</script>
+</body>
+</html>

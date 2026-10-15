@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NavCamp Admin — Login</title>
+  <link rel="stylesheet" href="css/admin.css" />
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg); }
+    .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 36px 32px; width: 100%; max-width: 380px; }
+    .login-brand { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+    .login-sub { color: var(--sub); font-size: 13px; margin-bottom: 28px; }
+    .login-form { display: flex; flex-direction: column; gap: 14px; }
+    .login-btn { width: 100%; padding: 12px; background: var(--green); color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 4px; }
+    .login-btn:hover { opacity: 0.88; }
+    .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .login-error { color: var(--red); font-size: 13px; text-align: center; min-height: 18px; }
+    .login-warning { background: rgba(249,115,22,0.1); color: var(--orange); border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 8px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <div class="login-brand">
+      <span class="brand-nav">Nav</span><span class="brand-camp" style="color:var(--green)">Camp</span>
+    </div>
+    <p class="login-sub">Admin Command Center</p>
+    <div class="login-warning" id="warning"></div>
+    <form class="login-form" id="login-form" autocomplete="on">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="admin@navcamp.site" required autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" />
+      </div>
+      <p class="login-error" id="error-msg"></p>
+      <button type="submit" class="login-btn" id="login-btn">Sign in</button>
+    </form>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./js/firebase.js";
+    import { signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+    // Show reason warning if redirected from a protected page
+    const reason = new URLSearchParams(window.location.search).get("reason");
+    if (reason === "unauthorized") {
+      const w = document.getElementById("warning");
+      w.textContent = "Your account does not have admin access.";
+      w.style.display = "block";
+    }
+
+    // If already logged in as admin, go straight to dashboard
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      const snap = await getDoc(doc(db, "users", user.uid)).catch(() => null);
+      if (snap?.exists() && snap.data()?.isAdmin) {
+        window.location.href = "index.html";
+      }
+    });
+
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("login-btn");
+      const err = document.getElementById("error-msg");
+      btn.disabled = true;
+      btn.textContent = "Signing in…";
+      err.textContent = "";
+
+      const email    = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const snap = await getDoc(doc(db, "users", cred.user.uid));
+        if (!snap.exists() || !snap.data()?.isAdmin) {
+          await auth.signOut();
+          err.textContent = "This account does not have admin access.";
+          btn.disabled = false;
+          btn.textContent = "Sign in";
+          return;
+        }
+        window.location.href = "index.html";
+      } catch (ex) {
+        const msgs = {
+          "auth/invalid-credential": "Email or password is incorrect.",
+          "auth/too-many-requests":  "Too many attempts. Try again later.",
+        };
+        err.textContent = msgs[ex.code] ?? ex.message;
+        btn.disabled = false;
+        btn.textContent = "Sign in";
+      }
+    });
+  </script>
+</body>
+</html>

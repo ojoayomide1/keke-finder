@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NavCamp Admin — Announcements</title>
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<div class="main">
+  <div class="page-header">
+    <h1 class="page-title">📢 Announcements</h1>
+    <p class="page-sub">Push notifications and in-app banners</p>
+  </div>
+
+  <!-- Create announcement -->
+  <div class="card">
+    <div class="card-title">New Announcement</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="ann-title" placeholder="e.g. Keke rides are now live!" maxlength="80" />
+      </div>
+      <div class="form-group" style="max-width:140px">
+        <label>Audience</label>
+        <select id="ann-audience">
+          <option value="all">Everyone</option>
+          <option value="student">Students only</option>
+          <option value="rider">Riders only</option>
+        </select>
+      </div>
+      <div class="form-group" style="max-width:140px">
+        <label>Type</label>
+        <select id="ann-type">
+          <option value="banner">In-app banner</option>
+          <option value="push">Push notification</option>
+          <option value="both">Both</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Message</label>
+      <textarea id="ann-body" rows="3" placeholder="Announcement body…" maxlength="500"></textarea>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-green" id="post-btn">Post Announcement</button>
+      <label class="toggle-wrap" style="font-size:13px;font-weight:600;color:var(--sub)">
+        <label class="toggle">
+          <input type="checkbox" id="ann-pinned" />
+          <span class="toggle-slider"></span>
+        </label>
+        Pin to top
+      </label>
+    </div>
+  </div>
+
+  <!-- Active banners -->
+  <div class="card">
+    <div class="card-title">Active Banners</div>
+    <div id="banners-list"><div class="loading">Loading…</div></div>
+  </div>
+
+  <!-- All announcements log -->
+  <div class="card">
+    <div class="card-title">All Announcements</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Title</th><th>Audience</th><th>Type</th><th>Pinned</th><th>Posted</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="ann-tbody"><tr><td colspan="6" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+  import { requireAdmin } from "./js/auth.js";
+  import { renderNav }    from "./js/nav.js";
+  import { db }           from "./js/firebase.js";
+  import {
+    collection, query, orderBy, limit, onSnapshot,
+    addDoc, updateDoc, deleteDoc, doc, serverTimestamp,
+  } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+  const admin = await requireAdmin();
+  renderNav(admin.name);
+
+  function showToast(msg, isErr) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.className = isErr ? "error show" : "show";
+    setTimeout(() => t.className = "", 3000);
+  }
+  function timeAgo(ts) {
+    if (!ts) return "—";
+    const d = ts.toDate ? ts.toDate() : new Date(ts.seconds*1000);
+    const diff = Date.now() - d.getTime();
+    if (diff < 60000) return "Just now";
+    if (diff < 3600000) return Math.floor(diff/60000) + "m ago";
+    if (diff < 86400000) return Math.floor(diff/3600000) + "h ago";
+    return d.toLocaleDateString();
+  }
+
+  // ── Live announcements ──────────────────────────────────────────────────
+  onSnapshot(
+    query(collection(db, "announcements"), orderBy("createdAt", "desc"), limit(50)),
+    (snap) => {
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // Active banners
+      const banners  = all.filter(a => (a.type === "banner" || a.type === "both") && !a.archived);
+      const bannersEl = document.getElementById("banners-list");
+      if (!banners.length) {
+        bannersEl.innerHTML = '<p style="color:var(--sub);font-size:13px">No active banners.</p>';
+      } else {
+        bannersEl.innerHTML = banners.map(b => `
+          <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              ${b.pinned ? '<span class="badge badge-orange">Pinned</span>' : ''}
+              <strong style="font-size:14px">${b.title}</strong>
+              <span class="badge badge-grey" style="margin-left:auto">${b.audience}</span>
+            </div>
+            <p style="color:var(--sub);font-size:13px;margin-bottom:10px">${b.body}</p>
+            <button class="btn btn-red btn-sm" onclick="archiveAnn('${b.id}')">Remove banner</button>
+          </div>
+        `).join("");
+      }
+
+      // Table
+      const tbody = document.getElementById("ann-tbody");
+      if (!all.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No announcements yet.</td></tr>'; return; }
+      tbody.innerHTML = all.map(a => `<tr>
+        <td><strong>${a.title}</strong><br><span style="color:var(--sub);font-size:11px">${(a.body||"").slice(0,60)}${a.body?.length>60?"…":""}</span></td>
+        <td>${a.audience}</td>
+        <td><span class="badge badge-blue">${a.type}</span></td>
+        <td>${a.pinned ? "📌" : "—"}</td>
+        <td>${timeAgo(a.createdAt)}</td>
+        <td>
+          <button class="btn btn-red btn-sm" onclick="deleteAnn('${a.id}')">Delete</button>
+        </td>
+      </tr>`).join("");
+    }
+  );
+
+  // ── Post announcement ───────────────────────────────────────────────────
+  document.getElementById("post-btn").addEventListener("click", async () => {
+    const title    = document.getElementById("ann-title").value.trim();
+    const body     = document.getElementById("ann-body").value.trim();
+    const audience = document.getElementById("ann-audience").value;
+    const type     = document.getElementById("ann-type").value;
+    const pinned   = document.getElementById("ann-pinned").checked;
+
+    if (!title || !body) { showToast("Title and message are required.", true); return; }
+
+    try {
+      await addDoc(collection(db, "announcements"), {
+        title, body, audience, type, pinned,
+        archived:  false,
+        postedBy:  admin.uid,
+        createdAt: serverTimestamp(),
+      });
+      document.getElementById("ann-title").value = "";
+      document.getElementById("ann-body").value  = "";
+      document.getElementById("ann-pinned").checked = false;
+      showToast("Announcement posted.");
+    } catch(e) { showToast("Failed: " + e.message, true); }
+  });
+
+  window.archiveAnn = async function(id) {
+    try { await updateDoc(doc(db, "announcements", id), { archived: true }); showToast("Banner removed."); }
+    catch(e) { showToast("Failed: " + e.message, true); }
+  };
+
+  window.deleteAnn = async function(id) {
+    if (!confirm("Permanently delete this announcement?")) return;
+    try { await deleteDoc(doc(db, "announcements", id)); showToast("Deleted."); }
+    catch(e) { showToast("Failed: " + e.message, true); }
+  };
+</script>
+</body>
+</html>
