@@ -3,96 +3,149 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NavCamp Admin — Login</title>
+  <title>NavCamp Admin</title>
   <link rel="stylesheet" href="css/admin.css" />
   <style>
-    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg); }
-    .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 36px 32px; width: 100%; max-width: 380px; }
-    .login-brand { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
-    .login-sub { color: var(--sub); font-size: 13px; margin-bottom: 28px; }
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+
+    /* Loader */
+    #loader {
+      position: fixed; inset: 0; background: #050508;
+      z-index: 999; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 24px;
+      transition: opacity 0.7s ease, visibility 0.7s ease;
+    }
+    #loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-ring {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      border-top-color: #c0392b;
+      border-right-color: rgba(192,57,43,0.4);
+      animation: spin 1.2s linear infinite;
+      filter: drop-shadow(0 0 14px rgba(192,57,43,0.8));
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text {
+      font-size: 11px; font-weight: 800; letter-spacing: 0.35em;
+      text-transform: uppercase; color: #e74c3c;
+      text-shadow: 0 0 12px rgba(231,76,60,0.7);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:0.5;} 50%{opacity:1;} }
+
+    /* Login box */
+    .login-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px 32px;
+      width: 100%; max-width: 380px;
+      position: relative; z-index: 1;
+    }
+    .login-brand { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+    .login-brand .r { color: var(--red-bright); }
+    .login-sub { color: var(--sub); font-size: 12px; margin-bottom: 28px; letter-spacing: 0.05em; }
     .login-form { display: flex; flex-direction: column; gap: 14px; }
-    .login-btn { width: 100%; padding: 12px; background: var(--green); color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 4px; }
-    .login-btn:hover { opacity: 0.88; }
-    .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .login-error { color: var(--red); font-size: 13px; text-align: center; min-height: 18px; }
-    .login-warning { background: rgba(249,115,22,0.1); color: var(--orange); border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 8px; display: none; }
+    .login-btn {
+      width: 100%; padding: 12px;
+      background: var(--red); color: #fff;
+      border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      margin-top: 4px;
+      transition: opacity 0.15s, box-shadow 0.2s;
+      box-shadow: 0 0 0 rgba(192,57,43,0);
+    }
+    .login-btn:hover { opacity: 0.88; box-shadow: 0 0 20px rgba(192,57,43,0.4); }
+    .login-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .login-error { color: var(--red-bright); font-size: 13px; text-align: center; min-height: 18px; }
+    .login-warning {
+      background: rgba(230,126,34,0.12); color: var(--orange);
+      border: 1px solid rgba(230,126,34,0.3);
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 13px; margin-bottom: 10px; display: none;
+    }
+    .quote {
+      margin-top: 28px; padding-top: 16px;
+      border-top: 1px solid var(--border);
+      color: var(--sub); font-size: 11px;
+      font-style: italic; text-align: center; line-height: 1.5;
+    }
   </style>
 </head>
 <body>
-  <div class="login-box">
-    <div class="login-brand">
-      <span class="brand-nav">Nav</span><span class="brand-camp" style="color:var(--green)">Camp</span>
+
+<div id="loader">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Activating Sharingan…</div>
+</div>
+
+<div class="login-box">
+  <div class="login-brand">Nav<span class="r">Camp</span></div>
+  <p class="login-sub">COMMAND CENTER · ADMIN ACCESS ONLY</p>
+  <div class="login-warning" id="warning"></div>
+  <form class="login-form" id="login-form" autocomplete="on">
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" placeholder="admin@navcamp.site" required autocomplete="email" />
     </div>
-    <p class="login-sub">Admin Command Center</p>
-    <div class="login-warning" id="warning"></div>
-    <form class="login-form" id="login-form" autocomplete="on">
-      <div class="form-group">
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" placeholder="admin@navcamp.site" required autocomplete="email" />
-      </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" />
-      </div>
-      <p class="login-error" id="error-msg"></p>
-      <button type="submit" class="login-btn" id="login-btn">Sign in</button>
-    </form>
-  </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" />
+    </div>
+    <p class="login-error" id="error-msg"></p>
+    <button type="submit" class="login-btn" id="login-btn">Enter</button>
+  </form>
+  <p class="quote">"Wake up to reality. Nothing ever goes as planned in this accursed world."</p>
+</div>
 
-  <script type="module">
-    import { auth, db } from "./js/firebase.js";
-    import { signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+<script type="module">
+  import { auth, db } from "./js/firebase.js";
+  import { signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
-    // Show reason warning if redirected from a protected page
-    const reason = new URLSearchParams(window.location.search).get("reason");
-    if (reason === "unauthorized") {
-      const w = document.getElementById("warning");
-      w.textContent = "Your account does not have admin access.";
-      w.style.display = "block";
+  const reason = new URLSearchParams(window.location.search).get("reason");
+  if (reason === "unauthorized") {
+    const w = document.getElementById("warning");
+    w.textContent = "Your account does not have admin access.";
+    w.style.display = "block";
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    document.getElementById("loader").classList.add("hidden");
+    if (!user) return;
+    const snap = await getDoc(doc(db, "users", user.uid)).catch(() => null);
+    if (snap?.exists() && snap.data()?.isAdmin) {
+      window.location.href = "dashboard.html";
     }
+  });
 
-    // If already logged in as admin, go straight to dashboard
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
-      const snap = await getDoc(doc(db, "users", user.uid)).catch(() => null);
-      if (snap?.exists() && snap.data()?.isAdmin) {
-        window.location.href = "dashboard.html";
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("login-btn");
+    const err = document.getElementById("error-msg");
+    btn.disabled = true; btn.textContent = "…";
+    err.textContent = "";
+    const email    = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const snap = await getDoc(doc(db, "users", cred.user.uid));
+      if (!snap.exists() || !snap.data()?.isAdmin) {
+        await auth.signOut();
+        err.textContent = "This account does not have admin access.";
+        btn.disabled = false; btn.textContent = "Enter"; return;
       }
-    });
-
-    document.getElementById("login-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById("login-btn");
-      const err = document.getElementById("error-msg");
-      btn.disabled = true;
-      btn.textContent = "Signing in…";
-      err.textContent = "";
-
-      const email    = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
-
-      try {
-        const cred = await signInWithEmailAndPassword(auth, email, password);
-        const snap = await getDoc(doc(db, "users", cred.user.uid));
-        if (!snap.exists() || !snap.data()?.isAdmin) {
-          await auth.signOut();
-          err.textContent = "This account does not have admin access.";
-          btn.disabled = false;
-          btn.textContent = "Sign in";
-          return;
-        }
-        window.location.href = "dashboard.html";
-      } catch (ex) {
-        const msgs = {
-          "auth/invalid-credential": "Email or password is incorrect.",
-          "auth/too-many-requests":  "Too many attempts. Try again later.",
-        };
-        err.textContent = msgs[ex.code] ?? ex.message;
-        btn.disabled = false;
-        btn.textContent = "Sign in";
-      }
-    });
-  </script>
+      window.location.href = "dashboard.html";
+    } catch (ex) {
+      const msgs = {
+        "auth/invalid-credential": "Email or password is incorrect.",
+        "auth/too-many-requests":  "Too many attempts. Try again later.",
+      };
+      err.textContent = msgs[ex.code] ?? ex.message;
+      btn.disabled = false; btn.textContent = "Enter";
+    }
+  });
+</script>
 </body>
 </html>

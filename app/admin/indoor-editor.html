@@ -204,7 +204,7 @@
       ${field("occupant",    "Occupant",     room?.occupant    ?? "",  "text")}
       ${field("title",       "Title",        room?.title       ?? "",  "text")}
       ${field("department",  "Department",   room?.department  ?? "",  "text")}
-      ${field("course",      "Courses (CSV)","room?.course     ?? "",  "text", "e.g. LAW 101, LAW 201")}
+      ${field("course",      "Courses (CSV)", room?.course      ?? "",  "text", "e.g. LAW 101, LAW 201")}
       ${field("capacity",    "Capacity",     room?.capacity    ?? "",  "number")}
       ${selectField("access","Access",       ["public","student","staff"], room?.access ?? "student")}
       ${selectField("status","Status",       ["open","closed","restricted"], room?.status ?? "open")}
