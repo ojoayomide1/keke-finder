@@ -28,6 +28,7 @@ import {
   CAMPUS_CATEGORY_META,
 } from "../../services/campus-data";
 import { calculateCampusRoute } from "../../services/campus-router";
+import IndoorScreen from "./IndoorScreen";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
@@ -113,6 +114,9 @@ export default function PathfinderScreen({ navigation }) {
   const [filter,       setFilter]       = useState("all");
   const [search,       setSearch]       = useState("");
   const [countdown,    setCountdown]    = useState(null);
+
+  // Outdoor / Indoor toggle
+  const [mode, setMode] = useState("outdoor"); // "outdoor" | "indoor"
 
   const countdownRef    = useRef(null);
   const unsubCampusRef  = useRef(null);
@@ -250,6 +254,18 @@ export default function PathfinderScreen({ navigation }) {
   const originName = originId === null ? "Current Location"
     : locations.find(l => l.id === originId)?.name ?? "Select origin";
 
+  // Called by IndoorScreen when student taps "Start outdoor route"
+  // Finds the matching outdoor location by name and sets it as destination
+  const handleBuildingSelect = useCallback((buildingId, buildingName) => {
+    setMode("outdoor");
+    const match = locations.find(
+      (l) =>
+        l.id === buildingId ||
+        l.name.toLowerCase() === buildingName.toLowerCase()
+    );
+    if (match) setDestId(match.id);
+  }, [locations]);
+
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
   return (
@@ -260,14 +276,44 @@ export default function PathfinderScreen({ navigation }) {
           <Text style={styles.headerTitle}>Pathfinder</Text>
           <Text style={styles.headerSub}>Find your way around campus</Text>
         </View>
-        {originId !== null && (
+        {mode === "outdoor" && originId !== null && (
           <TouchableOpacity style={styles.currentLocBtn} onPress={() => setOriginId(null)}>
             <Text style={styles.currentLocBtnText}>Use Current Location</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* ── Active route banner ─────────────────────────────────── */}
+      {/* ── Outdoor / Indoor toggle ─────────────────────────────── */}
+      <View style={styles.toggleWrap}>
+        <TouchableOpacity
+          style={[styles.toggleBtn, mode === "outdoor" && styles.toggleBtnActive]}
+          onPress={() => setMode("outdoor")}
+        >
+          <Text style={[styles.toggleText, mode === "outdoor" && styles.toggleTextActive]}>
+            Outdoor
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleBtn, mode === "indoor" && styles.toggleBtnActive]}
+          onPress={() => setMode("indoor")}
+        >
+          <Text style={[styles.toggleText, mode === "indoor" && styles.toggleTextActive]}>
+            Indoor
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Indoor mode ─────────────────────────────────────────── */}
+      {mode === "indoor" && (
+        <IndoorScreen
+          navigation={navigation}
+          onBuildingSelect={handleBuildingSelect}
+        />
+      )}
+
+      {/* ── Outdoor mode ────────────────────────────────────────── */}
+      {mode === "outdoor" && (
+        <>
       {route && (
         <View style={styles.routeBanner}>
           <View style={styles.routeBannerInfo}>
@@ -366,6 +412,8 @@ export default function PathfinderScreen({ navigation }) {
           <Text style={styles.emptyText}>No locations in this category.</Text>
         )}
       </ScrollView>
+      </>
+      )}
     </View>
   );
 }
@@ -387,6 +435,35 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: C.text, fontSize: 24, fontWeight: "700" },
   headerSub:   { color: C.sub, fontSize: 14, marginTop: 2 },
+
+  // Outdoor / Indoor toggle
+  toggleWrap: {
+    flexDirection:     "row",
+    margin:            16,
+    marginBottom:      0,
+    backgroundColor:   C.surface,
+    borderRadius:      12,
+    borderWidth:       1,
+    borderColor:       C.border,
+    padding:           4,
+  },
+  toggleBtn: {
+    flex:            1,
+    paddingVertical: 10,
+    borderRadius:    9,
+    alignItems:      "center",
+  },
+  toggleBtnActive: {
+    backgroundColor: C.green,
+  },
+  toggleText: {
+    fontSize:   14,
+    fontWeight: "700",
+    color:      C.sub,
+  },
+  toggleTextActive: {
+    color: "#FFFFFF",
+  },
 
   currentLocBtn:     { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: C.green },
   currentLocBtnText: { color: C.green, fontSize: 13, fontWeight: "600" },
