@@ -67,6 +67,8 @@
   //   - Import: paste JSON into the import box below
   // Future: unify by having the local editor POST to this Firestore doc too.
 
+  // indoorPlaces/main stores: { buildings: { ...same shape as indoor_places.json }, updatedAt, updatedBy }
+  // The local editor (tools/indoor-editor/server.js) writes the same Firestore doc on every save.
   const DATA_REF = doc(db, "indoorPlaces", "main");
   let DATA = {};
   let activeBuildingId = null;
@@ -81,8 +83,11 @@
 
   async function loadData() {
     const snap = await getDoc(DATA_REF);
-    if (snap.exists() && snap.data().buildings) {
-      DATA = snap.data().buildings;
+    if (snap.exists()) {
+      const d = snap.data();
+      // Support { buildings: {...} } shape (written by both editors)
+      // and flat legacy shape just in case
+      DATA = d.buildings ?? {};
     } else {
       DATA = {};
     }
@@ -90,7 +95,11 @@
   }
 
   async function saveData() {
-    await setDoc(DATA_REF, { buildings: DATA, updatedAt: serverTimestamp() });
+    await setDoc(DATA_REF, {
+      buildings:  DATA,
+      updatedAt:  serverTimestamp(),
+      updatedBy:  "admin-panel",
+    });
   }
 
   // ── Building tabs ───────────────────────────────────────────────────────
