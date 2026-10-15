@@ -12,7 +12,8 @@ import {
   getDoc,
 } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
-const LOGIN_PAGE = "/admin/login.html";
+const LOGIN_PAGE     = "/admin/login.html";
+const DASHBOARD_PAGE = "/admin/dashboard.html";
 
 /**
  * Call this at the top of every protected page.

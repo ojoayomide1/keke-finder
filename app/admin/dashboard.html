@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NavCamp Admin — Dashboard</title>
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<div class="main">
+  <div class="page-header">
+    <h1 class="page-title">⚡ Dashboard</h1>
+    <p class="page-sub">Live overview of NavCamp activity</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Users</div>
+      <div class="stat-value" id="stat-users">—</div>
+      <div class="stat-sub">students + riders</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Students</div>
+      <div class="stat-value" id="stat-students">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Riders</div>
+      <div class="stat-value" id="stat-riders">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Riders Online</div>
+      <div class="stat-value" id="stat-online">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Active Rides</div>
+      <div class="stat-value" id="stat-rides">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Queue Length</div>
+      <div class="stat-value" id="stat-queue">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Admin Balance</div>
+      <div class="stat-value" id="stat-balance">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Commission</div>
+      <div class="stat-value" id="stat-commission">—</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Recent Ride Requests</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Student</th><th>Pickup</th><th>Drop-off</th><th>Status</th><th>Time</th></tr></thead>
+        <tbody id="recent-rides"><tr><td colspan="5" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Recent Wallet Transactions</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Time</th></tr></thead>
+        <tbody id="recent-tx"><tr><td colspan="4" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script type="module">
+  import { requireAdmin } from "./js/auth.js";
+  import { renderNav }    from "./js/nav.js";
+  import { db }           from "./js/firebase.js";
+  import {
+    collection, query, where, orderBy, limit,
+    onSnapshot, getDocs, doc,
+  } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+  const admin = await requireAdmin();
+  renderNav(admin.name);
+
+  function fmt(k) { return "₦" + (Number(k||0)/100).toLocaleString("en-NG",{minimumFractionDigits:0}); }
+  function timeAgo(ts) {
+    if (!ts) return "—";
+    const d = ts.toDate ? ts.toDate() : new Date(ts.seconds*1000);
+    const diff = Date.now()-d.getTime();
+    if (diff<60000) return "Just now";
+    if (diff<3600000) return Math.floor(diff/60000)+"m ago";
+    if (diff<86400000) return Math.floor(diff/3600000)+"h ago";
+    return d.toLocaleDateString();
+  }
+  function statusBadge(s) {
+    const m={searching:"badge-blue",matched:"badge-orange",queued:"badge-orange",completed:"badge-green",cancelled:"badge-grey",onTrip:"badge-green"};
+    return `<span class="badge ${m[s]||'badge-grey'}">${s}</span>`;
+  }
+
+  async function loadUserCounts() {
+    const snap = await getDocs(collection(db,"users"));
+    let s=0,r=0;
+    snap.forEach(d=>{ if(d.data().role==="student") s++; else r++; });
+    document.getElementById("stat-users").textContent=snap.size;
+    document.getElementById("stat-students").textContent=s;
+    document.getElementById("stat-riders").textContent=r;
+  }
+  loadUserCounts();
+
+  onSnapshot(doc(db,"adminWallet","main"),(snap)=>{
+    if(!snap.exists())return;
+    document.getElementById("stat-balance").textContent=fmt(snap.data().balance||0);
+    document.getElementById("stat-commission").textContent=fmt(snap.data().totalEarned||0);
+  });
+  onSnapshot(query(collection(db,"rides"),where("status","in",["waiting","matched","onTrip"])),(snap)=>{
+    document.getElementById("stat-rides").textContent=snap.size;
+  });
+  onSnapshot(query(collection(db,"riderStatus"),where("isOnline","==",true)),(snap)=>{
+    document.getElementById("stat-online").textContent=snap.size;
+  });
+  onSnapshot(query(collection(db,"rideRequests"),where("status","==","queued")),(snap)=>{
+    document.getElementById("stat-queue").textContent=snap.size;
+  });
+  onSnapshot(query(collection(db,"rideRequests"),orderBy("requestedAt","desc"),limit(10)),(snap)=>{
+    const tb=document.getElementById("recent-rides");
+    if(snap.empty){tb.innerHTML='<tr><td colspan="5" class="empty">No requests yet.</td></tr>';return;}
+    tb.innerHTML=snap.docs.map(d=>{const r=d.data();return`<tr><td>${r.studentName||"—"}</td><td>${r.pickup?.label||"—"}</td><td>${r.dropoff?.label||"—"}</td><td>${statusBadge(r.status)}</td><td>${timeAgo(r.requestedAt)}</td></tr>`;}).join("");
+  });
+  const TX={topup:"badge-green",deduction:"badge-red",earning:"badge-blue",commission:"badge-orange"};
+  onSnapshot(query(collection(db,"walletTransactions"),orderBy("createdAt","desc"),limit(10)),(snap)=>{
+    const tb=document.getElementById("recent-tx");
+    if(snap.empty){tb.innerHTML='<tr><td colspan="4" class="empty">No transactions yet.</td></tr>';return;}
+    tb.innerHTML=snap.docs.map(d=>{const t=d.data();return`<tr><td>${t.userId?.slice(0,8)||"—"}…</td><td><span class="badge ${TX[t.type]||'badge-grey'}">${t.type}</span></td><td>${fmt(t.amount)}</td><td>${timeAgo(t.createdAt)}</td></tr>`;}).join("");
+  });
+</script>
+</body>
+</html>

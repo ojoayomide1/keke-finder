@@ -57,7 +57,7 @@
       if (!user) return;
       const snap = await getDoc(doc(db, "users", user.uid)).catch(() => null);
       if (snap?.exists() && snap.data()?.isAdmin) {
-        window.location.href = "index.html";
+        window.location.href = "dashboard.html";
       }
     });
 
@@ -82,7 +82,7 @@
           btn.textContent = "Sign in";
           return;
         }
-        window.location.href = "index.html";
+        window.location.href = "dashboard.html";
       } catch (ex) {
         const msgs = {
           "auth/invalid-credential": "Email or password is incorrect.",
