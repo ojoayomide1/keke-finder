@@ -1,110 +1,131 @@
 /**
  * src/components/Icon.js
  *
- * Thin wrapper around lucide-react-native.
- * Provides a consistent size and stroke weight across the app.
+ * Platform-safe icon component.
+ * - Native: lucide-react-native (SVG-based, requires react-native-svg)
+ * - Web: simple text span with Unicode symbol fallback
  *
- * Usage:
- *   <Icon name="compass" size={22} color={C.brand} />
- *
- * Available names used in NavCamp:
- *   car, compass, wallet, user, map-pin, search, sparkles,
- *   footprints, stairs, door-open, receipt, life-buoy,
- *   chevron-right, chevron-left, x, check, star, clock,
- *   navigation, arrow-left, send, mic, map, home,
- *   banknote, trending-up, circle-alert, info
+ * This avoids react-native-svg web transformer issues during Expo web builds.
+ * When the SVG web pipeline is properly configured, remove the web fallback.
  */
 
 import React from "react";
-import {
-  Car,
-  Compass,
-  Wallet,
-  User,
-  MapPin,
-  Search,
-  Sparkles,
-  Footprints,
-  Stairs,
-  DoorOpen,
-  Receipt,
-  LifeBuoy,
-  ChevronRight,
-  ChevronLeft,
-  X,
-  Check,
-  Star,
-  Clock,
-  Navigation,
-  ArrowLeft,
-  Send,
-  Mic,
-  Map,
-  Home,
-  Banknote,
-  TrendingUp,
-  CircleAlert,
-  Info,
-  Building2,
-  GraduationCap,
-  Utensils,
-  BedDouble,
-  FlaskConical,
-  Dumbbell,
-  LogOut,
-  Phone,
-  Mail,
-  RefreshCw,
-} from "lucide-react-native";
+import { Platform, Text } from "react-native";
 
-const ICON_MAP = {
-  "car":           Car,
-  "compass":       Compass,
-  "wallet":        Wallet,
-  "user":          User,
-  "map-pin":       MapPin,
-  "search":        Search,
-  "sparkles":      Sparkles,
-  "footprints":    Footprints,
-  "stairs":        Stairs,
-  "door-open":     DoorOpen,
-  "receipt":       Receipt,
-  "life-buoy":     LifeBuoy,
-  "chevron-right": ChevronRight,
-  "chevron-left":  ChevronLeft,
-  "x":             X,
-  "check":         Check,
-  "star":          Star,
-  "clock":         Clock,
-  "navigation":    Navigation,
-  "arrow-left":    ArrowLeft,
-  "send":          Send,
-  "mic":           Mic,
-  "map":           Map,
-  "home":          Home,
-  "banknote":      Banknote,
-  "trending-up":   TrendingUp,
-  "circle-alert":  CircleAlert,
-  "info":          Info,
-  "building":      Building2,
-  "graduation-cap":GraduationCap,
-  "utensils":      Utensils,
-  "bed":           BedDouble,
-  "flask":         FlaskConical,
-  "dumbbell":      Dumbbell,
-  "log-out":       LogOut,
-  "phone":         Phone,
-  "mail":          Mail,
-  "refresh":       RefreshCw,
+// ─── WEB FALLBACK MAP (Unicode symbols) ──────────────────────────────────────
+const WEB_SYMBOLS = {
+  "car":           "🚗",
+  "compass":       "🧭",
+  "wallet":        "💳",
+  "user":          "👤",
+  "map-pin":       "📍",
+  "search":        "🔍",
+  "sparkles":      "✨",
+  "footprints":    "👣",
+  "stairs":        "🪜",
+  "door-open":     "🚪",
+  "receipt":       "🧾",
+  "life-buoy":     "🛟",
+  "chevron-right": "›",
+  "chevron-left":  "‹",
+  "x":             "✕",
+  "check":         "✓",
+  "star":          "☆",
+  "clock":         "🕐",
+  "navigation":    "➤",
+  "arrow-left":    "←",
+  "send":          "➤",
+  "mic":           "🎤",
+  "map":           "🗺",
+  "home":          "🏠",
+  "banknote":      "💵",
+  "trending-up":   "📈",
+  "circle-alert":  "⚠",
+  "info":          "ℹ",
+  "building":      "🏢",
+  "graduation-cap":"🎓",
+  "utensils":      "🍽",
+  "bed":           "🛏",
+  "flask":         "🔬",
+  "dumbbell":      "🏋",
+  "log-out":       "⎋",
+  "phone":         "📞",
+  "mail":          "✉",
+  "refresh":       "↻",
 };
 
-/**
- * @param {{ name: string, size?: number, color?: string, strokeWidth?: number }} props
- */
+// ─── NATIVE LUCIDE MAP ────────────────────────────────────────────────────────
+// Lazy-loaded only on native to avoid crashing the web bundle
+let _lucideIcons = null;
+function getLucideIcon(name) {
+  if (!_lucideIcons) {
+    try {
+      const lib = require("lucide-react-native");
+      _lucideIcons = {
+        "car":           lib.Car,
+        "compass":       lib.Compass,
+        "wallet":        lib.Wallet,
+        "user":          lib.User,
+        "map-pin":       lib.MapPin,
+        "search":        lib.Search,
+        "sparkles":      lib.Sparkles,
+        "footprints":    lib.Footprints,
+        "stairs":        lib.Stairs,
+        "door-open":     lib.DoorOpen,
+        "receipt":       lib.Receipt,
+        "life-buoy":     lib.LifeBuoy,
+        "chevron-right": lib.ChevronRight,
+        "chevron-left":  lib.ChevronLeft,
+        "x":             lib.X,
+        "check":         lib.Check,
+        "star":          lib.Star,
+        "clock":         lib.Clock,
+        "navigation":    lib.Navigation,
+        "arrow-left":    lib.ArrowLeft,
+        "send":          lib.Send,
+        "mic":           lib.Mic,
+        "map":           lib.Map,
+        "home":          lib.Home,
+        "banknote":      lib.Banknote,
+        "trending-up":   lib.TrendingUp,
+        "circle-alert":  lib.CircleAlert,
+        "info":          lib.Info,
+        "building":      lib.Building2,
+        "graduation-cap":lib.GraduationCap,
+        "utensils":      lib.Utensils,
+        "bed":           lib.BedDouble,
+        "flask":         lib.FlaskConical,
+        "dumbbell":      lib.Dumbbell,
+        "log-out":       lib.LogOut,
+        "phone":         lib.Phone,
+        "mail":          lib.Mail,
+        "refresh":       lib.RefreshCw,
+      };
+    } catch {
+      _lucideIcons = {};
+    }
+  }
+  return _lucideIcons[name] ?? null;
+}
+
+// ─── COMPONENT ────────────────────────────────────────────────────────────────
 export default function Icon({ name, size = 20, color = "#14171A", strokeWidth = 1.75 }) {
-  const LucideIcon = ICON_MAP[name];
+  if (Platform.OS === "web") {
+    const symbol = WEB_SYMBOLS[name] ?? "•";
+    return (
+      <Text
+        style={{ fontSize: size * 0.85, color, lineHeight: size, textAlign: "center" }}
+        aria-label={name}
+      >
+        {symbol}
+      </Text>
+    );
+  }
+
+  // Native — use Lucide SVG icons
+  const LucideIcon = getLucideIcon(name);
   if (!LucideIcon) {
-    if (__DEV__) console.warn(`[Icon] Unknown icon name: "${name}"`);
+    if (__DEV__) console.warn(`[Icon] Unknown icon: "${name}"`);
     return null;
   }
   return <LucideIcon size={size} color={color} strokeWidth={strokeWidth} />;
