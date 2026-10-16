@@ -53,7 +53,8 @@
     "plugins": [
       "expo-dev-client",
       "expo-status-bar",
-      "expo-font"
+      "expo-font",
+      "react-native-svg"
     ],
     "scheme": "navcamp"
   }
