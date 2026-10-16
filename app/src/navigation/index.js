@@ -78,14 +78,16 @@ function RiderTabIcon({ name, focused }) {
 
 // ─── SHARED TAB BAR OPTIONS ───────────────────────────────────────────────────
 function tabBarStyle(insets) {
+  // On web, useSafeAreaInsets() can return incorrect values.
+  // Use a fixed height on web; use the real inset on native.
+  const bottomInset = Platform.OS === "web" ? 0 : insets.bottom;
   return {
     backgroundColor:  C.surface,
     borderTopColor:   C.border,
     borderTopWidth:   1,
-    // Safe area: adds system home-bar height so content never clips under it
-    paddingBottom:    insets.bottom + 6,
+    paddingBottom:    bottomInset + 6,
     paddingTop:       6,
-    height:           insets.bottom + 60,
+    height:           bottomInset + 60,
     elevation:        0,
     shadowOpacity:    0,
   };
