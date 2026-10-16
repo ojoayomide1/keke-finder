@@ -526,7 +526,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin() || isRider();
-      allow list: if false;
+      allow list: if isAdmin();
       allow create: if validUserCreate(userId);
       allow update: if validUserUpdate(userId)
         || studentFareOrDebtUpdate(userId)
@@ -534,7 +534,10 @@ service cloud.firestore {
         || riderChargesStudent(userId)
         || riderEarningsUpdate(userId)
         || riderCashEarningsUpdate(userId)
-        || adminRefundsRiderEarnings();
+        || adminRefundsRiderEarnings()
+        // Admin can set suspended flag or isAdmin flag
+        || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["suspended"]))
+        || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["isAdmin"]));
       allow delete: if false;
     }
 
@@ -624,7 +627,7 @@ service cloud.firestore {
 
     match /walletTransactions/{transactionId} {
       allow get, list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if validWalletTransactionCreate();
+      allow create: if validWalletTransactionCreate() || isAdmin();
       allow update, delete: if false;
     }
 
@@ -645,7 +648,8 @@ service cloud.firestore {
 
     // Rider status collection - allows riders to update their online/offline status
     match /riderStatus/{riderId} {
-      allow read, write: if isSignedIn() && request.auth.uid == riderId && isRider();
+      allow read: if isSignedIn() && (request.auth.uid == riderId || isAdmin());
+      allow write: if isSignedIn() && request.auth.uid == riderId && isRider();
     }
 
     // Authorized students registry - used during student signup verification & admin tool seeding
@@ -656,6 +660,24 @@ service cloud.firestore {
     // Authorized riders registry - used during rider signup verification & admin tool seeding
     match /authorized_riders/{docId} {
       allow read, write: if true;
+    }
+
+    // Indoor places data — read by app (public), write by admin or local editor
+    match /indoorPlaces/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // App config (feature flags, fare settings, road closures)
+    match /appConfig/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Announcements — read by signed-in users, full control by admin
+    match /announcements/{docId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
   }
 }

@@ -1,0 +1,13 @@
+{
+  "projects": {},
+  "targets": {
+    "keke-finder-cd5fe": {
+      "hosting": {
+        "admin": [
+          "navcamp-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
