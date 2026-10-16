@@ -13,14 +13,36 @@
     "android": {
       "package": "com.navcamp.app",
       "adaptiveIcon": {
-        "backgroundColor": "#1E7A46",
+        "backgroundColor": "#1E7B4C",
         "foregroundImage": "./assets/navcamp-icon.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "themeColor": "#1E7B4C",
+      "backgroundColor": "#F7F8FA",
+      "display": "standalone",
+      "shortName": "NavCamp",
+      "description": "Campus navigation and transport for Veritas University Abuja.",
+      "lang": "en",
+      "scope": "/",
+      "startUrl": "/",
+      "orientation": "portrait",
+      "icons": [
+        {
+          "src": "./assets/navcamp-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any maskable"
+        },
+        {
+          "src": "./assets/icon.png",
+          "sizes": "512x512",
+          "type": "image/png"
+        }
+      ]
     },
     "extra": {
       "eas": {
@@ -30,7 +52,8 @@
     "owner": "madaraffx",
     "plugins": [
       "expo-dev-client",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-font"
     ],
     "scheme": "navcamp"
   }

@@ -2,32 +2,33 @@ import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { ActivityIndicator, Platform, Text, View, StyleSheet } from "react-native";
+import { ActivityIndicator, Platform, View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { auth, onAuthStateChanged, db, doc, getDoc } from "../config/firebase";
 import useStore from "../store";
 import { registerForPushNotifications } from "../services/notifications";
+import { C, S } from "../theme/tokens";
+import Icon from "../components/Icon";
 
 // ─── SCREENS ─────────────────────────────────────────────────────────────────
-import LoginScreen from "../screens/auth/LoginScreen";
-import StudentHomeScreen from "../screens/student/HomeScreen";
-import WalletScreen from "../screens/student/WalletScreen";
-import ProfileScreen from "../screens/student/ProfileScreen";
-import PathfinderScreen from "../screens/student/PathfinderScreen";
-import MapScreen from "../screens/student/MapScreen";
-import RiderHomeScreen from "../screens/rider/HomeScreen";
+import LoginScreen        from "../screens/auth/LoginScreen";
+import StudentHomeScreen  from "../screens/student/HomeScreen";
+import WalletScreen       from "../screens/student/WalletScreen";
+import ProfileScreen      from "../screens/student/ProfileScreen";
+import PathfinderScreen   from "../screens/student/PathfinderScreen";
+import MapScreen          from "../screens/student/MapScreen";
+import RiderHomeScreen    from "../screens/rider/HomeScreen";
 import RiderEarningsScreen from "../screens/rider/EarningsScreen";
-import RiderMapScreen from "../screens/rider/MapScreen";
+import RiderMapScreen     from "../screens/rider/MapScreen";
 import RiderProfileScreen from "../screens/rider/ProfileScreen";
 
 // ─── NAVIGATORS ──────────────────────────────────────────────────────────────
-const AuthStack = createNativeStackNavigator();
+const AuthStack  = createNativeStackNavigator();
 const StudentTab = createBottomTabNavigator();
-const RiderTab = createBottomTabNavigator();
-const RootStack = createNativeStackNavigator();
+const RiderTab   = createBottomTabNavigator();
+const RootStack  = createNativeStackNavigator();
 
-// Auth flow — shown when no user is signed in
 function AuthNavigator() {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
@@ -36,53 +37,87 @@ function AuthNavigator() {
   );
 }
 
-// ─── TAB ICON ────────────────────────────────────────────────────────────────
-function TabIcon({ label, focused }) {
-  const icons = { Home: "🏠", Wallet: "💳", Map: "🗺️", Pathfinder: "🧭", Profile: "👤" };
+// ─── TAB ICON CONFIG ─────────────────────────────────────────────────────────
+// Tab name → Lucide icon name
+const STUDENT_ICONS = {
+  Ride:    "car",
+  Wallet:  "wallet",
+  Map:     "map",
+  Explore: "compass",
+  Profile: "user",
+};
+
+const RIDER_ICONS = {
+  Home:     "home",
+  Earnings: "trending-up",
+  Map:      "map",
+  Profile:  "user",
+};
+
+function StudentTabIcon({ name, focused }) {
   return (
-    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>
-      {icons[label] ?? "●"}
-    </Text>
+    <Icon
+      name={STUDENT_ICONS[name] ?? "circle-alert"}
+      size={22}
+      color={focused ? C.brand : C.text3}
+      strokeWidth={focused ? 2 : 1.75}
+    />
   );
 }
 
-// Rider tab icons with orange theme
-function RiderTabIcon({ label, focused }) {
-  const icons = { Home: "🏠", Earnings: "💰", Map: "🗺️", Profile: "👤" };
+function RiderTabIcon({ name, focused }) {
   return (
-    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>
-      {icons[label] ?? "●"}
-    </Text>
+    <Icon
+      name={RIDER_ICONS[name] ?? "circle-alert"}
+      size={22}
+      color={focused ? C.brand : C.text3}
+      strokeWidth={focused ? 2 : 1.75}
+    />
   );
 }
 
-// Student tab flow — shown when signed-in user has role === "student"
+// ─── SHARED TAB BAR OPTIONS ───────────────────────────────────────────────────
+function tabBarStyle(insets) {
+  return {
+    backgroundColor:  C.surface,
+    borderTopColor:   C.border,
+    borderTopWidth:   1,
+    // Safe area: adds system home-bar height so content never clips under it
+    paddingBottom:    insets.bottom + 6,
+    paddingTop:       6,
+    height:           insets.bottom + 60,
+    elevation:        0,
+    shadowOpacity:    0,
+  };
+}
+
+// ─── STUDENT NAVIGATOR ────────────────────────────────────────────────────────
 function StudentNavigator() {
   const insets = useSafeAreaInsets();
-  
+
   return (
     <StudentTab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: "#F7F8FA",
-          borderTopColor:  "#E2E6ED",
-          paddingBottom:    insets.bottom + 6,
-          paddingTop:       6,
-          height:           insets.bottom + 60,
+        headerShown:           false,
+        tabBarStyle:           tabBarStyle(insets),
+        tabBarActiveTintColor:   C.brand,
+        tabBarInactiveTintColor: C.text3,
+        tabBarLabelStyle: {
+          fontSize:   11,
+          fontWeight: "500",
+          fontFamily: "Inter_500Medium",
+          marginTop:  2,
         },
-        tabBarActiveTintColor:   "#1E7A46",
-        tabBarInactiveTintColor: "#9CA3AF",
-        tabBarLabelStyle:        { fontSize: 11, fontWeight: "600" },
-        tabBarIcon:              ({ focused }) => (
-          <TabIcon label={route.name} focused={focused} />
+        tabBarIcon: ({ focused }) => (
+          <StudentTabIcon name={route.name} focused={focused} />
         ),
       })}
     >
+      {/* "Home" renamed to "Ride" */}
       <StudentTab.Screen
-        name="Home"
+        name="Ride"
         component={StudentHomeScreen}
-        options={{ title: "Home" }}
+        options={{ title: "Ride" }}
       />
       <StudentTab.Screen
         name="Wallet"
@@ -94,10 +129,11 @@ function StudentNavigator() {
         component={MapScreen}
         options={{ title: "Map" }}
       />
+      {/* "Pathfinder" renamed to "Explore" */}
       <StudentTab.Screen
-        name="Pathfinder"
+        name="Explore"
         component={PathfinderScreen}
-        options={{ title: "Pathfinder" }}
+        options={{ title: "Explore" }}
       />
       <StudentTab.Screen
         name="Profile"
@@ -108,67 +144,47 @@ function StudentNavigator() {
   );
 }
 
-// Rider stack — shown when signed-in user has role === "rider"
+// ─── RIDER NAVIGATOR ──────────────────────────────────────────────────────────
 function RiderNavigator() {
   const insets = useSafeAreaInsets();
-  
+
   return (
     <RiderTab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: "#F7F8FA",
-          borderTopColor:  "#E2E6ED",
-          paddingBottom:    insets.bottom + 6,
-          paddingTop:       6,
-          height:           insets.bottom + 60,
+        headerShown:             false,
+        tabBarStyle:             tabBarStyle(insets),
+        // Riders share the same brand colour — no more orange
+        tabBarActiveTintColor:   C.brand,
+        tabBarInactiveTintColor: C.text3,
+        tabBarLabelStyle: {
+          fontSize:   11,
+          fontWeight: "500",
+          fontFamily: "Inter_500Medium",
+          marginTop:  2,
         },
-        tabBarActiveTintColor:   "#FF5E1A", // Orange for riders
-        tabBarInactiveTintColor: "#9CA3AF",
-        tabBarLabelStyle:        { fontSize: 11, fontWeight: "600" },
-        tabBarIcon:              ({ focused }) => (
-          <RiderTabIcon label={route.name} focused={focused} />
+        tabBarIcon: ({ focused }) => (
+          <RiderTabIcon name={route.name} focused={focused} />
         ),
       })}
     >
-      <RiderTab.Screen
-        name="Home"
-        component={RiderHomeScreen}
-        options={{ title: "Home" }}
-      />
-      <RiderTab.Screen
-        name="Earnings"
-        component={RiderEarningsScreen}
-        options={{ title: "Earnings" }}
-      />
-      <RiderTab.Screen
-        name="Map"
-        component={RiderMapScreen}
-        options={{ title: "Map" }}
-      />
-      <RiderTab.Screen
-        name="Profile"
-        component={RiderProfileScreen}
-        options={{ title: "Profile" }}
-      />
+      <RiderTab.Screen name="Home"     component={RiderHomeScreen}     options={{ title: "Home"     }} />
+      <RiderTab.Screen name="Earnings" component={RiderEarningsScreen} options={{ title: "Earnings" }} />
+      <RiderTab.Screen name="Map"      component={RiderMapScreen}      options={{ title: "Map"      }} />
+      <RiderTab.Screen name="Profile"  component={RiderProfileScreen}  options={{ title: "Profile"  }} />
     </RiderTab.Navigator>
   );
 }
 
-// Loading screen while we check auth state
+// ─── SPLASH ───────────────────────────────────────────────────────────────────
 function SplashScreen() {
   return (
     <View style={styles.splash}>
-      <ActivityIndicator size="large" color="#1E7A46" />
+      <ActivityIndicator size="large" color={C.brand} />
     </View>
   );
 }
 
 // ─── ROOT NAVIGATOR ───────────────────────────────────────────────────────────
-/**
- * Listens to Firebase auth state and routes to the correct navigator.
- * Role is pulled from Firestore (same as the old initAuth in auth.js).
- */
 export default function RootNavigator() {
   const { setCurrentUser, clearCurrentUser, currentRole } = useStore();
   const [initializing, setInitializing] = useState(true);
@@ -177,31 +193,23 @@ export default function RootNavigator() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Pull role + extra data from Firestore, same retry logic as old auth.js
         let userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-
         if (!userDoc.exists()) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((r) => setTimeout(r, 1000));
           userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
         }
-
         const merged = userDoc.exists()
           ? { ...firebaseUser, ...userDoc.data() }
           : firebaseUser;
-
         setCurrentUser(merged);
         setUser(merged);
-
-        // Register for push notifications after login (non-blocking, best-effort)
         registerForPushNotifications(firebaseUser.uid).catch(() => {});
       } else {
         clearCurrentUser();
         setUser(null);
       }
-
       setInitializing(false);
     });
-
     return unsubscribe;
   }, []);
 
@@ -211,9 +219,9 @@ export default function RootNavigator() {
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
-          <RootStack.Screen name="Auth" component={AuthNavigator} />
+          <RootStack.Screen name="Auth"    component={AuthNavigator}    />
         ) : currentRole === "rider" ? (
-          <RootStack.Screen name="Rider" component={RiderNavigator} />
+          <RootStack.Screen name="Rider"   component={RiderNavigator}   />
         ) : (
           <RootStack.Screen name="Student" component={StudentNavigator} />
         )}
@@ -224,9 +232,9 @@ export default function RootNavigator() {
 
 const styles = StyleSheet.create({
   splash: {
-    flex: 1,
-    backgroundColor: "#F7F8FA",
-    alignItems: "center",
-    justifyContent: "center"
-  }
+    flex:            1,
+    backgroundColor: C.bg,
+    alignItems:      "center",
+    justifyContent:  "center",
+  },
 });
