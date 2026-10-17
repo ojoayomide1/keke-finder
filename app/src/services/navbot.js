@@ -17,9 +17,8 @@
  *   - All failures fall back gracefully — never throws to the UI
  */
 
-import { getApp } from "firebase/app";
 import { getAI, getGenerativeModel, GoogleAIBackend } from "firebase/ai";
-import { auth } from "../config/firebase";
+import { app, auth } from "../config/firebase";
 import { getPlaces, getPlaceById } from "./places";
 import { search } from "./search";
 
@@ -56,7 +55,6 @@ const TIMEOUT_MS = 8000;
 
 function getModel() {
   if (_model) return _model;
-  const app = getApp();
   const ai  = getAI(app, { backend: new GoogleAIBackend() });
   const modelName = process.env.EXPO_PUBLIC_NAVBOT_MODEL ?? "gemini-2.0-flash-lite";
   _model = getGenerativeModel(ai, {

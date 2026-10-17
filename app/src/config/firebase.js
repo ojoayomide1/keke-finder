@@ -1,6 +1,10 @@
 import { Platform } from "react-native";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
+  initializeAppCheck,
+  ReCaptchaV3Provider,
+} from "firebase/app-check";
+import {
   getFirestore,
   initializeFirestore,
   persistentLocalCache,
@@ -47,6 +51,40 @@ const firebaseConfig = {
 // Prevent re-initializing on hot reload
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
+// ─── APP CHECK ────────────────────────────────────────────────────────────────
+// Required for Firebase AI Logic (Gemini Developer API).
+// Web only — native App Check uses different providers (DeviceCheck / Play Integrity).
+//
+// Production: set EXPO_PUBLIC_RECAPTCHA_SITE_KEY in Vercel env vars.
+// Development: the debug token is auto-printed to the browser console.
+//   Copy it and register it at:
+//   Firebase console → Security → App Check → Apps → Manage debug tokens
+if (Platform.OS === "web") {
+  try {
+    const siteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
+    if (siteKey) {
+      // Production — reCAPTCHA v3
+      initializeAppCheck(app, {
+        provider:                new ReCaptchaV3Provider(siteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } else {
+      // Development — debug mode: prints a token to the console
+      // Set the flag BEFORE initializeAppCheck
+      if (typeof self !== "undefined") {
+        self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+      }
+      // Use a placeholder site key — debug mode ignores it
+      initializeAppCheck(app, {
+        provider:                new ReCaptchaV3Provider("debug-placeholder"),
+        isTokenAutoRefreshEnabled: false,
+      });
+    }
+  } catch (e) {
+    console.warn("[firebase] App Check init failed:", e.message);
+  }
+}
+
 // Initialize Firestore with offline persistence.
 // On web: use IndexedDB-backed persistent cache (multi-tab safe).
 // On native: Firestore's React Native SDK handles persistence automatically,
@@ -67,6 +105,7 @@ if (Platform.OS === "web") {
   db = getFirestore(app);
 }
 export { db };
+export { app };
 
 // Platform-aware Auth Persistence (browserLocalPersistence on Web, AsyncStorage on Native)
 let auth;
