@@ -30,7 +30,9 @@ import useStore from "../../store";
 import { calculateCampusRoute } from "../../services/campus-router";
 import { loadPlaces, getPlaces, getCategoryMeta, CATEGORY_META } from "../../services/places";
 import { search, looksLikeQuestion } from "../../services/search";
+import { isNavBotAvailable } from "../../services/navbot";
 import Icon from "../../components/Icon";
+import NavBot from "../../components/NavBot";
 import { C as TC, S, R } from "../../theme/tokens";
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -296,6 +298,8 @@ export default function PathfinderScreen({ navigation }) {
   const [activePlace,  setActivePlace]  = useState(null);
   const [activeCategory, setActiveCategory] = useState(null);
   const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showNavBot,   setShowNavBot]   = useState(false);
+  const [navBotQuery,  setNavBotQuery]  = useState("");
   const searchRef = useRef(null);
 
   // Load data + location on mount
@@ -418,6 +422,14 @@ export default function PathfinderScreen({ navigation }) {
               <Icon name="x" size={16} color={C.text3} />
             </TouchableOpacity>
           )}
+          {looksLikeQuestion(query) && isNavBotAvailable() && (
+            <TouchableOpacity
+              onPress={() => { setNavBotQuery(query); setShowNavBot(true); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Icon name="sparkles" size={16} color={C.brand} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* From pill */}
@@ -439,7 +451,7 @@ export default function PathfinderScreen({ navigation }) {
                 <Text style={styles.emptyTitle}>No match found</Text>
                 <Text style={styles.emptySub}>Try a lecturer's name, a course code, or a room number.</Text>
                 {looksLikeQuestion(query) && (
-                  <TouchableOpacity style={styles.navBotBtn}>
+                  <TouchableOpacity style={styles.navBotBtn} onPress={() => { setNavBotQuery(query); setShowNavBot(true); }}>
                     <Icon name="sparkles" size={14} color={C.brand} />
                     <Text style={styles.navBotBtnText}>Ask NavBot</Text>
                   </TouchableOpacity>
@@ -526,6 +538,14 @@ export default function PathfinderScreen({ navigation }) {
         visible={showFromPicker}
         onClose={() => setShowFromPicker(false)}
         onSelect={(p) => { setFromPlace(p); setShowFromPicker(false); }}
+      />
+
+      {/* ── NavBot ────────────────────────────────────────────────── */}
+      <NavBot
+        visible={showNavBot}
+        initialQuery={navBotQuery}
+        onClose={() => { setShowNavBot(false); setNavBotQuery(""); }}
+        onNavigate={(p) => { handleSelectPlace(p); handleNavigate(p); }}
       />
     </View>
   );
