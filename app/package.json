@@ -19,6 +19,7 @@
     "expo-notifications": "~57.0.17",
     "expo-status-bar": "~57.0.1",
     "firebase": "^12.17.1",
+    "fuse.js": "^7.5.0",
     "leaflet": "^1.9.4",
     "lucide-react-native": "^1.58.0",
     "react": "19.2.3",
@@ -41,7 +42,29 @@
     "map:validate": "node scripts/campus-map.js validate",
     "map:export": "node scripts/campus-map.js export",
     "indoor-editor": "node tools/indoor-editor/server.js",
-    "admin": "node tools/indoor-editor/server.js"
+    "admin": "node tools/indoor-editor/server.js",
+    "test": "node node_modules/jest-expo/bin/jest.js --no-coverage --transformIgnorePatterns \"node_modules/(?!(fuse\\.js))\""
   },
-  "private": true
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {
+      "^.+\\.[jt]sx?$": "babel-jest"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(fuse\\.js)/)"
+    ],
+    "moduleNameMapper": {
+      "^react-native$": "<rootDir>/node_modules/react-native/Libraries/react-native/react-native-implementation",
+      "^@/(.*)$": "<rootDir>/src/$1"
+    }
+  },
+  "private": true,
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@react-native/jest-preset": "^0.88.0",
+    "babel-jest": "^30.5.2",
+    "babel-preset-expo": "^58.0.17",
+    "jest": "^29.7.0",
+    "jest-expo": "^58.0.11"
+  }
 }
