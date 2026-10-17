@@ -1,551 +1,673 @@
 /**
- * PathfinderScreen.js — Campus walking route finder (full page)
+ * PathfinderScreen.js — Explore tab (Phase 3 redesign)
  *
- * Tap a location → "Go" to set as destination from current location
- * Or tap "From here" to set as origin, then tap Go on destination
- * Auto-navigates to Map tab after 10s countdown when route is found
+ * Replaces the old list-of-rows UI with:
+ *   - "Where to?" search bar (sparkles icon, mic if available)
+ *   - "From: My location" pill
+ *   - Category chips (horizontal scroll)
+ *   - Recents (last 3, AsyncStorage)
+ *   - Browse grid (2-column category tiles)
+ *   - Category list view
+ *   - Place sheet (bottom sheet on tap)
+ *   → Navigate wires into Map tab via existing routing logic
+ *
+ * No map inside Explore. Maps live only on the Map tab.
+ * Indoor places are included via the unified places.js data layer.
  */
 
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, {
+  useCallback, useEffect, useMemo, useRef, useState,
+} from "react";
 import {
-  ActivityIndicator,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+  ActivityIndicator, Animated, FlatList, Modal,
+  Platform, Pressable, ScrollView, StyleSheet,
+  Text, TextInput, TouchableOpacity, View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 
 import useStore from "../../store";
-import {
-  loadCampusDataFromFirestore,
-  listenToCampusData,
-  getCampusLocationsForMap,
-  getCampusCategoryMeta,
-  CAMPUS_CATEGORY_META,
-} from "../../services/campus-data";
 import { calculateCampusRoute } from "../../services/campus-router";
-import IndoorScreen from "./IndoorScreen";
+import { loadPlaces, getPlaces, getCategoryMeta, CATEGORY_META } from "../../services/places";
+import { search, looksLikeQuestion } from "../../services/search";
+import Icon from "../../components/Icon";
+import { C as TC, S, R } from "../../theme/tokens";
 
-// ─── CONSTANTS ───────────────────────────────────────────────────────────────
-
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const C = {
-  bg:      "#F7F8FA",
-  surface: "#FFFFFF",
-  border:  "#E2E6ED",
-  green:   "#1E7A46",
-  orange:  "#FF5E1A",
-  red:     "#ef4444",
-  text:    "#0F1117",
-  sub:     "#6B7280",
+  bg:      TC.bg,
+  surface: TC.surface,
+  surface2:TC.surface2,
+  border:  TC.border,
+  brand:   TC.brand,
+  brandSoft: TC.brandSoft,
+  text:    TC.text,
+  text2:   TC.text2,
+  text3:   TC.text3,
+  danger:  TC.danger,
 };
 
-const CATEGORY_EMOJI = {
-  boys_hostel:  "🛏️",
-  girls_hostel: "🛏️",
-  faculty:      "🎓",
-  block:        "🏢",
-  hall:         "🏛️",
-  restaurant:   "🍽️",
-  gate:         "🚧",
-  sport:        "⚽",
-  service:      "ℹ️",
-  pickup:       "🛺",
-};
+const RECENTS_KEY = "navcamp_recents_v1";
+const MAX_RECENTS = 3;
 
-function formatDistance(m) {
-  if (!m && m !== 0) return "—";
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function formatDist(m) {
+  if (!m && m !== 0) return null;
   return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
 }
-
-function formatWalkTime(m) {
-  if (!m && m !== 0) return "—";
-  const mins = Math.round(m / 80);
-  return mins < 1 ? "< 1 min" : `${mins} min`;
+function formatWalk(m) {
+  if (!m && m !== 0) return null;
+  const mins = Math.max(1, Math.round(m / 80));
+  return `${mins} min walk`;
+}
+function placeSubtitle(place) {
+  if (place.scope === "indoor") {
+    return [place.buildingName, place.floorLabel, place.room !== place.name ? place.room : null]
+      .filter(Boolean).join(" · ");
+  }
+  const meta = getCategoryMeta(place.category);
+  return meta.label;
 }
 
-// ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
+// ─── RECENTS STORAGE ──────────────────────────────────────────────────────────
+async function loadRecents() {
+  try {
+    const raw = await AsyncStorage.getItem(RECENTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+async function saveRecent(place) {
+  try {
+    const current = await loadRecents();
+    const filtered = current.filter(r => r.id !== place.id);
+    const updated = [{ id: place.id, name: place.name, category: place.category, scope: place.scope, buildingName: place.buildingName }, ...filtered].slice(0, MAX_RECENTS);
+    await AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated));
+  } catch {}
+}
 
-const LocationCard = React.memo(function LocationCard({ loc, isOrigin, isDest, onGo, onSetOrigin }) {
-  const meta = getCampusCategoryMeta(loc.category);
+// ─── PLACE ROW ────────────────────────────────────────────────────────────────
+function PlaceRow({ place, subtitle, onPress, distance }) {
+  const meta = getCategoryMeta(place.category);
   return (
-    <View style={styles.locCard}>
-      <View style={[styles.locDot, { backgroundColor: meta.color }]} />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.locName}>{loc.name}</Text>
-        <Text style={styles.locCat}>{meta.label}</Text>
+    <Pressable
+      style={({ pressed }) => [styles.placeRow, pressed && styles.placeRowPressed]}
+      onPress={() => onPress(place)}
+      android_ripple={{ color: C.brandSoft }}
+    >
+      <View style={[styles.placeRowIcon, { backgroundColor: meta.color + "18" }]}>
+        <Icon name={meta.icon} size={18} color={meta.color} />
       </View>
-      <View style={styles.locActions}>
-        <TouchableOpacity
-          style={[styles.locBtn, isOrigin && styles.locBtnActiveGreen]}
-          onPress={() => onSetOrigin(isOrigin ? null : loc.id)}
-        >
-          <Text style={[styles.locBtnText, isOrigin && { color: C.green }]}>
-            {isOrigin ? "From ✓" : "From"}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.goBtn, isDest && styles.goBtnActive]}
-          onPress={() => onGo(loc.id)}
-        >
-          <Text style={[styles.goBtnText, isDest && styles.goBtnTextActive]}>
-            {isDest ? "Going" : "Go"}
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.placeRowText}>
+        <Text style={styles.placeRowName} numberOfLines={1}>{place.name}</Text>
+        <Text style={styles.placeRowSub} numberOfLines={1}>
+          {subtitle ?? placeSubtitle(place)}
+          {distance ? `  ·  ${distance}` : ""}
+        </Text>
       </View>
-    </View>
+      <Icon name="chevron-right" size={16} color={C.text3} />
+    </Pressable>
   );
-});
+}
 
-// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+// ─── PLACE SHEET ─────────────────────────────────────────────────────────────
+function PlaceSheet({ place, userLocation, fromPlace, onClose, onNavigate, onSetFrom }) {
+  if (!place) return null;
 
-export default function PathfinderScreen({ navigation }) {
-  const { setWalkRoute, setWalkOriginId, clearWalkRoute } = useStore();
+  const meta = getCategoryMeta(place.category);
+  const subtitle = placeSubtitle(place);
 
-  const [locations,    setLocations]    = useState([]);
-  const [userLocation, setUserLocation] = useState(null);
-  const [originId,     setOriginId]     = useState(null);
-  const [destId,       setDestId]       = useState(null);
-  const [route,        setRoute]        = useState(null);
-  const [routing,      setRouting]      = useState(false);
-  const [filter,       setFilter]       = useState("all");
-  const [search,       setSearch]       = useState("");
-  const [countdown,    setCountdown]    = useState(null);
+  // Calculate walk time from current from-point
+  const walkInfo = useMemo(() => {
+    if (!userLocation && !fromPlace) return null;
+    const origin = fromPlace
+      ? { lat: fromPlace.coords?.lat, lng: fromPlace.coords?.lng }
+      : userLocation;
+    if (!origin?.lat || !place.coords) return null;
+    try {
+      const result = calculateCampusRoute(origin, place.coords);
+      return result?.distance ? { dist: formatDist(result.distance), time: formatWalk(result.distance) } : null;
+    } catch { return null; }
+  }, [place, userLocation, fromPlace]);
 
-  // Outdoor / Indoor toggle
-  const [mode, setMode] = useState("outdoor"); // "outdoor" | "indoor"
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetOverlay} onPress={onClose} />
+      <View style={styles.sheet}>
+        {/* Handle */}
+        <View style={styles.sheetHandle} />
 
-  const countdownRef    = useRef(null);
-  const unsubCampusRef  = useRef(null);
+        {/* Header */}
+        <View style={styles.sheetHeader}>
+          <View style={[styles.sheetIcon, { backgroundColor: meta.color + "18" }]}>
+            <Icon name={meta.icon} size={24} color={meta.color} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sheetName}>{place.name}</Text>
+            <Text style={styles.sheetSub}>{subtitle}</Text>
+            {place.people?.length > 0 && (
+              <Text style={styles.sheetPeople}>
+                {place.people[0].role ? `${place.people[0].role}: ` : ""}{place.people[0].name}
+              </Text>
+            )}
+          </View>
+        </View>
 
-  // ── Load data ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    loadCampusDataFromFirestore().then(() =>
-      setLocations(getCampusLocationsForMap().filter(l => l.category !== "pickup"))
-    );
-    unsubCampusRef.current = listenToCampusData(() =>
-      setLocations(getCampusLocationsForMap().filter(l => l.category !== "pickup"))
-    );
+        {/* Walk info */}
+        {walkInfo && (
+          <View style={styles.sheetWalkInfo}>
+            <Icon name="footprints" size={14} color={C.brand} />
+            <Text style={styles.sheetWalkText}>{walkInfo.time} · {walkInfo.dist}</Text>
+          </View>
+        )}
 
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === "granted") {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-      }
-    })();
+        {/* Courses */}
+        {place.courses?.length > 0 && (
+          <View style={styles.sheetCourses}>
+            {place.courses.slice(0, 3).map(c => (
+              <View key={c.code} style={styles.sheetCourseChip}>
+                <Text style={styles.sheetCourseText}>{c.code}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
-    return () => {
-      unsubCampusRef.current?.();
-      if (countdownRef.current) clearInterval(countdownRef.current);
-    };
-  }, []);
+        {/* Actions */}
+        <View style={styles.sheetActions}>
+          <TouchableOpacity style={styles.navigateBtn} onPress={() => onNavigate(place)} activeOpacity={0.8}>
+            <Icon name="navigation" size={18} color="#fff" />
+            <Text style={styles.navigateBtnText}>Navigate</Text>
+          </TouchableOpacity>
+          {place.floorPlanUrl && (
+            <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.8}>
+              <Text style={styles.secondaryBtnText}>Floor plan</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-  // ── Calculate route when origin+dest change ─────────────────────────────
-  useEffect(() => {
-    if (!destId) { setRoute(null); cancelCountdown(); return; }
+        {/* Set as starting point */}
+        <TouchableOpacity style={styles.sheetTertiary} onPress={() => { onSetFrom(place); onClose(); }}>
+          <Text style={styles.sheetTertiaryText}>Set as starting point</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
 
-    const originLoc = originId === null
-      ? (userLocation ? { ...userLocation, id: "_current", name: "Current Location" } : null)
-      : locations.find(l => l.id === originId);
+// ─── FROM PICKER ─────────────────────────────────────────────────────────────
+function FromPicker({ visible, onClose, onSelect }) {
+  const [q, setQ] = useState("");
+  const results = useMemo(() => q.trim() ? search(q, { scope: "outdoor" }) : getPlaces().filter(p => p.scope === "outdoor").slice(0, 20), [q]);
 
-    const destLoc = locations.find(l => l.id === destId);
-    if (!originLoc || !destLoc) return;
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.pickerOverlay}>
+        <View style={styles.picker}>
+          <View style={styles.pickerHeader}>
+            <Text style={styles.pickerTitle}>Choose starting point</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Icon name="x" size={20} color={C.text2} />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={styles.pickerMyLocation} onPress={() => onSelect(null)}>
+            <Icon name="map-pin" size={18} color={C.brand} />
+            <Text style={styles.pickerMyLocationText}>My current location</Text>
+          </TouchableOpacity>
+          <View style={styles.pickerSearchBar}>
+            <Icon name="search" size={16} color={C.text3} />
+            <TextInput
+              style={styles.pickerInput}
+              placeholder="Search a place..."
+              placeholderTextColor={C.text3}
+              value={q}
+              onChangeText={setQ}
+              autoFocus
+            />
+          </View>
+          <FlatList
+            data={results}
+            keyExtractor={p => p.id}
+            renderItem={({ item }) => (
+              <PlaceRow place={item} onPress={(p) => { onSelect(p); onClose(); }} />
+            )}
+            keyboardShouldPersistTaps="handled"
+            style={{ maxHeight: 300 }}
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
-    setRouting(true);
-    cancelCountdown();
-    const id = setTimeout(() => {
-      try {
-        const result = calculateCampusRoute(originLoc, destLoc);
-        setRoute({ ...result, originName: originLoc.name, destName: destLoc.name });
-        startCountdown();
-      } catch {
-        setRoute({ points: [], distance: null, routed: false, originName: originLoc.name, destName: destLoc.name });
-      } finally {
-        setRouting(false);
-      }
-    }, 50);
+// ─── CATEGORY LIST ────────────────────────────────────────────────────────────
+function CategoryList({ category, onBack, onSelectPlace }) {
+  const places = useMemo(() => getPlaces().filter(p => p.category === category), [category]);
+  const meta   = getCategoryMeta(category);
 
-    return () => clearTimeout(id);
-  }, [originId, destId, locations, userLocation]);
-
-  // ── Countdown then navigate to map ─────────────────────────────────────
-  function startCountdown() {
-    setCountdown(10);
-    countdownRef.current = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(countdownRef.current);
-          countdownRef.current = null;
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }
-
-  function cancelCountdown() {
-    if (countdownRef.current) {
-      clearInterval(countdownRef.current);
-      countdownRef.current = null;
-    }
-    setCountdown(null);
-  }
-
-  // When countdown reaches null after starting, navigate to map
-  const didStartCountdown = useRef(false);
-  useEffect(() => {
-    if (route && countdown === null && didStartCountdown.current) {
-      navigateToMap();
-      didStartCountdown.current = false;
-    }
-    if (route && countdown !== null) {
-      didStartCountdown.current = true;
-    }
-  }, [countdown, route]);
-
-  function navigateToMap() {
-    if (!route) return;
-    setWalkOriginId(originId);
-    setWalkRoute(route);
-    navigation.navigate("Map");
-  }
-
-  function handleGoNow() {
-    cancelCountdown();
-    navigateToMap();
-  }
-
-  function handleCancelRoute() {
-    cancelCountdown();
-    setDestId(null);
-    setOriginId(null);
-    setRoute(null);
-    clearWalkRoute();
-  }
-
-  // ── Handle Go tap on a location card ───────────────────────────────────
-  const handleGo = useCallback((locId) => {
-    if (locId === destId) {
-      // Tapping Go again on the same dest = go now
-      handleGoNow();
-    } else {
-      setDestId(locId);
-    }
-  }, [destId, route]);
-
-  const handleSetOrigin = useCallback((locId) => {
-    setOriginId(locId);
-  }, []);
-
-  // ── Filtered locations ──────────────────────────────────────────────────
-  const filteredLocations = useMemo(() => {
-    let result = filter === "all" ? locations : locations.filter(l => l.category === filter);
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(l => l.name.toLowerCase().includes(q));
-    }
-    return result;
-  }, [locations, filter, search]);
-
-  const originName = originId === null ? "Current Location"
-    : locations.find(l => l.id === originId)?.name ?? "Select origin";
-
-  // Called by IndoorScreen when student taps "Start outdoor route"
-  // Finds the matching outdoor location by name and sets it as destination
-  const handleBuildingSelect = useCallback((buildingId, buildingName) => {
-    setMode("outdoor");
-    const match = locations.find(
-      (l) =>
-        l.id === buildingId ||
-        l.name.toLowerCase() === buildingName.toLowerCase()
-    );
-    if (match) setDestId(match.id);
-  }, [locations]);
-
-  // ─── RENDER ──────────────────────────────────────────────────────────────
+  // Group hostels by subCategory
+  const groups = useMemo(() => {
+    if (!["boys_hostel", "girls_hostel"].includes(category)) return null;
+    const map = {};
+    places.forEach(p => {
+      const key = p.subCategory ?? meta.label;
+      map[key] = map[key] ?? [];
+      map[key].push(p);
+    });
+    return Object.entries(map);
+  }, [places, category]);
 
   return (
     <View style={styles.root}>
+      <View style={styles.catListHeader}>
+        <TouchableOpacity onPress={onBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={styles.backBtn}>
+          <Icon name="arrow-left" size={20} color={C.text} />
+        </TouchableOpacity>
+        <Text style={styles.catListTitle}>{meta.label}</Text>
+        <Text style={styles.catListCount}>{places.length}</Text>
+      </View>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        {groups ? groups.map(([group, items]) => (
+          <View key={group}>
+            <Text style={styles.stickyHeader}>{group}</Text>
+            {items.map(p => <PlaceRow key={p.id} place={p} onPress={onSelectPlace} />)}
+          </View>
+        )) : places.map(p => (
+          <PlaceRow key={p.id} place={p} onPress={onSelectPlace} />
+        ))}
+        {places.length === 0 && (
+          <View style={styles.emptyState}>
+            <Icon name="map-pin" size={32} color={C.text3} />
+            <Text style={styles.emptyTitle}>No places here yet</Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+export default function PathfinderScreen({ navigation }) {
+  const { setWalkRoute, setWalkOriginId, clearWalkRoute } = useStore();
+
+  const [ready,        setReady]        = useState(false);
+  const [query,        setQuery]        = useState("");
+  const [userLocation, setUserLocation] = useState(null);
+  const [fromPlace,    setFromPlace]    = useState(null); // null = current location
+  const [recents,      setRecents]      = useState([]);
+  const [activePlace,  setActivePlace]  = useState(null);
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const searchRef = useRef(null);
+
+  // Load data + location on mount
+  useEffect(() => {
+    Promise.all([
+      loadPlaces(),
+      loadRecents().then(setRecents),
+      Location.requestForegroundPermissionsAsync().then(({ status }) => {
+        if (status === "granted") {
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+            .then(loc => setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude }))
+            .catch(() => {});
+        }
+      }),
+    ]).then(() => setReady(true));
+  }, []);
+
+  // Search results (live as user types)
+  const results = useMemo(() => {
+    if (!ready) return [];
+    const q = query.trim();
+    if (!q) return [];
+    return search(q);
+  }, [query, ready]);
+
+  const isSearching = query.trim().length > 0;
+
+  // Category browse data
+  const categories = useMemo(() => {
+    if (!ready) return [];
+    const places = getPlaces();
+    const counts = {};
+    places.forEach(p => { counts[p.category] = (counts[p.category] ?? 0) + 1; });
+    return Object.entries(counts)
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([category, count]) => ({ category, count, meta: getCategoryMeta(category) }));
+  }, [ready]);
+
+  // Chip categories (top 6 most populated)
+  const chipCategories = useMemo(() => categories.slice(0, 6), [categories]);
+
+  const handleSelectPlace = useCallback(async (place) => {
+    await saveRecent(place);
+    setRecents(await loadRecents());
+    setActivePlace(place);
+  }, []);
+
+  const handleNavigate = useCallback((place) => {
+    setActivePlace(null);
+
+    const origin = fromPlace?.coords ?? userLocation;
+    const dest   = place.coords ?? null;
+
+    if (!origin || !dest) {
+      // No coordinates — just switch to map
+      navigation.navigate("Map");
+      return;
+    }
+
+    try {
+      const route = calculateCampusRoute(origin, dest);
+      setWalkOriginId(fromPlace?.id ?? null);
+      setWalkRoute({ ...route, originName: fromPlace?.name ?? "My location", destName: place.name });
+    } catch {
+      clearWalkRoute();
+    }
+    navigation.navigate("Map");
+  }, [fromPlace, userLocation, navigation]);
+
+  const fromLabel = fromPlace ? fromPlace.name : "My location";
+
+  // ─── Category list view ───────────────────────────────────────────────────
+  if (activeCategory) {
+    return (
+      <>
+        <CategoryList
+          category={activeCategory}
+          onBack={() => setActiveCategory(null)}
+          onSelectPlace={(p) => { setActiveCategory(null); handleSelectPlace(p); }}
+        />
+        <PlaceSheet
+          place={activePlace}
+          userLocation={userLocation}
+          fromPlace={fromPlace}
+          onClose={() => setActivePlace(null)}
+          onNavigate={handleNavigate}
+          onSetFrom={setFromPlace}
+        />
+      </>
+    );
+  }
+
+  return (
+    <View style={styles.root}>
+
       {/* ── Header ────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Pathfinder</Text>
-          <Text style={styles.headerSub}>Find your way around campus</Text>
-        </View>
-        {mode === "outdoor" && originId !== null && (
-          <TouchableOpacity style={styles.currentLocBtn} onPress={() => setOriginId(null)}>
-            <Text style={styles.currentLocBtnText}>Use Current Location</Text>
-          </TouchableOpacity>
-        )}
+        <Text style={styles.headerLabel}>Explore</Text>
+        <Text style={styles.headerTitle}>Where to?</Text>
       </View>
 
-      {/* ── Outdoor / Indoor toggle ─────────────────────────────── */}
-      <View style={styles.toggleWrap}>
-        <TouchableOpacity
-          style={[styles.toggleBtn, mode === "outdoor" && styles.toggleBtnActive]}
-          onPress={() => setMode("outdoor")}
-        >
-          <Text style={[styles.toggleText, mode === "outdoor" && styles.toggleTextActive]}>
-            Outdoor
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleBtn, mode === "indoor" && styles.toggleBtnActive]}
-          onPress={() => setMode("indoor")}
-        >
-          <Text style={[styles.toggleText, mode === "indoor" && styles.toggleTextActive]}>
-            Indoor
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ── Indoor mode ─────────────────────────────────────────── */}
-      {mode === "indoor" && (
-        <IndoorScreen
-          navigation={navigation}
-          onBuildingSelect={handleBuildingSelect}
-        />
-      )}
-
-      {/* ── Outdoor mode ────────────────────────────────────────── */}
-      {mode === "outdoor" && (
-        <>
-      {route && (
-        <View style={styles.routeBanner}>
-          <View style={styles.routeBannerInfo}>
-            <Text style={styles.routeBannerTitle} numberOfLines={1}>
-              {originName} → {route.destName}
-            </Text>
-            <Text style={styles.routeBannerStats}>
-              {formatDistance(route.distance)}  ·  {formatWalkTime(route.distance)}  ·  {route.routed ? "Mapped" : "Straight line"}
-            </Text>
-          </View>
-
-          <View style={styles.routeBannerActions}>
-            {countdown !== null ? (
-              <TouchableOpacity style={styles.goNowBtn} onPress={handleGoNow}>
-                <Text style={styles.goNowBtnText}>Map ({countdown}s)</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.goNowBtn} onPress={handleGoNow}>
-                <Text style={styles.goNowBtnText}>View Map</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={styles.cancelRouteBtn} onPress={handleCancelRoute}>
-              <Text style={styles.cancelRouteBtnText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {routing && (
-        <View style={styles.routingBar}>
-          <ActivityIndicator size="small" color={C.green} />
-          <Text style={styles.routingText}>Calculating...</Text>
-        </View>
-      )}
-
-      {/* ── Category filter ─────────────────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterRow}
-        contentContainerStyle={styles.filterContent}
-      >
-        {[["all", "All"], ...Object.entries(CAMPUS_CATEGORY_META)
-          .filter(([id]) => id !== "pickup")
-          .map(([id, m]) => [id, m.label])].map(([id, label]) => (
-          <TouchableOpacity
-            key={id}
-            style={[styles.filterChip, filter === id && styles.filterChipActive]}
-            onPress={() => setFilter(id)}
-          >
-            <Text style={[styles.filterChipText, filter === id && styles.filterChipTextActive]}>
-              {label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* ── Search bar ──────────────────────────────────────────── */}
-      <View style={styles.searchBar}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search locations..."
-          placeholderTextColor={C.sub}
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch("")} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-            <Text style={{ color: C.sub, fontSize: 16, paddingHorizontal: 4 }}>✕</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* ── Location list ───────────────────────────────────────── */}
-      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-        {originId === null && (
-          <View style={styles.currentLocCard}>
-            <Text style={styles.currentLocLabel}>Starting from your current location</Text>
-            <Text style={styles.currentLocSub}>Tap "From" on any location below to change the starting point</Text>
-          </View>
-        )}
-        {filteredLocations.map(loc => (
-          <LocationCard
-            key={loc.id}
-            loc={loc}
-            isOrigin={loc.id === originId}
-            isDest={loc.id === destId}
-            onGo={handleGo}
-            onSetOrigin={handleSetOrigin}
+      {/* ── Search bar ────────────────────────────────────────────── */}
+      <View style={styles.searchWrap}>
+        <View style={styles.searchBar}>
+          <Icon name="sparkles" size={18} color={C.brand} />
+          <TextInput
+            ref={searchRef}
+            style={styles.searchInput}
+            placeholder="Search or ask, e.g. Dean's office"
+            placeholderTextColor={C.text3}
+            value={query}
+            onChangeText={setQuery}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
           />
-        ))}
-        {filteredLocations.length === 0 && (
-          <Text style={styles.emptyText}>No locations in this category.</Text>
-        )}
-      </ScrollView>
-      </>
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Icon name="x" size={16} color={C.text3} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* From pill */}
+        <TouchableOpacity style={styles.fromPill} onPress={() => setShowFromPicker(true)} activeOpacity={0.7}>
+          <Icon name="map-pin" size={13} color={C.brand} />
+          <Text style={styles.fromPillText} numberOfLines={1}>From: {fromLabel}</Text>
+          <Icon name="chevron-right" size={13} color={C.text3} />
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Search results ────────────────────────────────────────── */}
+      {isSearching ? (
+        <ScrollView style={styles.list} contentContainerStyle={styles.listContent} keyboardShouldPersistTaps="handled">
+          {results.length > 0
+            ? results.map(p => <PlaceRow key={p.id} place={p} onPress={handleSelectPlace} />)
+            : (
+              <View style={styles.emptyState}>
+                <Icon name="search" size={32} color={C.text3} />
+                <Text style={styles.emptyTitle}>No match found</Text>
+                <Text style={styles.emptySub}>Try a lecturer's name, a course code, or a room number.</Text>
+                {looksLikeQuestion(query) && (
+                  <TouchableOpacity style={styles.navBotBtn}>
+                    <Icon name="sparkles" size={14} color={C.brand} />
+                    <Text style={styles.navBotBtnText}>Ask NavBot</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )
+          }
+        </ScrollView>
+      ) : (
+        <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+
+          {/* ── Category chips ───────────────────────────────── */}
+          {chipCategories.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chipsContent}>
+              {chipCategories.map(({ category, meta }) => (
+                <TouchableOpacity
+                  key={category}
+                  style={styles.chip}
+                  onPress={() => setActiveCategory(category)}
+                  activeOpacity={0.75}
+                >
+                  <Icon name={meta.icon} size={14} color={meta.color} />
+                  <Text style={styles.chipText}>{meta.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
+          {/* ── Recents ─────────────────────────────────────── */}
+          {recents.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Recent</Text>
+              {recents.map(r => {
+                const full = getPlaces().find(p => p.id === r.id) ?? r;
+                return <PlaceRow key={r.id} place={full} onPress={handleSelectPlace} />;
+              })}
+            </View>
+          )}
+
+          {/* ── Browse grid ──────────────────────────────────── */}
+          {!ready && (
+            <View style={styles.loadingState}>
+              <ActivityIndicator color={C.brand} />
+              <Text style={styles.loadingText}>Loading places…</Text>
+            </View>
+          )}
+
+          {ready && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Browse</Text>
+              <View style={styles.browseGrid}>
+                {categories.map(({ category, count, meta }) => (
+                  <TouchableOpacity
+                    key={category}
+                    style={styles.browseCard}
+                    onPress={() => setActiveCategory(category)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.browseCardIcon, { backgroundColor: meta.color + "18" }]}>
+                      <Icon name={meta.icon} size={22} color={meta.color} />
+                    </View>
+                    <Text style={styles.browseCardLabel} numberOfLines={1}>{meta.label}</Text>
+                    <Text style={styles.browseCardCount}>{count}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+        </ScrollView>
       )}
+
+      {/* ── Place sheet ───────────────────────────────────────────── */}
+      <PlaceSheet
+        place={activePlace}
+        userLocation={userLocation}
+        fromPlace={fromPlace}
+        onClose={() => setActivePlace(null)}
+        onNavigate={handleNavigate}
+        onSetFrom={setFromPlace}
+      />
+
+      {/* ── From picker ───────────────────────────────────────────── */}
+      <FromPicker
+        visible={showFromPicker}
+        onClose={() => setShowFromPicker(false)}
+        onSelect={(p) => { setFromPlace(p); setShowFromPicker(false); }}
+      />
     </View>
   );
 }
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
 
+  // Header
   header: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    justifyContent:    "space-between",
-    paddingHorizontal: 16,
-    paddingTop:        Platform.OS === 'web' ? 16 : Platform.OS === 'ios' ? 52 : 28,
-    paddingBottom:     12,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    paddingHorizontal: S.base,
+    paddingTop:        Platform.OS === "web" ? S.base : Platform.OS === "ios" ? 52 : 28,
+    paddingBottom:     S.md,
   },
-  headerTitle: { color: C.text, fontSize: 24, fontWeight: "700" },
-  headerSub:   { color: C.sub, fontSize: 14, marginTop: 2 },
+  headerLabel: { fontSize: 12, fontWeight: "600", color: C.text3, textTransform: "uppercase", letterSpacing: 0.8 },
+  headerTitle: { fontSize: 26, fontWeight: "600", color: C.text, marginTop: 2 },
 
-  // Outdoor / Indoor toggle
-  toggleWrap: {
-    flexDirection:     "row",
-    margin:            16,
-    marginBottom:      0,
-    backgroundColor:   C.surface,
-    borderRadius:      12,
-    borderWidth:       1,
-    borderColor:       C.border,
-    padding:           4,
-  },
-  toggleBtn: {
-    flex:            1,
-    paddingVertical: 10,
-    borderRadius:    9,
-    alignItems:      "center",
-  },
-  toggleBtnActive: {
-    backgroundColor: C.green,
-  },
-  toggleText: {
-    fontSize:   14,
-    fontWeight: "700",
-    color:      C.sub,
-  },
-  toggleTextActive: {
-    color: "#FFFFFF",
-  },
-
-  currentLocBtn:     { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: C.green },
-  currentLocBtnText: { color: C.green, fontSize: 13, fontWeight: "600" },
-
-  // Route banner
-  routeBanner: {
-    flexDirection:     "row",
-    alignItems:        "center",
-    paddingHorizontal: 16,
-    paddingVertical:   12,
-    backgroundColor:   "rgba(30,122,70,0.08)",
-    borderBottomWidth: 1,
-    borderBottomColor: C.green,
-  },
-  routeBannerInfo:   { flex: 1 },
-  routeBannerTitle:  { color: C.text, fontSize: 14, fontWeight: "600" },
-  routeBannerStats:  { color: C.sub, fontSize: 12, marginTop: 2 },
-  routeBannerActions:{ flexDirection: "row", alignItems: "center", gap: 8, marginLeft: 8 },
-  goNowBtn:          { backgroundColor: C.green, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12 },
-  goNowBtnText:      { color: "#F7F8FA", fontWeight: "700", fontSize: 13 },
-  cancelRouteBtn:    { width: 30, height: 30, borderRadius: 15, backgroundColor: C.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.border },
-  cancelRouteBtnText:{ color: C.sub, fontSize: 14 },
-
-  routingBar: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border },
-  routingText:{ color: C.sub, fontSize: 13 },
-
-  // Category filter
-  filterRow:    { flexGrow: 0, maxHeight: 56, borderBottomWidth: 1, borderBottomColor: C.border },
-  filterContent:{ paddingHorizontal: 16, gap: 8, alignItems: "center" },
-  filterChip:          { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
-  filterChipActive:    { borderColor: C.green, backgroundColor: "rgba(30,122,70,0.1)" },
-  filterChipText:      { color: C.sub, fontSize: 13, fontWeight: "600" },
-  filterChipTextActive:{ color: C.green },
-
-  // Location list
-  list:        { flex: 1 },
-  listContent: { padding: 16, paddingBottom: 40 },
-
+  // Search
+  searchWrap: { paddingHorizontal: S.base, paddingBottom: S.sm, gap: S.sm },
   searchBar: {
-    flexDirection:   "row",
-    alignItems:      "center",
+    flexDirection: "row", alignItems: "center", gap: S.sm,
+    backgroundColor: C.surface, borderRadius: R.search,
+    borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: S.md, paddingVertical: S.sm + 2,
+    minHeight: 48,
+  },
+  searchInput: { flex: 1, fontSize: 15, color: C.text },
+
+  // From pill
+  fromPill: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    alignSelf: "flex-start",
+    backgroundColor: C.brandSoft, borderRadius: R.chip,
+    paddingHorizontal: S.md, paddingVertical: 7,
+    borderWidth: 1, borderColor: C.brand + "40",
+  },
+  fromPillText: { fontSize: 13, color: C.brand, fontWeight: "500", maxWidth: 200 },
+
+  // Chips
+  chipsScroll:  { flexGrow: 0, marginBottom: S.base },
+  chipsContent: { gap: S.sm, paddingRight: S.base },
+  chip: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: C.surface, borderRadius: R.chip,
+    borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: S.md, paddingVertical: 9,
+    minHeight: 44,
+  },
+  chipText: { fontSize: 13, color: C.text2, fontWeight: "500" },
+
+  // List
+  list:        { flex: 1 },
+  listContent: { padding: S.base, paddingBottom: 40 },
+
+  // Section
+  section:      { marginBottom: S.xl },
+  sectionTitle: { fontSize: 13, fontWeight: "600", color: C.text3, textTransform: "uppercase", letterSpacing: 0.7, marginBottom: S.sm },
+
+  // Place row
+  placeRow: {
+    flexDirection: "row", alignItems: "center", gap: S.md,
+    backgroundColor: C.surface, borderRadius: R.card,
+    padding: S.md, marginBottom: S.sm,
+    borderWidth: 1, borderColor: C.border,
+    minHeight: 56,
+  },
+  placeRowPressed: { backgroundColor: C.surface2 },
+  placeRowIcon:    { width: 36, height: 36, borderRadius: 9, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  placeRowText:    { flex: 1 },
+  placeRowName:    { fontSize: 14, fontWeight: "500", color: C.text },
+  placeRowSub:     { fontSize: 12, color: C.text3, marginTop: 2 },
+
+  // Browse grid
+  browseGrid: { flexDirection: "row", flexWrap: "wrap", gap: S.sm },
+  browseCard: {
+    width: "48%", backgroundColor: C.surface,
+    borderRadius: R.card, borderWidth: 1, borderColor: C.border,
+    padding: S.md, alignItems: "flex-start", gap: S.sm,
+    minHeight: 90,
+  },
+  browseCardIcon:  { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  browseCardLabel: { fontSize: 13, fontWeight: "600", color: C.text },
+  browseCardCount: { fontSize: 12, color: C.text3 },
+
+  // Category list
+  catListHeader: {
+    flexDirection: "row", alignItems: "center", gap: S.sm,
+    paddingHorizontal: S.base,
+    paddingTop: Platform.OS === "web" ? S.base : Platform.OS === "ios" ? 52 : 28,
+    paddingBottom: S.md,
+    borderBottomWidth: 1, borderBottomColor: C.border,
+  },
+  backBtn:       { padding: S.xs, marginRight: S.xs },
+  catListTitle:  { flex: 1, fontSize: 18, fontWeight: "600", color: C.text },
+  catListCount:  { fontSize: 13, color: C.text3 },
+  stickyHeader:  { fontSize: 12, fontWeight: "700", color: C.text3, textTransform: "uppercase", letterSpacing: 0.7, paddingHorizontal: S.base, paddingVertical: S.sm, backgroundColor: C.bg },
+
+  // Place sheet
+  sheetOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
+  sheet: {
     backgroundColor: C.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    paddingHorizontal: 16,
-    paddingVertical:   10,
-    gap: 10,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingHorizontal: S.xl, paddingTop: S.md,
+    paddingBottom: Platform.OS === "ios" ? 40 : 28,
+    gap: S.md,
   },
-  searchIcon:  { fontSize: 16 },
-  searchInput: {
-    flex:      1,
-    color:     C.text,
-    fontSize:  15,
-    paddingVertical: Platform.OS === "ios" ? 6 : 2,
-  },
+  sheetHandle:  { width: 36, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: "center", marginBottom: S.sm },
+  sheetHeader:  { flexDirection: "row", gap: S.md, alignItems: "flex-start" },
+  sheetIcon:    { width: 44, height: 44, borderRadius: 11, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  sheetName:    { fontSize: 18, fontWeight: "600", color: C.text },
+  sheetSub:     { fontSize: 13, color: C.text3, marginTop: 2 },
+  sheetPeople:  { fontSize: 13, color: C.text2, marginTop: 4 },
+  sheetWalkInfo:{ flexDirection: "row", alignItems: "center", gap: S.xs, backgroundColor: C.brandSoft, borderRadius: R.chip, paddingHorizontal: S.md, paddingVertical: 7, alignSelf: "flex-start" },
+  sheetWalkText:{ fontSize: 13, color: C.brand, fontWeight: "500" },
+  sheetCourses: { flexDirection: "row", flexWrap: "wrap", gap: S.xs },
+  sheetCourseChip: { backgroundColor: C.surface2, borderRadius: R.chip, paddingHorizontal: S.sm, paddingVertical: 4 },
+  sheetCourseText: { fontSize: 12, color: C.text2 },
+  sheetActions: { flexDirection: "row", gap: S.sm },
+  navigateBtn:  { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, backgroundColor: C.brand, borderRadius: R.button, paddingVertical: 14, minHeight: 48 },
+  navigateBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  secondaryBtn: { backgroundColor: C.surface2, borderRadius: R.button, paddingVertical: 14, paddingHorizontal: S.base, minHeight: 48, justifyContent: "center" },
+  secondaryBtnText: { color: C.text, fontSize: 14, fontWeight: "500" },
+  sheetTertiary:    { alignItems: "center", paddingVertical: S.xs },
+  sheetTertiaryText:{ fontSize: 13, color: C.text3 },
 
-  currentLocCard: {
-    backgroundColor: C.surface,
-    borderRadius:    12,
-    padding:         14,
-    marginBottom:    12,
-    borderWidth:     1,
-    borderColor:     C.green,
-    borderStyle:     "dashed",
-  },
-  currentLocLabel: { color: C.green, fontWeight: "600", fontSize: 14 },
-  currentLocSub:   { color: C.sub, fontSize: 13, marginTop: 2 },
+  // From picker
+  pickerOverlay:      { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
+  picker:             { backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: S.xl, paddingBottom: Platform.OS === "ios" ? 40 : 28 },
+  pickerHeader:       { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: S.base },
+  pickerTitle:        { fontSize: 16, fontWeight: "600", color: C.text },
+  pickerMyLocation:   { flexDirection: "row", alignItems: "center", gap: S.sm, padding: S.md, backgroundColor: C.brandSoft, borderRadius: R.card, marginBottom: S.sm, minHeight: 44 },
+  pickerMyLocationText:{ fontSize: 14, color: C.brand, fontWeight: "500" },
+  pickerSearchBar:    { flexDirection: "row", alignItems: "center", gap: S.sm, backgroundColor: C.surface2, borderRadius: R.input, paddingHorizontal: S.md, paddingVertical: S.sm, marginBottom: S.sm },
+  pickerInput:        { flex: 1, fontSize: 14, color: C.text },
 
-  locCard:    { flexDirection: "row", alignItems: "center", backgroundColor: C.surface, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.border, gap: 12 },
-  locDot:     { width: 12, height: 12, borderRadius: 6, flexShrink: 0 },
-  locName:    { color: C.text, fontSize: 15, fontWeight: "600" },
-  locCat:     { color: C.sub, fontSize: 12, marginTop: 2 },
-  locActions: { flexDirection: "row", gap: 8 },
-
-  locBtn:            { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: C.border },
-  locBtnActiveGreen: { borderColor: C.green, backgroundColor: "rgba(30,122,70,0.08)" },
-  locBtnText:        { color: C.sub, fontSize: 13, fontWeight: "600" },
-
-  goBtn:         { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, backgroundColor: C.surface, borderWidth: 1, borderColor: C.green },
-  goBtnActive:   { backgroundColor: C.green },
-  goBtnText:     { color: C.green, fontSize: 14, fontWeight: "700" },
-  goBtnTextActive:{ color: "#F7F8FA" },
-
-  emptyText: { color: C.sub, textAlign: "center", paddingTop: 30, fontSize: 14 },
+  // Empty / loading states
+  emptyState:   { alignItems: "center", paddingTop: 48, gap: S.sm },
+  emptyTitle:   { fontSize: 16, fontWeight: "600", color: C.text },
+  emptySub:     { fontSize: 14, color: C.text3, textAlign: "center", lineHeight: 20 },
+  navBotBtn:    { flexDirection: "row", alignItems: "center", gap: S.xs, marginTop: S.sm, backgroundColor: C.brandSoft, borderRadius: R.chip, paddingHorizontal: S.md, paddingVertical: 9 },
+  navBotBtnText:{ fontSize: 13, color: C.brand, fontWeight: "600" },
+  loadingState: { alignItems: "center", paddingTop: 48, gap: S.sm },
+  loadingText:  { fontSize: 14, color: C.text3 },
 });
