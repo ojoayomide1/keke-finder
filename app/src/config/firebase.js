@@ -1,10 +1,6 @@
 import { Platform } from "react-native";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
-  initializeAppCheck,
-  ReCaptchaV3Provider,
-} from "firebase/app-check";
-import {
   getFirestore,
   initializeFirestore,
   persistentLocalCache,
@@ -52,37 +48,20 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 // ─── APP CHECK ────────────────────────────────────────────────────────────────
-// Required for Firebase AI Logic (Gemini Developer API).
-// Web only — native App Check uses different providers (DeviceCheck / Play Integrity).
-//
-// Production: set EXPO_PUBLIC_RECAPTCHA_SITE_KEY in Vercel env vars.
-// Development: the debug token is auto-printed to the browser console.
-//   Copy it and register it at:
-//   Firebase console → Security → App Check → Apps → Manage debug tokens
-if (Platform.OS === "web") {
-  try {
-    const siteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
-    if (siteKey) {
-      // Production — reCAPTCHA v3
+// Only initialize when a reCAPTCHA site key is provided (production).
+// Without it, App Check is skipped — NavBot works if AI Logic is NOT enforced.
+// To enable: set EXPO_PUBLIC_RECAPTCHA_SITE_KEY in Vercel environment variables.
+if (Platform.OS === "web" && process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY) {
+  import("firebase/app-check").then(({ initializeAppCheck, ReCaptchaV3Provider }) => {
+    try {
       initializeAppCheck(app, {
-        provider:                new ReCaptchaV3Provider(siteKey),
+        provider: new ReCaptchaV3Provider(process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY),
         isTokenAutoRefreshEnabled: true,
       });
-    } else {
-      // Development — debug mode: prints a token to the console
-      // Set the flag BEFORE initializeAppCheck
-      if (typeof self !== "undefined") {
-        self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-      }
-      // Use a placeholder site key — debug mode ignores it
-      initializeAppCheck(app, {
-        provider:                new ReCaptchaV3Provider("debug-placeholder"),
-        isTokenAutoRefreshEnabled: false,
-      });
+    } catch (e) {
+      console.warn("[firebase] App Check init failed:", e.message);
     }
-  } catch (e) {
-    console.warn("[firebase] App Check init failed:", e.message);
-  }
+  });
 }
 
 // Initialize Firestore with offline persistence.
