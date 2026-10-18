@@ -122,11 +122,27 @@ export async function askNavBot(question) {
     const model  = getModel();
 
     const result = await withTimeout(model.generateContent(prompt), TIMEOUT_MS);
-    const raw    = result.response.text();
+
+    if (!result?.response) {
+      if (__DEV__) console.warn("[navbot] no response object returned");
+      return fallback("NavBot returned an empty response. Try searching instead.", "EMPTY_RESPONSE");
+    }
+
+    const raw = result.response.text();
+
+    // Log raw response in dev to diagnose parsing issues
+    if (__DEV__) console.log("[navbot] raw response:", raw.substring(0, 300));
 
     // Strip markdown code fences if model wraps JSON in them
     const cleaned = raw.replace(/^```json?\s*/i, "").replace(/\s*```$/i, "").trim();
-    const data    = JSON.parse(cleaned);
+
+    let data;
+    try {
+      data = JSON.parse(cleaned);
+    } catch (parseErr) {
+      if (__DEV__) console.warn("[navbot] JSON parse failed:", parseErr.message, "| raw:", cleaned.substring(0, 200));
+      return fallback("NavBot returned an unexpected response. Try searching instead.", "PARSE_ERROR");
+    }
 
     // Validate IDs — but log when we strip to help debug
     const validIds = new Set(places.map(p => p.id));
@@ -154,7 +170,7 @@ export async function askNavBot(question) {
     return response;
 
   } catch (err) {
-    if (__DEV__) console.warn("[navbot] error:", err.message);
+    if (__DEV__) console.warn("[navbot] caught error:", err.message, "| code:", err.code, "| name:", err.name);
 
     if (err.message === "TIMEOUT")
       return fallback("NavBot is taking too long. Try searching instead.", "TIMEOUT");
