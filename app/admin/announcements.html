@@ -86,8 +86,8 @@
   } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
   const _loader = injectPageLoader();
-  const _loader = injectPageLoader(); const admin = await requireAdmin();
-  renderNav(admin.name); _loader.hide();
+  const admin = await requireAdmin();
+  renderNav(admin.name);
   _loader.hide();
 
   function showToast(msg, isErr) {
