@@ -207,6 +207,13 @@ export function bustPlacesCache() {
 }
 
 /**
+ * Find a single place by its exact ID.
+ */
+export function getPlaceById(id) {
+  return (_places ?? []).find(p => p.id === id);
+}
+
+/**
  * Get all unique category values from loaded places.
  * Used to build the category chips in Explore.
  */

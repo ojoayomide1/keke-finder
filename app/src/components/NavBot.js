@@ -139,29 +139,28 @@ export default function NavBot({ visible, initialQuery = "", onClose, onNavigate
     setInput("");
     setSending(true);
 
-    // Add user message + bot loading placeholder
-    const userId  = Date.now();
-    const botId   = userId + 1;
+    const userId = Date.now();
+    const botId  = userId + 1;
     setMessages(prev => [
       ...prev,
-      { id: userId, role: "user",  text: q },
-      { id: botId,  role: "bot",   text: "", loading: true },
+      { id: userId, role: "user", text: q },
+      { id: botId,  role: "bot",  text: "", loading: true },
     ]);
 
-    const response = await askNavBot(q);
+    let response;
+    try {
+      response = await askNavBot(q);
+    } catch (err) {
+      response = {
+        ok: false, message: "NavBot is unavailable. Try searching instead.",
+        places: [], followUps: [], intent: "unknown",
+      };
+    }
 
     setMessages(prev => prev.map(m => m.id === botId
-      ? {
-          ...m,
-          loading:   false,
-          text:      response.message,
-          places:    response.places,
-          followUps: response.followUps,
-          ok:        response.ok,
-        }
+      ? { ...m, loading: false, text: response.message, places: response.places, followUps: response.followUps, ok: response.ok }
       : m
     ));
-
     setSending(false);
     setTimeout(() => inputRef.current?.focus(), 200);
   }
