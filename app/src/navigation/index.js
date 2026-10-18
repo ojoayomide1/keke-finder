@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { ActivityIndicator, Platform, View, StyleSheet } from "react-native";
+import { ActivityIndicator, Platform, Text, View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { auth, onAuthStateChanged, db, doc, getDoc } from "../config/firebase";
@@ -38,9 +38,9 @@ function AuthNavigator() {
 }
 
 // ─── TAB ICON CONFIG ─────────────────────────────────────────────────────────
-// Tab name → Lucide icon name
+// Tab name → Lucide icon name (or "emoji:X" for emoji fallback)
 const STUDENT_ICONS = {
-  Ride:    "car",
+  Ride:    "emoji:🛺",
   Wallet:  "wallet",
   Map:     "map",
   Explore: "compass",
@@ -55,9 +55,17 @@ const RIDER_ICONS = {
 };
 
 function StudentTabIcon({ name, focused }) {
+  const iconKey = STUDENT_ICONS[name] ?? "circle-alert";
+  if (iconKey.startsWith("emoji:")) {
+    return (
+      <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>
+        {iconKey.slice(6)}
+      </Text>
+    );
+  }
   return (
     <Icon
-      name={STUDENT_ICONS[name] ?? "circle-alert"}
+      name={iconKey}
       size={22}
       color={focused ? C.brand : C.text3}
       strokeWidth={focused ? 2 : 1.75}
