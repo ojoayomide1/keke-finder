@@ -124,6 +124,7 @@ function normaliseIndoorBuildings(buildings) {
           aliases,
           people,
           courses,
+          questions:    Array.isArray(room.questions) ? room.questions : [],
           hours:        room.hours        ?? undefined,
           hint:         room.hint || room.description || undefined,
           steps:        Array.isArray(room.steps) ? room.steps : [],

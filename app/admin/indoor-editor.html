@@ -213,6 +213,10 @@
       ${selectField("gender","Gender restriction", ["","male","female"], room?.gender ?? "")}
       ${field("tags",        "Tags / Keywords (CSV)", room?.tags     ?? "", "text", "e.g. dean,admin,dsa,bursary")}
       <div class="form-group" style="grid-column:1/-1">
+        <label>Likely questions (one per line — helps NavBot find this place)</label>
+        <textarea id="rf-questions" rows="3" placeholder="Where is debt recovery?\nHow do I pay school fees?\nWhere is the bursary?">${(room?.questions||[]).join("\n")}</textarea>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
         <label>Hint (shown in step 3 of directions)</label>
         <input type="text" id="rf-hint" value="${(room?.hint||"").replace(/"/g,'&quot;')}" placeholder="e.g. Third door on the left after the stairwell" />
       </div>
@@ -265,6 +269,7 @@
       tags:        val("tags")        || null,
       hint:        val("hint")        || null,
       steps:       document.getElementById("rf-steps")?.value.split("\n").map(s=>s.trim()).filter(Boolean) ?? [],
+      questions:   document.getElementById("rf-questions")?.value.split("\n").map(s=>s.trim()).filter(Boolean) ?? [],
       entrance:    val("entrance")    || null,
       floorPlan:   val("floorPlan")   || null,
       description: val("hint")        || null, // keep description in sync with hint for legacy compat
