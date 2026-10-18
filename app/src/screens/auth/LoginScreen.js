@@ -103,7 +103,15 @@ export default function LoginScreen() {
   const [role, setRole] = useState("student"); // "student" | "rider"
   const [loading, setLoading] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState("");         // login errors
+  const [fieldErrors, setFieldErrors] = useState({}); // signup per-field errors
+
+  function fieldErr(field, msg) {
+    setFieldErrors(prev => ({ ...prev, [field]: msg }));
+  }
+  function clearFieldErr(field) {
+    setFieldErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
+  }
 
   // Biometric state
   const [bioAvailable, setBioAvailable] = useState(false);
@@ -202,38 +210,42 @@ export default function LoginScreen() {
 
   // ── Signup ────────────────────────────────────────────────────────────────
   async function handleSignup() {
-    const nameRegex   = /^[a-zA-Z\s.']{3,60}$/;
-    const phoneRegex  = /^\+?[0-9]{10,15}$/;
-    const matricRegex = /^[A-Z0-9/-]{5,30}$/i;
+    // Nigerian phone: 11 digits starting with 0, or +234 followed by 10 digits
+    const phoneRegex  = /^(0[7-9][0-1]\d{8}|\+?234[7-9][0-1]\d{8})$/;
     const plateRegex  = /^[A-Z0-9\s-]{4,15}$/i;
 
-    if (!nameRegex.test(name))  return setError("Enter a valid full name (3–60 letters).");
-    if (!phoneRegex.test(phone)) return setError("Enter a valid phone number.");
+    // Validate all fields inline — collect errors, don't return on first fail
+    const errs = {};
+    if (!name.trim() || name.trim().length < 3) errs.name = "Enter your full name (at least 3 characters).";
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Enter a valid email address.";
+    if (password.length < 8) errs.password = "Password must be at least 8 characters.";
+    if (!phone.trim() || !phoneRegex.test(phone.replace(/\s/g, ""))) errs.phone = "Enter a valid Nigerian phone number (e.g. 08012345678 or +2348012345678).";
+    if (role === "student" && !matric.trim()) errs.matric = "Enter your matric number.";
+    if (role === "rider" && (!plate.trim() || !plateRegex.test(plate))) errs.plate = "Enter a valid plate number.";
 
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      return;
+    }
+    setFieldErrors({});
     setLoading(true);
     setError("");
 
     try {
       let studentRecord = null;
       if (role === "student") {
-        if (!matricRegex.test(matric)) {
-          setLoading(false);
-          return setError("Enter a valid Matric Number.");
-        }
         studentRecord = await verifyMatricNumber(name, matric);
         if (!studentRecord) {
           setLoading(false);
-          return setError("Name or Matric Number does not match our records.");
+          setFieldErrors({ matric: "Name or matric number does not match our records." });
+          return;
         }
       } else {
-        if (!plateRegex.test(plate)) {
-          setLoading(false);
-          return setError("Enter a valid Plate Number.");
-        }
         const valid = await verifyRiderDetails(name, phone, plate);
         if (!valid) {
           setLoading(false);
-          return setError("Rider details do not match our authorized records.");
+          setFieldErrors({ plate: "Rider details do not match our authorized records." });
+          return;
         }
       }
 
@@ -309,7 +321,7 @@ export default function LoginScreen() {
         <View style={styles.tabs}>
           <TouchableOpacity
             style={[styles.tab, mode === "login" && styles.tabActive]}
-            onPress={() => { setMode("login"); setError(""); }}
+            onPress={() => { setMode("login"); setError(""); setFieldErrors({}); }}
           >
             <Text style={[styles.tabText, mode === "login" && styles.tabTextActive]}>
               Login
@@ -317,7 +329,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, mode === "signup" && styles.tabActive]}
-            onPress={() => { setMode("signup"); setError(""); }}
+            onPress={() => { setMode("signup"); setError(""); setFieldErrors({}); }}
           >
             <Text style={[styles.tabText, mode === "signup" && styles.tabTextActive]}>
               Sign Up
@@ -345,76 +357,99 @@ export default function LoginScreen() {
         {/* ── Fields ──────────────────────────────────────────── */}
         <View style={styles.form}>
           {mode === "signup" && (
-            <TextInput
-              style={styles.input}
-              placeholder="Full Name"
-              placeholderTextColor="#6B7280"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
+            <View>
+              <TextInput
+                style={[styles.input, fieldErrors.name && styles.inputError]}
+                placeholder="Full Name"
+                placeholderTextColor="#6B7280"
+                value={name}
+                onChangeText={v => { setName(v); clearFieldErr("name"); }}
+                autoCapitalize="words"
+              />
+              {fieldErrors.name ? <Text style={styles.fieldError}>{fieldErrors.name}</Text> : null}
+            </View>
           )}
 
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#6B7280"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          <View style={styles.passwordRow}>
+          <View>
             <TextInput
-              style={[styles.input, styles.passwordInput]}
-              placeholder="Password"
+              style={[styles.input, fieldErrors.email && styles.inputError]}
+              placeholder="Email"
               placeholderTextColor="#6B7280"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
+              value={email}
+              onChangeText={v => { setEmail(v); clearFieldErr("email"); }}
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
-            <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => setShowPassword(v => !v)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={styles.eyeText}>{showPassword ? "🙈" : "👁️"}</Text>
-            </TouchableOpacity>
+            {fieldErrors.email ? <Text style={styles.fieldError}>{fieldErrors.email}</Text> : null}
+          </View>
+
+          <View>
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[styles.input, styles.passwordInput, fieldErrors.password && styles.inputError]}
+                placeholder="Password"
+                placeholderTextColor="#6B7280"
+                value={password}
+                onChangeText={v => { setPassword(v); clearFieldErr("password"); }}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeBtn}
+                onPress={() => setShowPassword(v => !v)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.eyeText}>{showPassword ? "🙈" : "👁️"}</Text>
+              </TouchableOpacity>
+            </View>
+            {fieldErrors.password
+              ? <Text style={styles.fieldError}>{fieldErrors.password}</Text>
+              : mode === "signup" && password.length > 0 && password.length < 8
+                ? <Text style={styles.fieldHint}>At least 8 characters needed ({password.length}/8)</Text>
+                : null
+            }
           </View>
 
           {mode === "signup" && (
-            <TextInput
-              style={styles.input}
-              placeholder="Phone Number"
-              placeholderTextColor="#6B7280"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-            />
+            <View>
+              <TextInput
+                style={[styles.input, fieldErrors.phone && styles.inputError]}
+                placeholder="Phone Number (e.g. 08012345678)"
+                placeholderTextColor="#6B7280"
+                value={phone}
+                onChangeText={v => { setPhone(v); clearFieldErr("phone"); }}
+                keyboardType="phone-pad"
+              />
+              {fieldErrors.phone ? <Text style={styles.fieldError}>{fieldErrors.phone}</Text> : null}
+            </View>
           )}
 
           {mode === "signup" && role === "student" && (
-            <TextInput
-              style={styles.input}
-              placeholder="Matric Number"
-              placeholderTextColor="#6B7280"
-              value={matric}
-              onChangeText={setMatric}
-              autoCapitalize="characters"
-            />
+            <View>
+              <TextInput
+                style={[styles.input, fieldErrors.matric && styles.inputError]}
+                placeholder="Matric Number (e.g. VUG/CSC/25/14902)"
+                placeholderTextColor="#6B7280"
+                value={matric}
+                onChangeText={v => { setMatric(v); clearFieldErr("matric"); }}
+                autoCapitalize="characters"
+              />
+              {fieldErrors.matric ? <Text style={styles.fieldError}>{fieldErrors.matric}</Text> : null}
+            </View>
           )}
 
           {mode === "signup" && role === "rider" && (
             <>
-              <TextInput
-                style={styles.input}
-                placeholder="Plate Number"
-                placeholderTextColor="#6B7280"
-                value={plate}
-                onChangeText={setPlate}
-                autoCapitalize="characters"
-              />
+              <View>
+                <TextInput
+                  style={[styles.input, fieldErrors.plate && styles.inputError]}
+                  placeholder="Plate Number"
+                  placeholderTextColor="#6B7280"
+                  value={plate}
+                  onChangeText={v => { setPlate(v); clearFieldErr("plate"); }}
+                  autoCapitalize="characters"
+                />
+                {fieldErrors.plate ? <Text style={styles.fieldError}>{fieldErrors.plate}</Text> : null}
+              </View>
               <View style={styles.vehicleRow}>
                 {["keke", "shuttle"].map((v) => (
                   <TouchableOpacity
@@ -527,7 +562,10 @@ const styles = StyleSheet.create({
   vehicleBtnText:      { color: "#6B7280", fontWeight: "600" },
   vehicleBtnTextActive:{ color: "#1E7A46" },
 
-  error: { color: "#fca5a5", textAlign: "center", marginVertical: 8, fontSize: 13 },
+  error:      { color: "#C23B3B", textAlign: "center", marginVertical: 8, fontSize: 13 },
+  fieldError: { color: "#C23B3B", fontSize: 12, marginTop: 4, marginBottom: 4, paddingHorizontal: 2 },
+  fieldHint:  { color: "#6B7280", fontSize: 12, marginTop: 4, marginBottom: 4, paddingHorizontal: 2 },
+  inputError: { borderColor: "#C23B3B" },
 
   submitBtn:         { backgroundColor: "#1E7A46", borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 12 },
   submitBtnDisabled: { opacity: 0.6 },
