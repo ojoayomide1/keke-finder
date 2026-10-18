@@ -58,8 +58,8 @@ const C = {
   border:    "#E2E6ED", 
   green:     "#1E7A46",
   greenMute: "rgba(30,122,70,0.12)",
-  orange:    "#FF5E1A",
-  orangeMute: "rgba(255,94,26,0.12)",
+  green:     "#1E7B4C",
+  greenMute: "rgba(30,123,76,0.12)",
   text:      "#0F1117",
   sub:       "#6B7280",
   error:     "#fca5a5",
@@ -548,9 +548,9 @@ export default function RiderHomeScreen({ navigation }) {
         
         {/* ── Header ──────────────────────────────────────────── */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Hello, {name}</Text>
-            <Text style={styles.plateText}>Plate: {plateNo}</Text>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={styles.greeting} numberOfLines={1}>Hello, {name}</Text>
+            <Text style={styles.plateText}>{plateNo}</Text>
           </View>
           <View style={styles.headerRight}>
             {queuedStudentsCount > 0 && (
@@ -647,31 +647,32 @@ const styles = StyleSheet.create({
     alignItems:     "center",
     marginBottom:   20,
   },
-  greeting:   { color: C.text, fontSize: 24, fontWeight: "700" },
-  plateText:  { color: C.sub, fontSize: 14, marginTop: 2 },
+  greeting:   { color: C.text, fontSize: 17, fontWeight: "600", flexShrink: 1 },
+  plateText:  { color: C.sub, fontSize: 13, marginTop: 2 },
 
-  statusBadge:        { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  statusBadge:        { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, flexShrink: 0 },
   statusOnline:       { backgroundColor: C.greenMute },
-  statusOffline:      { backgroundColor: C.orangeMute },
+  statusOffline:      { backgroundColor: "rgba(91,100,112,0.12)" },
   statusText:         { fontSize: 11, fontWeight: "700", letterSpacing: 1 },
   statusTextOnline:   { color: C.green },
-  statusTextOffline:  { color: C.orange },
+  statusTextOffline:  { color: C.sub },
 
   headerRight: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    alignItems:    "center",
+    gap:           8,
+    flexShrink:    0,
   },
   queueBadgeContainer: {
-    backgroundColor: C.orangeMute,
-    borderColor: C.orange,
+    backgroundColor: C.greenMute,
+    borderColor: C.green,
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
   },
   queueBadgeText: {
-    color: C.orange,
+    color: C.green,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -790,7 +791,7 @@ const styles = StyleSheet.create({
   
   statusDot:        { width: 8, height: 8, borderRadius: 4 },
   statusDotActive:  { backgroundColor: C.green },
-  statusDotPending: { backgroundColor: C.orange },
+  statusDotPending: { backgroundColor: C.green },
 
   activeRoute:   { flexDirection: "row", marginBottom: 4 },
   rideStatus:    { color: C.sub, fontSize: 13, marginTop: 8, marginBottom: 12 },

@@ -41,6 +41,7 @@ import useStore from "../../store";
 import { fetchProfileStats, formatNaira } from "../../services/wallet";
 import { auth, signOut } from "../../config/firebase";
 import SupportModal from "../shared/SupportModal";
+import Icon from "../../components/Icon";
 import {
   isBiometricsAvailable,
   isBiometricsEnabled,
@@ -55,10 +56,11 @@ const C = {
   bg:        "#F7F8FA",
   surface:   "#FFFFFF",
   border:    "#E2E6ED",
-  green:     "#1E7A46",
-  greenMute: "rgba(30,122,70,0.12)",
-  text:      "#0F1117",
-  sub:       "#6B7280",
+  green:     "#1E7B4C",
+  greenMute: "rgba(30,123,76,0.12)",
+  danger:    "#C23B3B",
+  text:      "#14171A",
+  sub:       "#5B6470",
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -253,7 +255,6 @@ export default function ProfileScreen() {
         <View style={styles.avatarSection}>
           <Avatar name={name} size={88} />
           <Text style={styles.profileName}>{name}</Text>
-          {matric && <Text style={styles.profileMatric}>{matric}</Text>}
           <Text style={styles.profileEmail}>{email}</Text>
           {isAdmin && (
             <View style={styles.adminBadge}>
@@ -317,13 +318,14 @@ export default function ProfileScreen() {
           onPress={() => setShowSupport(true)}
           activeOpacity={0.8}
         >
-          <Text style={styles.helpIcon}>🛟</Text>
-          <Text style={styles.helpText}>Help & Support</Text>
-          <Text style={styles.helpChevron}>›</Text>
+          <Icon name="life-buoy" size={18} color={C.text} />
+          <Text style={styles.helpText}>Help and support</Text>
+          <Icon name="chevron-right" size={16} color={C.sub} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Icon name="log-out" size={16} color={C.danger} />
+          <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
 
         <Text style={styles.appVersion}>NavCamp v2.0 — Expo Edition</Text>
@@ -410,27 +412,34 @@ const styles = StyleSheet.create({
   },
 
   logoutBtn: {
+    flexDirection:   "row",
+    alignItems:      "center",
+    justifyContent:  "center",
+    gap:             8,
     borderRadius:    14,
     paddingVertical: 14,
-    alignItems:      "center",
     borderWidth:     1,
-    borderColor:     "#ef4444",
-    backgroundColor: "rgba(239,68,68,0.12)",
+    borderColor:     "#C23B3B",
+    backgroundColor: "rgba(194,59,59,0.08)",
     marginBottom:    12,
     marginTop:       4,
   },
-  logoutText: { color: "#fca5a5", fontWeight: "700", fontSize: 15 },
+  logoutText: { color: "#C23B3B", fontWeight: "600", fontSize: 15 },
 
   appVersion: { color: C.sub, fontSize: 11, textAlign: "center", marginBottom: 8 },
 
-
   helpBtn: {
+    flexDirection:   "row",
+    alignItems:      "center",
+    gap:             10,
     borderRadius:    14,
     paddingVertical: 14,
-    alignItems:      "center",
+    paddingHorizontal: 16,
     borderWidth:     1,
-    borderColor:     "#E2E6ED",
+    borderColor:     C.border,
+    backgroundColor: C.surface,
     marginBottom:    12,
   },
-  helpText: { color: "#FFFFFF", fontWeight: "600" },
+  helpText:    { color: C.text, fontWeight: "500", fontSize: 15, flex: 1 },
+  helpChevron: { color: C.sub },
 });

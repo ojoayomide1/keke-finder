@@ -51,6 +51,7 @@ import {
   clearBiometrics,
 } from "../../services/biometrics";
 import SupportModal from "../shared/SupportModal";
+import Icon from "../../components/Icon";
 
 // ─── COLOURS ─────────────────────────────────────────────────────────────────
 
@@ -58,10 +59,11 @@ const C = {
   bg:        "#F7F8FA",
   surface:   "#FFFFFF",
   border:    "#E2E6ED",
-  orange:    "#FF5E1A",
-  orangeMute: "rgba(255,94,26,0.12)",
-  text:      "#0F1117",
-  sub:       "#6B7280",
+  green:     "#1E7B4C",
+  greenMute: "rgba(30,123,76,0.12)",
+  danger:    "#C23B3B",
+  text:      "#14171A",
+  sub:       "#5B6470",
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -125,7 +127,7 @@ function StatsCard({ stats, loading }) {
   if (loading) {
     return (
       <View style={styles.card}>
-        <ActivityIndicator color={C.orange} />
+        <ActivityIndicator color={C.green} />
       </View>
     );
   }
@@ -309,7 +311,6 @@ export default function RiderProfileScreen() {
           <Text style={styles.cardTitle}>Vehicle</Text>
           <InfoRow label="Plate Number" value={plateNo} />
           <InfoRow label="Vehicle Type" value={vehicleType.charAt(0).toUpperCase() + vehicleType.slice(1)} />
-          <InfoRow label="Status" value={isRiderOnline ? "Online" : "Offline"} />
         </View>
 
         {/* ── Account Info Card ───────────────────────────────── */}
@@ -324,13 +325,13 @@ export default function RiderProfileScreen() {
               <Text style={styles.infoLabel}>{bioLabel}</Text>
               <View style={styles.biometricRow}>
                 {bioLoading ? (
-                  <ActivityIndicator size="small" color={C.orange} />
+                  <ActivityIndicator size="small" color={C.green} />
                 ) : (
                   <Switch
                     value={bioEnabled}
                     onValueChange={handleBiometricToggle}
-                    trackColor={{ false: "#E2E6ED", true: C.orangeMute }}
-                    thumbColor={bioEnabled ? C.orange : "#6B7280"}
+                    trackColor={{ false: "#E2E6ED", true: C.greenMute }}
+                    thumbColor={bioEnabled ? C.green : "#6B7280"}
                   />
                 )}
               </View>
@@ -340,11 +341,14 @@ export default function RiderProfileScreen() {
 
         {/* ── Log Out Button ──────────────────────────────────── */}
         <TouchableOpacity style={styles.helpBtn} onPress={() => setShowSupport(true)} activeOpacity={0.8}>
-          <Text style={styles.helpText}>Help & Support</Text>
+          <Icon name="life-buoy" size={18} color={C.text} />
+          <Text style={styles.helpText}>Help and support</Text>
+          <Icon name="chevron-right" size={16} color={C.sub} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Icon name="log-out" size={16} color={C.danger} />
+          <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
 
         <Text style={styles.appVersion}>NavCamp v2.0 — Rider Edition</Text>
@@ -370,10 +374,10 @@ const styles = StyleSheet.create({
   greeting: { color: C.text, fontSize: 28, fontWeight: "700" },
 
   statusBadge:    { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  onlineBadge:    { backgroundColor: C.orangeMute },
+  onlineBadge:    { backgroundColor: C.greenMute },
   offlineBadge:   { backgroundColor: "#E2E6ED" },
   statusText:     { fontSize: 11, fontWeight: "700", letterSpacing: 1 },
-  onlineText:     { color: C.orange },
+  onlineText:     { color: C.green },
   offlineText:    { color: C.sub },
 
   profileSection: {
@@ -394,7 +398,7 @@ const styles = StyleSheet.create({
   avatarText: { color: "#FFFFFF", fontWeight: "700" },
   profileText: { flex: 1 },
   profileName:  { color: C.text, fontSize: 20, fontWeight: "700", marginBottom: 4 },
-  profilePlate: { color: C.orange, fontSize: 14, fontWeight: "600", marginBottom: 2 },
+  profilePlate: { color: C.green, fontSize: 14, fontWeight: "600", marginBottom: 2 },
   profileEmail: { color: C.sub, fontSize: 14 },
 
   card: {
@@ -444,25 +448,33 @@ const styles = StyleSheet.create({
   },
 
   logoutBtn: {
+    flexDirection:   "row",
+    alignItems:      "center",
+    justifyContent:  "center",
+    gap:             8,
     borderRadius:    14,
     paddingVertical: 14,
-    alignItems:      "center",
     borderWidth:     1,
-    borderColor:     C.border,
+    borderColor:     "#C23B3B",
+    backgroundColor: "rgba(194,59,59,0.08)",
     marginTop:       8,
     marginBottom:    24,
   },
-  logoutText: { color: "#fca5a5", fontWeight: "600" },
+  logoutText: { color: "#C23B3B", fontWeight: "600", fontSize: 15 },
 
   helpBtn: {
+    flexDirection:   "row",
+    alignItems:      "center",
+    gap:             10,
     borderRadius:    14,
     paddingVertical: 14,
-    alignItems:      "center",
+    paddingHorizontal: 16,
     borderWidth:     1,
     borderColor:     C.border,
+    backgroundColor: C.surface,
     marginBottom:    12,
   },
-  helpText: { color: C.text, fontWeight: "600" },
+  helpText: { color: C.text, fontWeight: "500", fontSize: 15, flex: 1 },
 
   appVersion: {
     textAlign: "center",

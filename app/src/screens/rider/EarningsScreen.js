@@ -48,8 +48,8 @@ const C = {
   bg:        "#F7F8FA",
   surface:   "#FFFFFF",
   border:    "#E2E6ED",
-  orange:    "#FF5E1A",
-  orangeMute: "rgba(255,94,26,0.12)",
+  orange:    "#1E7B4C",
+  orangeMute: "rgba(30,123,76,0.12)",
   green:     "#1E7A46",
   text:      "#0F1117",
   sub:       "#6B7280",
@@ -93,7 +93,7 @@ function BalanceCard({ balance, weeklyEarnings, totalRides, loading }) {
   if (loading) {
     return (
       <View style={styles.balanceCard}>
-        <ActivityIndicator color={C.orange} />
+        <ActivityIndicator color={C.green} />
       </View>
     );
   }
@@ -152,7 +152,7 @@ function WithdrawalItem({ withdrawal }) {
     switch (status) {
       case "completed": return C.green;
       case "rejected": return C.error;
-      default: return C.orange;
+      default: return C.green;
     }
   };
 
@@ -306,8 +306,8 @@ export default function RiderEarningsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={C.orange}
-            colors={[C.orange]}
+            tintColor={C.green}
+            colors={[C.green]}
           />
         }
       >
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   },
   balanceHeader: { alignItems: "center", marginBottom: 20 },
   balanceLabel:  { color: C.sub, fontSize: 14, marginBottom: 8 },
-  balanceAmount: { color: C.orange, fontSize: 32, fontWeight: "800" },
+  balanceAmount: { color: C.green, fontSize: 32, fontWeight: "800" },
 
   statsGrid: { flexDirection: "row", gap: 16 },
   statItem: {
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   statLabel: { color: C.sub, fontSize: 12 },
 
   withdrawBtn: {
-    backgroundColor: C.orange,
+    backgroundColor: C.green,
     borderRadius:    14,
     paddingVertical: 16,
     alignItems:      "center",
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     borderColor:     C.border,
   },
   tab:           { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 9 },
-  tabActive:     { backgroundColor: C.orange },
+  tabActive:     { backgroundColor: C.green },
   tabText:       { color: C.sub, fontWeight: "600" },
   tabTextActive: { color: "#F7F8FA" },
 
@@ -552,14 +552,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   earningIcon:    { backgroundColor: C.green + "20" },
-  withdrawalIcon: { backgroundColor: C.orange + "20" },
+  withdrawalIcon: { backgroundColor: C.green + "20" },
   iconText:       { fontSize: 18 },
   transactionInfo: { flex: 1 },
   transactionTitle: { color: C.text, fontSize: 15, fontWeight: "600", marginBottom: 2 },
   transactionDate:  { color: C.sub, fontSize: 13 },
   transactionAmount: { fontSize: 16, fontWeight: "700" },
   creditAmount:  { color: C.green },
-  debitAmount:   { color: C.orange },
+  debitAmount:   { color: C.green },
 
   // Withdrawal item styles
   withdrawalItem: {
@@ -600,12 +600,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
-  modalCancel: { color: C.orange, fontSize: 16 },
+  modalCancel: { color: C.green, fontSize: 16 },
   modalTitle:  { color: C.text, fontSize: 18, fontWeight: "600" },
   modalContent: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
 
   availableBalance: { 
-    color: C.orange, 
+    color: C.green, 
     fontSize: 16, 
     fontWeight: "600", 
     textAlign: "center",
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
   },
 
   submitBtn: {
-    backgroundColor: C.orange,
+    backgroundColor: C.green,
     borderRadius:    14,
     paddingVertical: 16,
     alignItems:      "center",
