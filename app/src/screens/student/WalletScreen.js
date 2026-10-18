@@ -54,6 +54,7 @@ import {
   TOPUP_PRESET_AMOUNTS,
   LOW_BALANCE_THRESHOLD,
 } from "../../services/wallet";
+import Icon from "../../components/Icon";
 
 // ─── COLOURS ─────────────────────────────────────────────────────────────────
 
@@ -381,20 +382,24 @@ export default function WalletScreen() {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>💳</Text>
+            <Icon name="receipt" size={32} color={C.sub} strokeWidth={1.5} />
             <Text style={styles.emptyTitle}>No {emptyLabel} yet</Text>
+            <Text style={styles.emptySubTitle}>Top-ups and rides show up here.</Text>
           </View>
         }
         ListHeaderComponent={
           <>
             {/* ── BALANCE CARD ──────────────────────────────────── */}
-            <View style={[styles.balanceCard, isLow && styles.balanceCardLow]}>
-              <Text style={styles.balanceLabel}>Available Balance</Text>
-              <BalanceDisplay target={balance} isLow={isLow} />
-              {isLow && (
+            <View style={[styles.balanceCard, isLow && weekly.count > 0 && styles.balanceCardLow]}>
+              <Text style={styles.balanceLabel}>Available balance</Text>
+              <BalanceDisplay target={balance} isLow={isLow && weekly.count > 0} />
+              {isLow && weekly.count > 0 && (
                 <View style={styles.lowBadge}>
-                  <Text style={styles.lowBadgeText}>⚠ Low balance</Text>
+                  <Text style={styles.lowBadgeText}>⚠ Low balance — top up to use wallet for rides</Text>
                 </View>
+              )}
+              {!isLow && weekly.count === 0 && (
+                <Text style={styles.balanceHint}>Top up to pay for rides without cash.</Text>
               )}
 
               <TouchableOpacity
@@ -428,19 +433,17 @@ export default function WalletScreen() {
             {/* ── WEEKLY SPEND ──────────────────────────────────── */}
             <View style={styles.summaryRow}>
               <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>This week</Text>
+                <Text style={styles.summaryLabel}>Spent this week</Text>
                 <Text style={styles.summaryValue}>{formatNaira(weekly.total)}</Text>
-                <Text style={styles.summaryMeta}>
-                  {weekly.count} ride{weekly.count !== 1 ? "s" : ""}
-                </Text>
+                <Text style={styles.summaryMeta}>on rides</Text>
               </View>
               <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>Total balance</Text>
-                <Text style={[styles.summaryValue, { color: isLow ? C.orange : C.green }]}>
-                  {formatNaira(balance)}
+                <Text style={styles.summaryLabel}>Rides this week</Text>
+                <Text style={[styles.summaryValue, { color: C.green }]}>
+                  {weekly.count}
                 </Text>
                 <Text style={styles.summaryMeta}>
-                  {isLow ? "Top up soon" : "Looking good"}
+                  {weekly.count === 0 ? "No rides yet" : `ride${weekly.count !== 1 ? "s" : ""}`}
                 </Text>
               </View>
             </View>
@@ -581,9 +584,13 @@ const styles = StyleSheet.create({
   txDetailValue: { color: C.text, fontSize: 12, fontWeight: "600", maxWidth: "60%" },
 
   // ── Empty state
-  emptyState: { alignItems: "center", paddingTop: 40 },
-  emptyIcon:  { fontSize: 40, marginBottom: 10 },
-  emptyTitle: { color: C.sub, fontSize: 15, fontWeight: "600" },
+  emptyState:    { alignItems: "center", paddingTop: 40, gap: 8 },
+  emptyIcon:     { fontSize: 40, marginBottom: 10 },
+  emptyTitle:    { color: C.text, fontSize: 15, fontWeight: "600" },
+  emptySubTitle: { color: C.sub, fontSize: 13 },
+
+  // ── Balance hint (for new users with no rides)
+  balanceHint: { color: C.sub, fontSize: 13, marginTop: 6 },
 
   // ── Primary / cancel buttons (shared)
   primaryBtn:         { backgroundColor: C.green, borderRadius: 14, paddingVertical: 15, alignItems: "center", marginTop: 8 },

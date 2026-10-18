@@ -47,6 +47,15 @@ import {
 } from "../../services/student";
 import { formatNaira } from "../../services/ride-helpers";
 import { sendLocalNotification } from "../../services/notifications";
+import Icon from "../../components/Icon";
+import { C as TC, S, R } from "../../theme/tokens";
+
+function getTimeOfDay() {
+  const h = new Date().getHours();
+  if (h < 12) return "morning";
+  if (h < 17) return "afternoon";
+  return "evening";
+}
 
 // ─── COLOURS ─────────────────────────────────────────────────────────────────
 
@@ -203,6 +212,11 @@ export default function StudentHomeScreen({ navigation }) {
   const [dropoffId,  setDropoffId]  = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("wallet");
   const [requesting, setRequesting] = useState(false);
+
+  // Auto-select cash when wallet balance is below fare
+  useEffect(() => {
+    if (walletBalance < 15000) setPaymentMethod("cash");
+  }, [walletBalance]);
 
   const [ridePhase,   setRidePhase]   = useState("idle");
   const [liveSummary, setLiveSummary] = useState(null);
@@ -443,46 +457,33 @@ export default function StudentHomeScreen({ navigation }) {
     <View style={styles.root}>
       {/* ── Header ────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getInitials(name)}</Text>
-          </View>
-          <View>
-            <Text style={styles.greeting}>Hello, {name.split(" ")[0]}</Text>
-            <Text style={styles.walletText}>
-              Wallet: <Text style={{ color: C.green }}>{formatNaira(walletBalance)}</Text>
-            </Text>
-          </View>
+        <View>
+          <Text style={styles.greeting}>Good {getTimeOfDay()}, {name.split(" ")[0]}</Text>
         </View>
-        <Image
-          source={require("../../../assets/navcamp-icon.png")}
-          style={styles.wordmarkLogo}
-          resizeMode="contain"
-        />
+        <TouchableOpacity
+          style={styles.walletPill}
+          onPress={() => navigation.navigate("Wallet")}
+          activeOpacity={0.8}
+        >
+          <Icon name="wallet" size={13} color={C.green} />
+          <Text style={styles.walletPillText}>{formatNaira(walletBalance)}</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
 
         {/* ── Campus Activity (idle only) ─────────────────────────────── */}
         {ridePhase === "idle" && (
-          <View style={styles.activityCard}>
-            <View style={styles.activityHeader}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.activityTitle}>Campus Live</Text>
-            </View>
-            <View style={styles.activityGrid}>
-              <View style={styles.activityItem}>
-                <Text style={styles.activityValue}>{campusActivity.ridersOnline}</Text>
-                <Text style={styles.activityLabel}>Riders Online</Text>
-              </View>
-              <View style={styles.activityDivider} />
-              <View style={styles.activityItem}>
-                <Text style={[styles.activityValue, campusActivity.studentsInQueue > 0 && { color: "#f59e0b" }]}>
-                  {campusActivity.studentsInQueue}
-                </Text>
-                <Text style={styles.activityLabel}>In Queue</Text>
-              </View>
-            </View>
+          <View style={styles.activityRow}>
+            <View style={styles.pulseDot} />
+            <Text style={styles.activityInline}>
+              <Text style={{ color: C.green, fontWeight: "600" }}>{campusActivity.ridersOnline}</Text>
+              {" riders online · "}
+              <Text style={campusActivity.studentsInQueue > 0 ? { color: "#f59e0b", fontWeight: "600" } : {}}>
+                {campusActivity.studentsInQueue}
+              </Text>
+              {" in queue"}
+            </Text>
           </View>
         )}
 
@@ -510,7 +511,10 @@ export default function StudentHomeScreen({ navigation }) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.payMethodOptionTitle, paymentMethod === "wallet" && { color: C.text }]}>Wallet</Text>
-                    <Text style={styles.payMethodOptionSub}>{formatNaira(walletBalance)} available</Text>
+                    {walletBalance < 15000
+                      ? <Text style={[styles.payMethodOptionSub, { color: C.red }]}>Top up to use · {formatNaira(walletBalance)}</Text>
+                      : <Text style={styles.payMethodOptionSub}>{formatNaira(walletBalance)} available</Text>
+                    }
                   </View>
                 </TouchableOpacity>
 
@@ -530,14 +534,22 @@ export default function StudentHomeScreen({ navigation }) {
               </View>
             </View>
 
+            {/* Inline validation message */}
+            {!pickupId && <Text style={styles.inlineHint}>Select a pickup stop to continue</Text>}
+            {pickupId && !dropoffId && <Text style={styles.inlineHint}>Select a drop-off stop</Text>}
+            {pickupId && dropoffId && pickupId === dropoffId && <Text style={styles.inlineHint}>Pickup and drop-off must be different</Text>}
+            {paymentMethod === "wallet" && walletBalance < 15000 && pickupId && dropoffId && (
+              <Text style={styles.inlineHint}>Your wallet balance is too low. Switch to Cash or top up first.</Text>
+            )}
+
             <TouchableOpacity
-              style={[styles.primaryBtn, (!canRequest || requesting) && styles.primaryBtnDisabled]}
+              style={[styles.primaryBtn, requesting && styles.primaryBtnDisabled]}
               onPress={handleRequestRide}
-              disabled={!canRequest || requesting}
+              disabled={requesting}
             >
               {requesting
                 ? <ActivityIndicator color="#F7F8FA" />
-                : <Text style={styles.primaryBtnText}>Request Keke</Text>
+                : <Text style={styles.primaryBtnText}>Request keke</Text>
               }
             </TouchableOpacity>
           </View>
@@ -663,7 +675,11 @@ export default function StudentHomeScreen({ navigation }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ride History</Text>
             {history.length === 0 ? (
-              <Text style={styles.emptyText}>No rides yet.</Text>
+              <View style={styles.emptyState}>
+                <Icon name="car" size={32} color={C.sub} strokeWidth={1.5} />
+                <Text style={styles.emptyStateTitle}>No rides yet</Text>
+                <Text style={styles.emptyStateSub}>Your rides will show up here.</Text>
+              </View>
             ) : (
               history.map(item => {
                 const isActive = isLiveHistoryItem(item);
@@ -733,9 +749,34 @@ const styles = StyleSheet.create({
   headerLeft:   { flexDirection: "row", alignItems: "center", gap: 14 },
   avatar:       { width: 46, height: 46, borderRadius: 23, backgroundColor: "#1E7A4622", alignItems: "center", justifyContent: "center" },
   avatarText:   { color: C.green, fontWeight: "700", fontSize: 16 },
-  greeting:     { color: C.text, fontSize: 18, fontWeight: "700" },
+  greeting:     { color: C.text, fontSize: 17, fontWeight: "600" },
   walletText:   { color: C.sub, fontSize: 13, marginTop: 2 },
   wordmarkLogo: { width: 38, height: 38, borderRadius: 8 },
+
+  // Compact wallet pill
+  walletPill: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: TC.brandSoft, borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderWidth: 1, borderColor: TC.brand + "30",
+  },
+  walletPillText: { fontSize: 13, color: TC.brand, fontWeight: "600" },
+
+  // Inline campus activity
+  activityRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 },
+  activityInline: { fontSize: 13, color: C.sub },
+
+  // Inline validation hint
+  inlineHint: { fontSize: 13, color: C.sub, marginBottom: 10, marginTop: -4, paddingHorizontal: 2 },
+
+  emptyState:      { alignItems: "center", paddingVertical: 32, gap: 8 },
+  emptyStateTitle: { fontSize: 15, fontWeight: "600", color: C.text },
+  emptyStateSub:   { fontSize: 13, color: C.sub },
+
+  // History empty state
+  emptyState:      { alignItems: "center", paddingVertical: 32, gap: 8 },
+  emptyStateTitle: { fontSize: 15, fontWeight: "600", color: C.text },
+  emptyStateSub:   { fontSize: 13, color: C.sub },
 
   card: {
     backgroundColor: C.surface,
