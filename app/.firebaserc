@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "keke-finder-cd5fe"
+  },
   "targets": {
     "keke-finder-cd5fe": {
       "hosting": {
