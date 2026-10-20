@@ -598,6 +598,31 @@ export default function MapScreen() {
                   <Text style={styles.walkStatLabel}>Route type</Text>
                 </View>
               </View>
+
+              {/* Indoor navigation guidance steps */}
+              {walkRoute.scope === "indoor" && Array.isArray(walkRoute.steps) && walkRoute.steps.length > 0 && (
+                <View style={styles.indoorStepsCard}>
+                  <View style={styles.indoorStepsHeader}>
+                    <Text style={styles.indoorStepsTitle}>🏢 Indoor Directions</Text>
+                    {walkRoute.floorLabel ? (
+                      <Text style={styles.indoorStepsBadge}>{walkRoute.floorLabel}</Text>
+                    ) : null}
+                  </View>
+                  {walkRoute.steps.map((step, idx) => (
+                    <View key={idx} style={styles.indoorStepRow}>
+                      <View style={styles.indoorStepNum}>
+                        <Text style={styles.indoorStepNumText}>{idx + 1}</Text>
+                      </View>
+                      <Text style={styles.indoorStepText}>{step}</Text>
+                    </View>
+                  ))}
+                  {walkRoute.hint ? (
+                    <View style={styles.indoorHintBox}>
+                      <Text style={styles.indoorHintText}>💡 Hint: {walkRoute.hint}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              )}
             </>
           )}
 
@@ -668,4 +693,15 @@ const styles = StyleSheet.create({
   walkStatValue:{ color: C.text, fontSize: 15, fontWeight: "700", marginBottom: 2 },
   walkStatLabel:{ color: C.sub, fontSize: 11 },
   walkDivider: { width: 1, backgroundColor: C.border, marginHorizontal: 8 },
+
+  indoorStepsCard:   { marginTop: 14, backgroundColor: C.bg, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.border },
+  indoorStepsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  indoorStepsTitle:  { fontSize: 13, fontWeight: "700", color: C.text },
+  indoorStepsBadge:  { fontSize: 11, fontWeight: "600", color: C.green, backgroundColor: "rgba(30,122,70,0.12)", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  indoorStepRow:     { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 8 },
+  indoorStepNum:     { width: 22, height: 22, borderRadius: 11, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
+  indoorStepNumText: { fontSize: 11, fontWeight: "700", color: C.green },
+  indoorStepText:    { flex: 1, fontSize: 13, color: C.text, lineHeight: 18 },
+  indoorHintBox:     { marginTop: 4, padding: 8, backgroundColor: "rgba(245,166,35,0.08)", borderRadius: 8, borderWidth: 1, borderColor: "rgba(245,166,35,0.25)" },
+  indoorHintText:    { fontSize: 12, color: C.text, lineHeight: 16 },
 });

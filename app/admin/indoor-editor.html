@@ -6,44 +6,409 @@
   <title>NavCamp Admin — Indoor Editor</title>
   <link rel="stylesheet" href="css/admin.css" />
   <style>
-    .building-tab { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 13px; font-weight: 600; color: var(--sub); }
-    .building-tab.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
-    .floor-tab { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 12px; font-weight: 600; color: var(--sub); }
-    .floor-tab.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
-    .room-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--bg); }
-    .room-name { font-weight: 600; font-size: 13px; flex: 1; }
-    .room-type { font-size: 11px; color: var(--sub); }
+    /* ── Madara-themed layout & tabs ── */
+    .editor-container {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      align-items: flex-start;
+      margin-top: 16px;
+    }
+    @media (max-width: 900px) {
+      .editor-container { grid-template-columns: 1fr; }
+    }
+
+    .buildings-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    .building-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: calc(100vh - 260px);
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .b-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      text-align: left;
+      width: 100%;
+    }
+    .b-item:hover {
+      border-color: var(--red);
+      background: var(--surface3);
+    }
+    .b-item.active {
+      background: var(--red-dim);
+      border-color: var(--red-bright);
+      color: #fff;
+      box-shadow: 0 0 12px var(--red-glow);
+    }
+    .b-item-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    .b-item-count {
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface);
+      padding: 2px 7px;
+      border-radius: 10px;
+      margin-left: 8px;
+      border: 1px solid var(--border);
+    }
+    .b-item.active .b-item-count {
+      background: var(--red);
+      color: #fff;
+      border-color: transparent;
+    }
+
+    .floor-tabs-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .floor-btn {
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      transition: all 0.15s;
+    }
+    .floor-btn:hover {
+      border-color: var(--red);
+      color: var(--ink);
+    }
+    .floor-btn.active {
+      background: var(--red-bright);
+      border-color: var(--red-bright);
+      color: #fff;
+      box-shadow: 0 0 10px var(--red-glow);
+    }
+
+    /* ── Room Cards Grid ── */
+    .rooms-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .room-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .room-card:hover {
+      border-color: var(--border2);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .room-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .room-card-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.3;
+    }
+    .room-no-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--surface3);
+      color: var(--red-bright);
+      border: 1px solid var(--border2);
+      flex-shrink: 0;
+    }
+    .room-card-type {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .room-card-occupants {
+      font-size: 12px;
+      color: var(--ink);
+      line-height: 1.4;
+      background: var(--surface);
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .room-card-occupant-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+    .room-card-occupant-row:last-child { margin-bottom: 0; }
+    .room-card-meta {
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Modal & Form Architecture ── */
+    .madara-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 4, 8, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 250;
+    }
+    .madara-modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 14px;
+      width: 680px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      z-index: 251;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 24px var(--red-glow);
+    }
+    .modal-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .modal-hdr h2 {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-body {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .modal-ftr {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+    }
+
+    /* ── Form Sections ── */
+    .form-section {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .form-section-title {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--red-bright);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 600px) {
+      .form-grid-2 { grid-template-columns: 1fr; }
+    }
+    .form-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 600px) {
+      .form-grid-3 { grid-template-columns: 1fr; }
+    }
+
+    /* ── Occupants table in modal ── */
+    .occupant-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 34px;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .btn-remove-occ {
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+    .btn-remove-occ:hover {
+      background: var(--red-dim);
+      color: var(--red-bright);
+      border-color: var(--red);
+    }
   </style>
 </head>
 <body>
 <div class="main">
   <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
     <div>
-      <h1 class="page-title">🏢 Indoor Editor</h1>
-      <p class="page-sub">Manage indoor places stored in Firestore (synced to the app)</p>
+      <h1 class="page-title">🏢 Indoor Pathfinder Editor</h1>
+      <p class="page-sub">Manage indoor building rooms, occupants, and steps stored live in Firestore</p>
     </div>
     <div style="display:flex;gap:10px">
       <button class="btn btn-ghost btn-sm" id="refresh-btn">↺ Refresh</button>
-      <button class="btn btn-green" id="add-building-btn">+ Building</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportJson()">⬇ Export JSON</button>
+      <button class="btn btn-red" id="add-building-btn">+ New Building</button>
     </div>
   </div>
 
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px" id="building-tabs"></div>
+  <div class="editor-container">
+    <!-- Left Sidebar: Buildings list -->
+    <div class="buildings-panel">
+      <div class="panel-head">
+        <span class="panel-title">Buildings</span>
+        <span id="building-count-badge" class="badge badge-grey">0</span>
+      </div>
+      <div class="building-list" id="building-list">
+        <div class="loading">Loading buildings…</div>
+      </div>
+    </div>
 
-  <div id="editor-area">
-    <div class="empty">Select or create a building to start editing.</div>
+    <!-- Right Workspace: Selected Building Floors & Rooms -->
+    <div id="editor-area">
+      <div class="card empty">Select or create a building to view and edit its indoor rooms.</div>
+    </div>
   </div>
 </div>
 
-<!-- Room modal -->
-<div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200" onclick="closeRoomModal()"></div>
-<div id="room-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;padding:28px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;z-index:201">
-  <h2 style="font-size:16px;font-weight:700;margin-bottom:16px" id="room-modal-title">Room</h2>
-  <div style="display:flex;flex-direction:column;gap:12px" id="room-form"></div>
-  <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
-    <button class="btn btn-green" id="save-room-btn">Save</button>
-    <button class="btn btn-red btn-sm" id="delete-room-btn" style="display:none">Delete room</button>
-    <button class="btn btn-ghost btn-sm" onclick="closeRoomModal()">Cancel</button>
+<!-- ── Room modal ── -->
+<div id="modal-overlay" class="madara-modal-overlay" onclick="closeRoomModal()"></div>
+<div id="room-modal" class="madara-modal">
+  <div class="modal-hdr">
+    <h2 id="room-modal-title">Room Details</h2>
+    <button class="btn btn-ghost btn-sm" onclick="closeRoomModal()">✕</button>
+  </div>
+  <div class="modal-body" id="room-form"></div>
+  <div class="modal-ftr">
+    <div>
+      <button class="btn btn-red btn-sm" id="delete-room-btn" style="display:none">Delete Room</button>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost btn-sm" onclick="closeRoomModal()">Cancel</button>
+      <button class="btn btn-green" id="save-room-btn">Save Room</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Building modal ── -->
+<div id="bmodal-overlay" class="madara-modal-overlay" onclick="closeBuildingModal()"></div>
+<div id="bmodal" class="madara-modal" style="width:480px">
+  <div class="modal-hdr">
+    <h2>+ New Building</h2>
+    <button class="btn btn-ghost btn-sm" onclick="closeBuildingModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-group">
+      <label>Building Name *</label>
+      <input type="text" id="bm-name" placeholder="e.g. Block A, Faculty of Law, ICT" />
+    </div>
+    <div class="form-group">
+      <label>Building ID / Slug *</label>
+      <input type="text" id="bm-id" placeholder="e.g. block_a_building, faculty_law_building" />
+      <span style="font-size:11px;color:var(--muted);margin-top:2px">Should match your QGIS map export (e.g. block_a, block_a_building) for automatic GPS mapping.</span>
+    </div>
+  </div>
+  <div class="modal-ftr">
+    <div></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost btn-sm" onclick="closeBuildingModal()">Cancel</button>
+      <button class="btn btn-red" id="bm-save-btn">Create Building</button>
+    </div>
   </div>
 </div>
 
@@ -62,15 +427,6 @@
   renderNav(admin.name);
   _loader.hide();
 
-  // ── Data lives in Firestore at indoorPlaces/main ──────────────────────
-  // The local tools/indoor-editor reads/writes map-data/source/indoor_places.json
-  // This admin panel reads/writes Firestore. To sync both directions:
-  //   - Export from here → download JSON → replace map-data/source/indoor_places.json
-  //   - Import: paste JSON into the import box below
-  // Future: unify by having the local editor POST to this Firestore doc too.
-
-  // indoorPlaces/main stores: { buildings: { ...same shape as indoor_places.json }, updatedAt, updatedBy }
-  // The local editor (tools/indoor-editor/server.js) writes the same Firestore doc on every save.
   const DATA_REF = doc(db, "indoorPlaces", "main");
   let DATA = {};
   let activeBuildingId = null;
@@ -84,195 +440,430 @@
   }
 
   async function loadData() {
-    const snap = await getDoc(DATA_REF);
-    if (snap.exists()) {
-      const d = snap.data();
-      // Support { buildings: {...} } shape (written by both editors)
-      // and flat legacy shape just in case
-      DATA = d.buildings ?? {};
-    } else {
+    try {
+      const snap = await getDoc(DATA_REF);
+      if (snap.exists()) {
+        const d = snap.data();
+        DATA = d.buildings ?? {};
+      } else {
+        DATA = {};
+      }
+    } catch (e) {
+      showToast("Error loading from Firestore: " + e.message, true);
       DATA = {};
     }
-    renderBuildingTabs();
+    renderBuildingList();
   }
 
   async function saveData() {
     await setDoc(DATA_REF, {
-      buildings:  DATA,
-      updatedAt:  serverTimestamp(),
-      updatedBy:  "admin-panel",
+      buildings: DATA,
+      updatedAt: serverTimestamp(),
+      updatedBy: admin.name || "admin-panel",
     });
   }
 
-  // ── Building tabs ───────────────────────────────────────────────────────
-  function renderBuildingTabs() {
-    const container = document.getElementById("building-tabs");
-    container.innerHTML = Object.entries(DATA).map(([id, b]) =>
-      `<button class="building-tab${activeBuildingId===id?' active':''}" onclick="selectBuilding('${id}')">${b.name||id}</button>`
-    ).join("") + `<button class="btn btn-ghost btn-sm" onclick="exportJson()">⬇ Export JSON</button>`;
-    if (activeBuildingId) renderEditorArea();
-    else document.getElementById("editor-area").innerHTML = '<div class="empty">Select or create a building to start editing.</div>';
+  // ── Render Left Sidebar: Buildings ──────────────────────────────────────
+  function renderBuildingList() {
+    const entries = Object.entries(DATA);
+    document.getElementById("building-count-badge").textContent = entries.length;
+
+    const container = document.getElementById("building-list");
+    if (!entries.length) {
+      container.innerHTML = '<div class="empty" style="padding:20px 0">No buildings yet. Click "+ New Building" to create one.</div>';
+      document.getElementById("editor-area").innerHTML = '<div class="card empty">Select or create a building to start editing.</div>';
+      return;
+    }
+
+    container.innerHTML = entries.map(([id, b]) => {
+      let roomCount = 0;
+      (b.floors || []).forEach(f => { roomCount += (f.rooms || []).length; });
+      const isActive = activeBuildingId === id;
+      return `
+        <button class="b-item${isActive ? ' active' : ''}" onclick="selectBuilding('${id}')">
+          <span class="b-item-name">🏛️ ${b.name || id}</span>
+          <span class="b-item-count">${roomCount} rooms</span>
+        </button>
+      `;
+    }).join("");
+
+    if (!activeBuildingId || !DATA[activeBuildingId]) {
+      activeBuildingId = entries[0][0];
+      activeFloor = DATA[activeBuildingId]?.floors?.[0]?.floor ?? 0;
+    }
+
+    renderEditorArea();
   }
 
   window.selectBuilding = function(id) {
     activeBuildingId = id;
     activeFloor = DATA[id]?.floors?.[0]?.floor ?? 0;
-    renderEditorArea();
-    renderBuildingTabs();
+    renderBuildingList();
   };
 
-  // ── Editor area ─────────────────────────────────────────────────────────
+  // ── Render Workspace: Active Building ────────────────────────────────────
   function renderEditorArea() {
     const b = DATA[activeBuildingId];
     if (!b) return;
+
     const floors = b.floors ?? [];
-    const floorTabs = floors.map(f =>
-      `<button class="floor-tab${f.floor===activeFloor?' active':''}" onclick="selectFloor(${f.floor})">${f.label||'Floor '+f.floor} (${(f.rooms||[]).length})</button>`
-    ).join("") + `<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="addFloor()">+ Floor</button>`;
+    if (activeFloor === null || !floors.some(f => f.floor === activeFloor)) {
+      activeFloor = floors[0]?.floor ?? 0;
+    }
+
+    const floorTabs = floors.map(f => {
+      const isAct = f.floor === activeFloor;
+      const count = (f.rooms || []).length;
+      return `<button class="floor-btn${isAct ? ' active' : ''}" onclick="selectFloor(${f.floor})">${f.label || ('Floor ' + f.floor)} (${count})</button>`;
+    }).join("") + `<button class="btn btn-ghost btn-sm" onclick="addFloor()">+ Add Floor</button>`;
 
     const currentFloor = floors.find(f => f.floor === activeFloor);
     const rooms = currentFloor?.rooms ?? [];
 
-    const roomRows = rooms.map(r => `
-      <div class="room-row">
-        <div style="flex:1">
-          <div class="room-name">${r.name}</div>
-          <div class="room-type">${r.room_type||''} ${r.occupant ? '· '+r.occupant : ''}</div>
+    const roomCards = rooms.map(r => {
+      // Collect occupants
+      let occHtml = "";
+      if (Array.isArray(r.occupants) && r.occupants.length > 0) {
+        occHtml = r.occupants.map(o => `
+          <div class="room-card-occupant-row">
+            <span>👤</span>
+            <span><strong>${o.name || 'Occupant'}</strong>${o.title ? ` · <span style="color:var(--muted)">${o.title}</span>` : ''}</span>
+          </div>
+        `).join("");
+      } else if (r.occupant) {
+        occHtml = `
+          <div class="room-card-occupant-row">
+            <span>👤</span>
+            <span><strong>${r.occupant}</strong>${r.title ? ` · <span style="color:var(--muted)">${r.title}</span>` : ''}</span>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="room-card">
+          <div>
+            <div class="room-card-head">
+              <div>
+                <div class="room-card-name">${r.name}</div>
+                <div class="room-card-type">${r.room_type || 'ROOM'} ${r.department ? `· ${r.department}` : ''}</div>
+              </div>
+              ${r.room_number ? `<span class="room-no-badge">${r.room_number}</span>` : ''}
+            </div>
+
+            ${occHtml ? `<div class="room-card-occupants" style="margin-top:10px">${occHtml}</div>` : ''}
+          </div>
+
+          <div style="margin-top:10px">
+            <div class="room-card-meta">
+              ${r.course ? `<span>📚 ${r.course}</span>` : ''}
+              ${r.capacity ? `<span>👥 Cap: ${r.capacity}</span>` : ''}
+              ${r.status && r.status !== 'open' ? `<span class="badge badge-orange">${r.status}</span>` : ''}
+              ${r.steps && r.steps.length ? `<span class="badge badge-green">${r.steps.length} steps</span>` : ''}
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+              <button class="btn btn-ghost btn-sm" onclick="openRoomModal('${r.id}')">Edit Room</button>
+            </div>
+          </div>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="openRoomModal('${r.id}')">Edit</button>
-      </div>
-    `).join("");
+      `;
+    }).join("");
 
     document.getElementById("editor-area").innerHTML = `
-      <div class="card">
+      <div class="card" style="margin-bottom:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div>
+            <h2 style="font-size:18px;font-weight:800;color:var(--ink)">${b.name}</h2>
+            <div style="font-size:12px;color:var(--muted)">Building ID: <code>${activeBuildingId}</code></div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-red btn-sm" onclick="deleteBuilding('${activeBuildingId}')">Delete Building</button>
+          </div>
+        </div>
+
+        <div class="floor-tabs-bar">${floorTabs}</div>
+
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <strong style="font-size:15px">${b.name}</strong>
-          <button class="btn btn-red btn-sm" onclick="deleteBuilding('${activeBuildingId}')">Delete building</button>
+          <div>
+            <strong style="font-size:14px;color:var(--ink)">${currentFloor ? (currentFloor.label || 'Floor ' + currentFloor.floor) : 'Floor'}</strong>
+            <span style="font-size:12px;color:var(--muted);margin-left:6px">— ${rooms.length} room${rooms.length !== 1 ? 's' : ''} listed</span>
+          </div>
+          <button class="btn btn-green btn-sm" onclick="openRoomModal(null)">+ Add Room to Floor</button>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">${floorTabs}</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <span style="font-size:13px;font-weight:700">Rooms on this floor</span>
-          <button class="btn btn-green btn-sm" onclick="openRoomModal(null)">+ Add room</button>
+
+        <div class="rooms-grid">
+          ${roomCards || '<div class="empty" style="grid-column:1/-1;padding:32px 0">No rooms on this floor yet. Click "+ Add Room to Floor" to add one.</div>'}
         </div>
-        <div id="room-list">${roomRows || '<div class="empty" style="padding:16px 0">No rooms on this floor.</div>'}</div>
       </div>
     `;
   }
 
-  window.selectFloor = function(floor) { activeFloor = floor; renderEditorArea(); };
+  window.selectFloor = function(floor) {
+    activeFloor = floor;
+    renderEditorArea();
+  };
 
-  // ── Add building ────────────────────────────────────────────────────────
+  // ── Building Modal Logic ────────────────────────────────────────────────
   document.getElementById("add-building-btn").addEventListener("click", () => {
-    const name = prompt("Building name:");
-    if (!name) return;
-    const id = "building_" + name.toLowerCase().replace(/\s+/g,"_").replace(/[^a-z0-9_]/g,"");
+    document.getElementById("bm-name").value = "";
+    document.getElementById("bm-id").value   = "";
+    document.getElementById("bmodal-overlay").style.display = "block";
+    document.getElementById("bmodal").style.display         = "block";
+    document.getElementById("bm-name").focus();
+  });
+
+  document.getElementById("bm-name").addEventListener("input", function() {
+    const slug = this.value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    document.getElementById("bm-id").value = slug ? (slug + "_building") : "";
+  });
+
+  window.closeBuildingModal = function() {
+    document.getElementById("bmodal-overlay").style.display = "none";
+    document.getElementById("bmodal").style.display         = "none";
+  };
+
+  document.getElementById("bm-save-btn").addEventListener("click", async () => {
+    const name = document.getElementById("bm-name").value.trim();
+    const id   = document.getElementById("bm-id").value.trim();
+    if (!name || !id) { showToast("Name and ID are required.", true); return; }
     if (DATA[id]) { showToast("Building ID already exists.", true); return; }
-    DATA[id] = { name, floors: [{ floor: 0, label: "Ground Floor", rooms: [] }] };
+
+    DATA[id] = {
+      name,
+      floors: [
+        { floor: 0, label: "Ground Floor", rooms: [] }
+      ]
+    };
     activeBuildingId = id;
     activeFloor = 0;
-    saveData().then(() => { renderBuildingTabs(); showToast("Building created."); });
+
+    closeBuildingModal();
+    try {
+      await saveData();
+      renderBuildingList();
+      showToast("Building created: " + name);
+    } catch (e) {
+      showToast("Save failed: " + e.message, true);
+    }
   });
 
   window.deleteBuilding = function(id) {
-    if (!confirm(`Delete building "${DATA[id]?.name}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete building "${DATA[id]?.name}" and all its rooms? This cannot be undone.`)) return;
     delete DATA[id];
     activeBuildingId = null;
-    saveData().then(() => { renderBuildingTabs(); showToast("Building deleted."); });
+    saveData().then(() => { renderBuildingList(); showToast("Building deleted."); });
   };
 
   window.addFloor = function() {
-    const label = prompt("Floor label (e.g. First Floor):");
+    const label = prompt("Floor label (e.g. 1st Floor, 2nd Floor, Mezzanine):");
     if (!label) return;
-    const num = (DATA[activeBuildingId].floors ?? []).length;
-    DATA[activeBuildingId].floors.push({ floor: num, label, rooms: [] });
+    const b = DATA[activeBuildingId];
+    if (!b) return;
+    b.floors = b.floors ?? [];
+    const num = b.floors.length;
+    b.floors.push({ floor: num, label, rooms: [] });
     activeFloor = num;
-    saveData().then(() => { renderEditorArea(); showToast("Floor added."); });
+    saveData().then(() => { renderEditorArea(); renderBuildingList(); showToast("Floor added."); });
   };
 
-  // ── Room modal ──────────────────────────────────────────────────────────
-  const ROOM_TYPES = ["office","lecture_hall","lab","restroom","store","common_room","clinic","chapel","cafeteria","other"];
+  // ── Room Modal Logic ────────────────────────────────────────────────────
+  const ROOM_TYPES = [
+    "office", "lecture_hall", "lab", "restroom", "store",
+    "common_room", "clinic", "chapel", "cafeteria", "other"
+  ];
 
   window.openRoomModal = function(roomId) {
     editingRoomId = roomId;
     const floor = DATA[activeBuildingId]?.floors?.find(f => f.floor === activeFloor);
     const room  = roomId ? floor?.rooms?.find(r => r.id === roomId) : null;
 
-    document.getElementById("room-modal-title").textContent = room ? "Edit Room" : "New Room";
+    document.getElementById("room-modal-title").textContent = room ? `Edit: ${room.name}` : "New Room";
     document.getElementById("delete-room-btn").style.display = room ? "inline-flex" : "none";
 
+    // Prepare occupants list
+    let occupantsList = [];
+    if (Array.isArray(room?.occupants) && room.occupants.length > 0) {
+      occupantsList = room.occupants.map(o => ({ name: o.name || "", title: o.title || "" }));
+    } else if (room?.occupant) {
+      occupantsList = [{ name: room.occupant, title: room.title || "" }];
+    }
+
     document.getElementById("room-form").innerHTML = `
-      ${field("name",        "Room name",         room?.name        ?? "", "text")}
-      ${selectField("room_type","Room type",       ROOM_TYPES, room?.room_type ?? "office")}
-      ${field("occupant",    "Occupant name",      room?.occupant    ?? "", "text", "e.g. Dr. A. Musa")}
-      ${field("title",       "Occupant title",     room?.title       ?? "", "text", "e.g. Dean, Faculty of Law")}
-      ${field("department",  "Department",         room?.department  ?? "", "text")}
-      ${field("course",      "Courses (CSV)",      room?.course      ?? "", "text", "e.g. LAW 101, LAW 201")}
-      ${field("capacity",    "Capacity",           room?.capacity    ?? "", "number")}
-      ${selectField("access","Access",             ["public","student","staff"], room?.access ?? "student")}
-      ${selectField("status","Status",             ["open","closed","restricted"], room?.status ?? "open")}
-      ${selectField("gender","Gender restriction", ["","male","female"], room?.gender ?? "")}
-      ${field("tags",        "Tags / Keywords (CSV)", room?.tags     ?? "", "text", "e.g. dean,admin,dsa,bursary")}
-      <div class="form-group" style="grid-column:1/-1">
-        <label>Likely questions (one per line — helps NavBot find this place)</label>
-        <textarea id="rf-questions" rows="3" placeholder="Where is debt recovery?\nHow do I pay school fees?\nWhere is the bursary?">${(room?.questions||[]).join("\n")}</textarea>
+      <!-- Section 1: Identification -->
+      <div class="form-section">
+        <div class="form-section-title">📍 Room Identification</div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label>Room / Office Name *</label>
+            <input type="text" id="rf-name" value="${(room?.name ?? '').replace(/"/g, '&quot;')}" placeholder="e.g. Faculty Resource Room, Lab 1" />
+          </div>
+          <div class="form-group">
+            <label>Room Number / Code</label>
+            <input type="text" id="rf-room_number" value="${(room?.room_number ?? '').replace(/"/g, '&quot;')}" placeholder="e.g. A22, 27-28, G04" />
+          </div>
+        </div>
+        <div class="form-grid-2" style="margin-top:10px">
+          <div class="form-group">
+            <label>Room Type</label>
+            <select id="rf-room_type">
+              ${ROOM_TYPES.map(t => `<option value="${t}" ${t === (room?.room_type || 'office') ? 'selected' : ''}>${t.replace('_', ' ').toUpperCase()}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Department / Faculty</label>
+            <input type="text" id="rf-department" value="${(room?.department ?? '').replace(/"/g, '&quot;')}" placeholder="e.g. Computer Science, Faculty of Law" />
+          </div>
+        </div>
       </div>
-      <div class="form-group" style="grid-column:1/-1">
-        <label>Hint (shown in step 3 of directions)</label>
-        <input type="text" id="rf-hint" value="${(room?.hint||"").replace(/"/g,'&quot;')}" placeholder="e.g. Third door on the left after the stairwell" />
+
+      <!-- Section 2: Occupants / People -->
+      <div class="form-section">
+        <div class="form-section-title">
+          <span>👥 People / Occupants</span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addOccupantRow()" style="font-size:11px;padding:3px 8px">+ Add Person</button>
+        </div>
+        <div id="occupants-container">
+          ${occupantsList.map((occ, idx) => occupantRowHtml(idx, occ.name, occ.title)).join('')}
+        </div>
+        ${!occupantsList.length ? '<div id="occ-empty-hint" style="font-size:12px;color:var(--muted);font-style:italic">No occupants added. Click "+ Add Person" for lecturers/officers.</div>' : ''}
       </div>
-      <div class="form-group" style="grid-column:1/-1">
-        <label>Custom Navigation Steps (one per line — leave empty for auto-generated)</label>
-        <textarea id="rf-steps" rows="4" placeholder="Walk to the main gate&#10;Turn right past the chapel&#10;Room 204 is on your left">${(room?.steps||[]).join("\n")}</textarea>
+
+      <!-- Section 3: Navigation & Guidance Steps -->
+      <div class="form-section">
+        <div class="form-section-title">🧭 Navigation & Guidance</div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Entrance / Starting Outdoor Point (for GPS routing target)</label>
+          <input type="text" id="rf-entrance" value="${(room?.entrance ?? '').replace(/"/g, '&quot;')}" placeholder="e.g. Block A Main Entrance, Side Entrance" />
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Specific Hint / Landmark (e.g. "Third door on the left after the stairs")</label>
+          <input type="text" id="rf-hint" value="${(room?.hint || room?.description || '').replace(/"/g, '&quot;')}" placeholder="Shown to students once they enter the building" />
+        </div>
+        <div class="form-group">
+          <label>Step-by-Step Directions (One step per line — auto-generated if left blank)</label>
+          <textarea id="rf-steps" rows="3" placeholder="1. Enter through the front glass doors&#10;2. Take the staircase to the 1st floor&#10;3. Turn right, room A22 is second door on left">${(room?.steps || []).join('\n')}</textarea>
+        </div>
       </div>
-      ${field("entrance",    "Building entrance name (for outdoor routing)", room?.entrance ?? "", "text", "e.g. Faculty of Law main entrance")}
-      ${field("floorPlan",   "Floor plan image URL (optional)",              room?.floorPlan ?? "", "text", "https://…")}
+
+      <!-- Section 4: Discovery, Tags & Access -->
+      <div class="form-section">
+        <div class="form-section-title">🔍 Search & Access Rules</div>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label>Access Level</label>
+            <select id="rf-access">
+              ${['public', 'student', 'staff'].map(a => `<option value="${a}" ${a === (room?.access || 'public') ? 'selected' : ''}>${a.toUpperCase()}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="rf-status">
+              ${['open', 'closed', 'restricted'].map(s => `<option value="${s}" ${s === (room?.status || 'open') ? 'selected' : ''}>${s.toUpperCase()}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Capacity</label>
+            <input type="number" id="rf-capacity" value="${room?.capacity ?? ''}" placeholder="Seats" />
+          </div>
+        </div>
+        <div class="form-grid-2" style="margin-top:10px">
+          <div class="form-group">
+            <label>Courses / Units (CSV)</label>
+            <input type="text" id="rf-course" value="${(room?.course ?? '').replace(/"/g, '&quot;')}" placeholder="e.g. CSC 301, CSC 302, LAW 101" />
+          </div>
+          <div class="form-group">
+            <label>Search Tags / Keywords (CSV)</label>
+            <input type="text" id="rf-tags" value="${(room?.tags ?? '').replace(/"/g, '&quot;')}" placeholder="e.g. dean, ethics, exam, hod" />
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:10px">
+          <label>Likely Student Questions (One per line — helps NavBot AI answer directly)</label>
+          <textarea id="rf-questions" rows="2" placeholder="Where is the Director of Ethics?&#10;How do I reach Father Peter?">${(room?.questions || []).join('\n')}</textarea>
+        </div>
+      </div>
     `;
 
     document.getElementById("modal-overlay").style.display = "block";
     document.getElementById("room-modal").style.display    = "block";
   };
 
-  function field(id, label, value, type="text", placeholder="") {
-    return `<div class="form-group">
-      <label>${label}</label>
-      <input type="${type}" id="rf-${id}" value="${String(value).replace(/"/g,'&quot;')}" placeholder="${placeholder}" />
-    </div>`;
-  }
-  function selectField(id, label, options, selected) {
-    const opts = options.map(o => `<option value="${o}"${o===selected?' selected':''}>${o||'(none)'}</option>`).join("");
-    return `<div class="form-group"><label>${label}</label><select id="rf-${id}">${opts}</select></div>`;
+  function occupantRowHtml(idx, name = "", title = "") {
+    return `
+      <div class="occupant-row" id="occ-row-${idx}">
+        <input type="text" class="occ-name" value="${name.replace(/"/g, '&quot;')}" placeholder="Name (e.g. Dr. Felix Uloko)" />
+        <input type="text" class="occ-title" value="${title.replace(/"/g, '&quot;')}" placeholder="Title / Role (e.g. H.O.D, Senior Lecturer)" />
+        <button type="button" class="btn-remove-occ" onclick="removeOccupantRow(${idx})" title="Remove">✕</button>
+      </div>
+    `;
   }
 
-  function val(id) { return document.getElementById("rf-"+id)?.value?.trim() ?? ""; }
+  window.addOccupantRow = function() {
+    const container = document.getElementById("occupants-container");
+    const hint = document.getElementById("occ-empty-hint");
+    if (hint) hint.remove();
+    const idx = container.querySelectorAll(".occupant-row").length;
+    const div = document.createElement("div");
+    div.innerHTML = occupantRowHtml(idx);
+    container.appendChild(div.firstElementChild);
+  };
+
+  window.removeOccupantRow = function(idx) {
+    const row = document.getElementById("occ-row-" + idx);
+    if (row) row.remove();
+  };
+
+  window.closeRoomModal = function() {
+    document.getElementById("modal-overlay").style.display = "none";
+    document.getElementById("room-modal").style.display    = "none";
+  };
+
+  function val(id) {
+    return document.getElementById("rf-" + id)?.value?.trim() ?? "";
+  }
 
   document.getElementById("save-room-btn").addEventListener("click", async () => {
     const name = val("name");
     if (!name) { showToast("Room name is required.", true); return; }
 
-    const floor = DATA[activeBuildingId].floors.find(f => f.floor === activeFloor);
+    const floor = DATA[activeBuildingId]?.floors?.find(f => f.floor === activeFloor);
     if (!floor) { showToast("Floor not found.", true); return; }
+
+    // Read occupants
+    const occupantRows = document.querySelectorAll("#occupants-container .occupant-row");
+    const occupants = [];
+    occupantRows.forEach(row => {
+      const oName  = row.querySelector(".occ-name")?.value?.trim() ?? "";
+      const oTitle = row.querySelector(".occ-title")?.value?.trim() ?? "";
+      if (oName || oTitle) {
+        occupants.push({ name: oName, title: oTitle });
+      }
+    });
+
+    const primaryOccupant = occupants[0]?.name || val("occupant") || null;
+    const primaryTitle    = occupants[0]?.title || val("title") || null;
 
     const id = editingRoomId ||
       "room_" + activeBuildingId + "_f" + activeFloor + "_" + name.toLowerCase().replace(/\s+/g,"_").replace(/[^a-z0-9_]/g,"") + "_" + Date.now();
 
     const room = {
-      id, name,
-      room_type:   val("room_type")   || null,
-      occupant:    val("occupant")    || null,
-      title:       val("title")       || null,
-      department:  val("department")  || null,
-      course:      val("course")      || null,
-      capacity:    val("capacity") ? Number(val("capacity")) : null,
-      access:      val("access")      || null,
-      status:      val("status")      || "open",
-      gender:      val("gender")      || null,
-      tags:        val("tags")        || null,
-      hint:        val("hint")        || null,
-      steps:       document.getElementById("rf-steps")?.value.split("\n").map(s=>s.trim()).filter(Boolean) ?? [],
-      questions:   document.getElementById("rf-questions")?.value.split("\n").map(s=>s.trim()).filter(Boolean) ?? [],
-      entrance:    val("entrance")    || null,
-      floorPlan:   val("floorPlan")   || null,
-      description: val("hint")        || null, // keep description in sync with hint for legacy compat
+      id,
+      name,
+      room_number:  val("room_number") || null,
+      room_type:    val("room_type")   || "office",
+      occupants:    occupants.length ? occupants : (primaryOccupant ? [{ name: primaryOccupant, title: primaryTitle || "" }] : []),
+      occupant:     primaryOccupant,
+      title:        primaryTitle,
+      department:   val("department")  || null,
+      course:       val("course")      || null,
+      capacity:     val("capacity") ? Number(val("capacity")) : null,
+      access:       val("access")      || "public",
+      status:       val("status")      || "open",
+      tags:         val("tags")        || null,
+      hint:         val("hint")        || null,
+      description:  val("hint")        || null,
+      steps:        document.getElementById("rf-steps")?.value.split("\n").map(s => s.trim()).filter(Boolean) ?? [],
+      questions:    document.getElementById("rf-questions")?.value.split("\n").map(s => s.trim()).filter(Boolean) ?? [],
+      entrance:     val("entrance")    || null,
+      floorPlan:    val("floorPlan")   || null,
       photo: null, notes: null, phone: null,
     };
 
@@ -287,28 +878,30 @@
       await saveData();
       closeRoomModal();
       renderEditorArea();
-      showToast("Room saved.");
-    } catch(e) { showToast("Failed: " + e.message, true); }
+      renderBuildingList();
+      showToast("Room saved: " + name);
+    } catch(e) {
+      showToast("Save failed: " + e.message, true);
+    }
   });
 
   document.getElementById("delete-room-btn").addEventListener("click", async () => {
     if (!confirm("Delete this room?")) return;
-    const floor = DATA[activeBuildingId].floors.find(f => f.floor === activeFloor);
-    if (floor) floor.rooms = floor.rooms.filter(r => r.id !== editingRoomId);
+    const floor = DATA[activeBuildingId]?.floors?.find(f => f.floor === activeFloor);
+    if (floor) {
+      floor.rooms = floor.rooms.filter(r => r.id !== editingRoomId);
+    }
     try {
       await saveData();
       closeRoomModal();
       renderEditorArea();
+      renderBuildingList();
       showToast("Room deleted.");
-    } catch(e) { showToast("Failed: " + e.message, true); }
+    } catch(e) {
+      showToast("Delete failed: " + e.message, true);
+    }
   });
 
-  window.closeRoomModal = function() {
-    document.getElementById("modal-overlay").style.display = "none";
-    document.getElementById("room-modal").style.display    = "none";
-  };
-
-  // ── Export JSON ─────────────────────────────────────────────────────────
   window.exportJson = function() {
     const blob = new Blob([JSON.stringify(DATA, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -317,7 +910,10 @@
     a.click();
   };
 
-  document.getElementById("refresh-btn").addEventListener("click", () => loadData().then(() => showToast("Refreshed.")));
+  document.getElementById("refresh-btn").addEventListener("click", () => {
+    loadData().then(() => showToast("Refreshed from Firestore."));
+  });
+
   loadData();
 </script>
 </body>

@@ -25,6 +25,7 @@ const FUSE_OPTIONS = {
   minMatchCharLength: 2,
   keys: [
     { name: "name",              weight: 3.0 },
+    { name: "roomNumber",        weight: 3.0 },
     { name: "aliases",           weight: 2.5 },
     { name: "people.name",       weight: 2.0 },
     { name: "people.role",       weight: 1.5 },

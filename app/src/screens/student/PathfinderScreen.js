@@ -65,7 +65,8 @@ function formatWalk(m) {
 }
 function placeSubtitle(place) {
   if (place.scope === "indoor") {
-    return [place.buildingName, place.floorLabel, place.room !== place.name ? place.room : null]
+    const roomIdentifier = place.roomNumber ? `Room ${place.roomNumber}` : (place.room !== place.name ? place.room : null);
+    return [place.buildingName, place.floorLabel, roomIdentifier]
       .filter(Boolean).join(" · ");
   }
   const meta = getCategoryMeta(place.category);
@@ -148,9 +149,13 @@ function PlaceSheet({ place, userLocation, fromPlace, onClose, onNavigate, onSet
             <Text style={styles.sheetName}>{place.name}</Text>
             <Text style={styles.sheetSub}>{subtitle}</Text>
             {place.people?.length > 0 && (
-              <Text style={styles.sheetPeople}>
-                {place.people[0].role ? `${place.people[0].role}: ` : ""}{place.people[0].name}
-              </Text>
+              <View style={{ marginTop: 4, gap: 2 }}>
+                {place.people.map((p, idx) => (
+                  <Text key={idx} style={styles.sheetPeople}>
+                    👤 {p.role ? `${p.role}: ` : ""}{p.name}
+                  </Text>
+                ))}
+              </View>
             )}
           </View>
         </View>
@@ -364,7 +369,17 @@ export default function PathfinderScreen({ navigation }) {
     try {
       const route = calculateCampusRoute(origin, dest);
       setWalkOriginId(fromPlace?.id ?? null);
-      setWalkRoute({ ...route, originName: fromPlace?.name ?? "My location", destName: place.name });
+      setWalkRoute({
+        ...route,
+        originName:   fromPlace?.name ?? "My location",
+        destName:     place.name,
+        scope:        place.scope,
+        buildingName: place.buildingName,
+        floorLabel:   place.floorLabel,
+        roomNumber:   place.roomNumber,
+        hint:         place.hint,
+        steps:        place.steps ?? [],
+      });
     } catch {
       clearWalkRoute();
     }

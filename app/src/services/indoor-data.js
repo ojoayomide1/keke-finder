@@ -44,6 +44,14 @@ function normalizeBuildings(buildings) {
       const floor      = floorObj.floor ?? 0;
       const floorLabel = floorObj.label ?? (floor === 0 ? "Ground Floor" : `Floor ${floor}`);
       for (const room of floorObj.rooms ?? []) {
+        // Support occupants array or single occupant string
+        let primaryOccupant = room.occupant ?? null;
+        let primaryTitle    = room.title ?? null;
+        if (Array.isArray(room.occupants) && room.occupants.length > 0) {
+          primaryOccupant = room.occupants.map(o => o.name).filter(Boolean).join(", ");
+          primaryTitle    = room.occupants.map(o => o.title).filter(Boolean).join(", ") || null;
+        }
+
         records.push({
           id:          room.id   ?? `${buildingId}_f${floor}_${room.name}`,
           name:        room.name ?? "Unnamed Room",
@@ -52,9 +60,11 @@ function normalizeBuildings(buildings) {
           buildingName,
           floor,
           floorLabel,
-          room:        room.name ?? "",
-          occupant:    room.occupant    ?? null,
-          title:       room.title       ?? null,
+          room:        room.room_number ? `${room.name} (${room.room_number})` : (room.name ?? ""),
+          roomNumber:  room.room_number ?? null,
+          occupant:    primaryOccupant,
+          occupants:   Array.isArray(room.occupants) ? room.occupants : [],
+          title:       primaryTitle,
           department:  room.department  ?? null,
           courses:     splitCsv(room.course),
           keywords:    splitCsv(room.tags),

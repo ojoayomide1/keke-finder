@@ -86,12 +86,76 @@ function normaliseOutdoor(loc) {
   };
 }
 
+// ─── BUILDING COORDS LOOKUP ──────────────────────────────────────────────────
+/**
+ * Build a lookup map of buildingId/name -> {lat, lng} from bundled map data.
+ * Used so indoor rooms have real outdoor coordinates to route to.
+ */
+function buildBuildingCoordsMap() {
+  const map = {};
+  const locations = VERITAS_MAP?.app?.locations ?? [];
+  const buildings = VERITAS_MAP?.app?.buildings ?? [];
+
+  // 1. From locations
+  for (const loc of locations) {
+    if (Number.isFinite(loc.lat) && Number.isFinite(loc.lng)) {
+      const coord = { lat: loc.lat, lng: loc.lng };
+      if (loc.id) {
+        map[loc.id.toLowerCase()] = coord;
+        map[loc.id.toLowerCase().replace(/_building$/, "")] = coord;
+        map[`${loc.id.toLowerCase()}_building`] = coord;
+      }
+      if (loc.name) {
+        map[loc.name.toLowerCase().trim()] = coord;
+      }
+    }
+  }
+
+  // 2. From building polygons (centroid)
+  for (const b of buildings) {
+    let coord = null;
+    if (Number.isFinite(b.lat) && Number.isFinite(b.lng)) {
+      coord = { lat: b.lat, lng: b.lng };
+    } else if (Array.isArray(b.points) && b.points.length > 0) {
+      let latSum = 0, lngSum = 0;
+      for (const p of b.points) {
+        latSum += Number(p[0]);
+        lngSum += Number(p[1]);
+      }
+      coord = { lat: latSum / b.points.length, lng: lngSum / b.points.length };
+    }
+    if (coord) {
+      if (b.id) {
+        map[b.id.toLowerCase()] = coord;
+        map[b.id.toLowerCase().replace(/_building$/, "")] = coord;
+        map[`${b.id.toLowerCase()}_building`] = coord;
+      }
+      if (b.name) {
+        map[b.name.toLowerCase().trim()] = coord;
+      }
+    }
+  }
+
+  return map;
+}
+
+const _BUILDING_COORDS = buildBuildingCoordsMap();
+
 // ─── INDOOR NORMALISER ────────────────────────────────────────────────────────
 function normaliseIndoorBuildings(buildings) {
   const places = [];
 
   for (const [buildingId, building] of Object.entries(buildings ?? {})) {
     const buildingName = building.name ?? buildingId;
+
+    // Resolve building coords from buildingId or buildingName
+    const bIdKey   = buildingId.toLowerCase();
+    const bNameKey = buildingName.toLowerCase().trim();
+    const buildingCoord = _BUILDING_COORDS[bIdKey]
+      ?? _BUILDING_COORDS[bIdKey.replace(/_building$/, "")]
+      ?? _BUILDING_COORDS[`${bIdKey}_building`]
+      ?? _BUILDING_COORDS[bNameKey]
+      ?? undefined;
 
     for (const floorObj of building.floors ?? []) {
       const floor      = floorObj.floor  ?? 0;
@@ -100,13 +164,34 @@ function normaliseIndoorBuildings(buildings) {
       for (const room of floorObj.rooms ?? []) {
         const courses = parseCourses(room.course);
 
-        // people: occupant + title as a single person entry
-        const people = room.occupant
-          ? [{ name: room.occupant, role: room.title ?? undefined }]
-          : [];
+        // people: support both occupants array and legacy occupant field
+        let people = [];
+        if (Array.isArray(room.occupants) && room.occupants.length > 0) {
+          people = room.occupants
+            .filter(o => o && (o.name || o.title))
+            .map(o => ({ name: o.name ?? "", role: o.title ?? undefined }));
+        } else if (room.occupant) {
+          people = [{ name: room.occupant, role: room.title ?? undefined }];
+        }
 
-        // aliases: tags split into keywords
+        // aliases: tags split into keywords + room_number + buildingName
         const aliases = splitCsv(room.tags);
+        if (room.room_number) aliases.push(room.room_number);
+
+        // Auto-generate indoor steps if not explicitly provided
+        let steps = Array.isArray(room.steps) && room.steps.length > 0
+          ? room.steps
+          : [];
+        if (steps.length === 0) {
+          const s1 = room.entrance
+            ? `Walk to ${room.entrance}`
+            : `Walk to ${buildingName} entrance`;
+          const s2 = floor === 0
+            ? "Enter building — room is on the Ground Floor"
+            : `Head inside and go to ${floorLabel}`;
+          const s3 = room.hint || room.description || `Look for ${room.name}${room.room_number ? ` (${room.room_number})` : ""}`;
+          steps = [s1, s2, s3];
+        }
 
         if (!room.id)   console.warn("[places] indoor room missing id in", buildingId, room.name);
         if (!room.name) console.warn("[places] indoor room missing name in", buildingId);
@@ -121,13 +206,15 @@ function normaliseIndoorBuildings(buildings) {
           floor,
           floorLabel,
           room:         room.name,
+          roomNumber:   room.room_number  ?? undefined,
+          coords:       buildingCoord,
           aliases,
           people,
           courses,
           questions:    Array.isArray(room.questions) ? room.questions : [],
           hours:        room.hours        ?? undefined,
           hint:         room.hint || room.description || undefined,
-          steps:        Array.isArray(room.steps) ? room.steps : [],
+          steps,
           entrance:     room.entrance     ?? undefined,
           floorPlanUrl: room.floorPlan    ?? undefined,
         });
