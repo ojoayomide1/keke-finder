@@ -42,6 +42,7 @@ import { fetchProfileStats, formatNaira } from "../../services/wallet";
 import { auth, signOut } from "../../config/firebase";
 import SupportModal from "../shared/SupportModal";
 import Icon from "../../components/Icon";
+import Skeleton, { SkeletonStats, SkeletonRow } from "../../components/Skeleton";
 import {
   isBiometricsAvailable,
   isBiometricsEnabled,
@@ -267,7 +268,11 @@ export default function ProfileScreen() {
           <Text style={styles.cardTitle}>Ride Stats</Text>
 
           {loadingStats ? (
-            <ActivityIndicator color={C.green} style={{ marginVertical: 20 }} />
+            <View style={{ marginVertical: 4 }}>
+              <SkeletonStats />
+              <Skeleton width="100%" height={16} style={{ marginBottom: 12 }} />
+              <Skeleton width="80%" height={16} />
+            </View>
           ) : (
             <>
               <View style={styles.statsGrid}>

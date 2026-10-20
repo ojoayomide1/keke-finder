@@ -33,6 +33,7 @@ import { search, looksLikeQuestion } from "../../services/search";
 import { isNavBotAvailable } from "../../services/navbot";
 import Icon from "../../components/Icon";
 import NavBot from "../../components/NavBot";
+import { SkeletonRow, SkeletonCard } from "../../components/Skeleton";
 import { C as TC, S, R } from "../../theme/tokens";
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -418,7 +419,12 @@ export default function PathfinderScreen({ navigation }) {
             autoCapitalize="none"
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity
+              onPress={() => setQuery("")}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search text"
+            >
               <Icon name="x" size={16} color={C.text3} />
             </TouchableOpacity>
           )}
@@ -426,6 +432,8 @@ export default function PathfinderScreen({ navigation }) {
             <TouchableOpacity
               onPress={() => { setNavBotQuery(query); setShowNavBot(true); }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Ask NavBot AI"
             >
               <Icon name="sparkles" size={16} color={C.brand} />
             </TouchableOpacity>
@@ -493,9 +501,11 @@ export default function PathfinderScreen({ navigation }) {
 
           {/* ── Browse grid ──────────────────────────────────── */}
           {!ready && (
-            <View style={styles.loadingState}>
-              <ActivityIndicator color={C.brand} />
-              <Text style={styles.loadingText}>Loading places…</Text>
+            <View style={styles.section}>
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonCard />
             </View>
           )}
 
