@@ -315,10 +315,10 @@ export default function MapScreen() {
           paths:     campusPaths,
           locations: visibleCampusLocations,
           rideStops: [],
-          dimStaticMarkers: ridePhase !== "idle",
+          dimStaticMarkers: ridePhase !== "idle" || (walkRoute?.points?.length >= 2),
         }
       : null,
-    [campusBuildings, campusPaths, visibleCampusLocations]
+    [campusBuildings, campusPaths, visibleCampusLocations, ridePhase, walkRoute]
   );
 
   // On native: memoize static map layers as children (react-native-maps API)
@@ -452,6 +452,39 @@ export default function MapScreen() {
             strokeWidth={4}
             lineDashPattern={walkRoute.routed ? undefined : [8, 6]}
           />
+        )}
+
+        {/* Walk route — origin dot (blue "you are here") */}
+        {walkCoords.length >= 2 && (
+          <Marker
+            coordinate={walkCoords[0]}
+            title={walkRoute.originName ?? "Starting point"}
+            pinColor="blue"
+            opacity={0.9}
+          >
+            <View style={styles.originDot}>
+              <View style={styles.originDotInner} />
+            </View>
+          </Marker>
+        )}
+
+        {/* Walk route — destination pin (brand green) */}
+        {walkCoords.length >= 2 && (
+          <Marker
+            coordinate={walkCoords[walkCoords.length - 1]}
+            title={walkRoute.destName ?? "Destination"}
+            pinColor="green"
+            opacity={1}
+          >
+            <View style={styles.destPin}>
+              <Text style={styles.destPinIcon}>📍</Text>
+              <View style={styles.destPinLabel}>
+                <Text style={styles.destPinText} numberOfLines={1}>
+                  {walkRoute.destName ?? "Destination"}
+                </Text>
+              </View>
+            </View>
+          </Marker>
         )}
       </MapView>
 
@@ -646,6 +679,51 @@ const styles = StyleSheet.create({
   markerLabel:  { color: "#FFF", fontSize: 9, fontWeight: "700", backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 3, paddingVertical: 1, borderRadius: 3, marginTop: 2, maxWidth: 90, textAlign: "center" },
 
   riderMarker: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#F5A623", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#FFFFFF" },
+
+  // Walk route markers
+  originDot: {
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: "rgba(47,111,208,0.18)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 2, borderColor: "#2F6FD0",
+  },
+  originDotInner: {
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: "#2F6FD0",
+  },
+  destPin:      { alignItems: "center" },
+  destPinIcon:  { fontSize: 28, lineHeight: 30 },
+  destPinLabel: {
+    backgroundColor: "#1E7B4C", borderRadius: 6,
+    paddingHorizontal: 6, paddingVertical: 3,
+    marginTop: 2, maxWidth: 120,
+  },
+  destPinText: { color: "#FFFFFF", fontSize: 11, fontWeight: "700", textAlign: "center" },
+
+  // Walk route markers
+  originDot: {
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: "rgba(47,111,208,0.18)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 2, borderColor: "#2F6FD0",
+  },
+  originDotInner: {
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: "#2F6FD0",
+  },
+  destPin: {
+    alignItems: "center",
+  },
+  destPinIcon: { fontSize: 28, lineHeight: 30 },
+  destPinLabel: {
+    backgroundColor: "#1E7B4C",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    marginTop: 2,
+    maxWidth: 120,
+  },
+  destPinText: { color: "#FFFFFF", fontSize: 11, fontWeight: "700", textAlign: "center" },
 
   recenterBtn: { position: "absolute", top: 60, right: 16, backgroundColor: C.surface, borderRadius: 20, width: 40, height: 40, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.border },
 
