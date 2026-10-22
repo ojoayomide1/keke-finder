@@ -344,7 +344,7 @@ export default function LoginScreen() {
         {/* ── Launch notice — shown when registration is closed ── */}
         {!REGISTRATION_OPEN && (
           <View style={styles.launchBanner}>
-            <Text style={styles.launchTitle}>🚀 NavCamp launches Sunday, Oct 25</Text>
+            <Text style={styles.launchTitle}>NavCamp launches Sunday, Oct 25</Text>
             <Text style={styles.launchSub}>
               Registration opens on launch day.{"\n"}
               Learn more at{" "}
