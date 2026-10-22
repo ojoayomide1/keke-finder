@@ -96,7 +96,9 @@ function authErrorMessage(error) {
   return map[error.code] ?? error.message ?? "Authentication failed.";
 }
 
-// ─── COMPONENT ───────────────────────────────────────────────────────────────
+// ─── FEATURE FLAG ────────────────────────────────────────────────────────────
+// Set to true to re-enable registration when NavCamp officially launches.
+const REGISTRATION_OPEN = false;
 
 export default function LoginScreen() {
   const [mode, setMode] = useState("login");    // "login" | "signup"
@@ -327,15 +329,34 @@ export default function LoginScreen() {
               Login
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, mode === "signup" && styles.tabActive]}
-            onPress={() => { setMode("signup"); setError(""); setFieldErrors({}); }}
-          >
-            <Text style={[styles.tabText, mode === "signup" && styles.tabTextActive]}>
-              Sign Up
-            </Text>
-          </TouchableOpacity>
+          {REGISTRATION_OPEN && (
+            <TouchableOpacity
+              style={[styles.tab, mode === "signup" && styles.tabActive]}
+              onPress={() => { setMode("signup"); setError(""); setFieldErrors({}); }}
+            >
+              <Text style={[styles.tabText, mode === "signup" && styles.tabTextActive]}>
+                Sign Up
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* ── Launch notice — shown when registration is closed ── */}
+        {!REGISTRATION_OPEN && (
+          <View style={styles.launchBanner}>
+            <Text style={styles.launchTitle}>🚀 NavCamp launches Sunday, Oct 25</Text>
+            <Text style={styles.launchSub}>
+              Registration opens on launch day.{"\n"}
+              Learn more at{" "}
+              <Text
+                style={styles.launchLink}
+                onPress={() => require("react-native").Linking.openURL("https://navcamp.site")}
+              >
+                navcamp.site
+              </Text>
+            </Text>
+          </View>
+        )}
 
         {/* ── Role toggle — signup only ────────────────────────── */}
         {mode === "signup" && (
@@ -566,6 +587,20 @@ const styles = StyleSheet.create({
   fieldError: { color: "#C23B3B", fontSize: 12, marginTop: 4, marginBottom: 4, paddingHorizontal: 2 },
   fieldHint:  { color: "#6B7280", fontSize: 12, marginTop: 4, marginBottom: 4, paddingHorizontal: 2 },
   inputError: { borderColor: "#C23B3B" },
+
+  launchBanner: {
+    backgroundColor: "#E6F2EB",
+    borderRadius:    12,
+    borderWidth:     1,
+    borderColor:     "#1E7B4C40",
+    padding:         16,
+    marginBottom:    16,
+    alignItems:      "center",
+    gap:             6,
+  },
+  launchTitle: { color: "#14171A", fontSize: 15, fontWeight: "600", textAlign: "center" },
+  launchSub:   { color: "#5B6470", fontSize: 13, textAlign: "center", lineHeight: 20 },
+  launchLink:  { color: "#1E7B4C", fontWeight: "600", textDecorationLine: "underline" },
 
   submitBtn:         { backgroundColor: "#1E7A46", borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 12 },
   submitBtnDisabled: { opacity: 0.6 },
