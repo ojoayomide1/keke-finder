@@ -10,7 +10,7 @@
  * Native (iOS/Android) uses react-native-maps — this file is never loaded there.
  */
 
-import React, { useEffect, useRef, useMemo, useState } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import { View, StyleSheet } from "react-native";
 
 export const PROVIDER_DEFAULT = "default";
@@ -141,7 +141,7 @@ const MapView = React.forwardRef(function MapView(
   const layers       = useRef({});
   const containerRef = useRef(null);
   const programmaticMoveRef = useRef(false);
-  const [zoomLevel, setZoomLevel] = useState(16);
+  const zoomLevelRef = useRef(16); // use ref, not state — avoids React re-renders on zoom
 
   // ── Parse dynamic overlay children ──────────────────────────────────────
   const { overlayMarkers, overlayPolylines } = useMemo(() => {
@@ -173,11 +173,15 @@ const MapView = React.forwardRef(function MapView(
       zoom:             16,
       zoomControl:      true,
       attributionControl: false,
+      // Smooth zoom — prevents jerky behaviour on trackpad/pinch
+      zoomSnap:    0.5,
+      zoomDelta:   0.5,
+      wheelPxPerZoomLevel: 120,
     });
     leafletMap.current = map;
-    setZoomLevel(map.getZoom());
+    zoomLevelRef.current = map.getZoom();
     map.on("zoomend moveend", () => {
-      setZoomLevel(map.getZoom());
+      zoomLevelRef.current = map.getZoom();
       programmaticMoveRef.current = false;
     });
     map.on("dragstart zoomstart", () => {
@@ -306,42 +310,52 @@ const MapView = React.forwardRef(function MapView(
     if (!map) return;
     let L; try { L = require("leaflet"); } catch { return; }
 
-    const group = layers.current.locations;
-    group.clearLayers();
+    function renderMarkers() {
+      const group = layers.current.locations;
+      group.clearLayers();
 
-    const visibleAtZoom = (category) => {
-      const key = String(category ?? "").toLowerCase();
-      if (["service", "shop", "restaurant", "resturant", "lounge", "sport"].includes(key)) {
-        return zoomLevel >= 17;
+      const zoom = zoomLevelRef.current;
+
+      const visibleAtZoom = (category) => {
+        const key = String(category ?? "").toLowerCase();
+        if (["service", "shop", "restaurant", "resturant", "lounge", "sport"].includes(key)) {
+          return zoom >= 17;
+        }
+        if (["hall", "block"].includes(key)) return zoom >= 16;
+        return true;
+      };
+
+      for (const loc of locations) {
+        if (!loc.lat || !loc.lng || !visibleAtZoom(loc.category)) continue;
+        const style = cat(loc.category);
+        L.marker([loc.lat, loc.lng], { icon: makeDivIcon(L, style, 26), opacity: staticMarkerOpacity }).bindPopup(
+          `<div style="min-width:140px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${loc.name}</div>
+            <div style="color:#6B7280;font-size:11px">${style.label}</div>
+          </div>`,
+          { className: "navcamp-popup" }
+        ).addTo(group);
       }
-      if (["hall", "block"].includes(key)) return zoomLevel >= 16;
-      return true;
-    };
 
-    for (const loc of locations) {
-      if (!loc.lat || !loc.lng || !visibleAtZoom(loc.category)) continue;
-      const style = cat(loc.category);
-      L.marker([loc.lat, loc.lng], { icon: makeDivIcon(L, style, 26), opacity: staticMarkerOpacity }).bindPopup(
-        `<div style="min-width:140px">
-          <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${loc.name}</div>
-          <div style="color:#6B7280;font-size:11px">${style.label}</div>
-        </div>`,
-        { className: "navcamp-popup" }
-      ).addTo(group);
+      for (const stop of rideStops) {
+        if (!stop.lat || !stop.lng) continue;
+        const style = cat("pickup");
+        L.marker([stop.lat, stop.lng], { icon: makeDivIcon(L, style, 30), opacity: staticMarkerOpacity }).bindPopup(
+          `<div style="min-width:120px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${stop.name}</div>
+            <div style="color:#6B7280;font-size:11px">Pickup / Drop-off</div>
+          </div>`,
+          { className: "navcamp-popup" }
+        ).addTo(group);
+      }
     }
 
-    for (const stop of rideStops) {
-      if (!stop.lat || !stop.lng) continue;
-      const style = cat("pickup");
-      L.marker([stop.lat, stop.lng], { icon: makeDivIcon(L, style, 30), opacity: staticMarkerOpacity }).bindPopup(
-        `<div style="min-width:120px">
-          <div style="font-weight:700;font-size:14px;margin-bottom:3px;color:#0F1117">${stop.name}</div>
-          <div style="color:#6B7280;font-size:11px">Pickup / Drop-off</div>
-        </div>`,
-        { className: "navcamp-popup" }
-      ).addTo(group);
-    }
-  }, [locations, rideStops, zoomLevel, staticMarkerOpacity]);
+    renderMarkers();
+
+    // Re-render marker visibility on zoom without triggering React re-renders
+    map.on("zoomend", renderMarkers);
+    return () => { map.off("zoomend", renderMarkers); };
+  }, [locations, rideStops, staticMarkerOpacity]);
 
   // ── Render dynamic overlay polylines (walk route, trip dashes) ───────────
   useEffect(() => {
