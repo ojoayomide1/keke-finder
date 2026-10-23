@@ -392,68 +392,100 @@ export default function MapScreen() {
         {/* Stop markers only visible when student has an active ride */}
         {zoomDelta < 0.018 && ridePhase !== "idle" && stopMarkers}
 
-        {/* Ride route line — rider → student's dropoff (matched or onTrip) */}
-        {(ridePhase === "onTrip" || ridePhase === "matched") && (() => {
-          const myDropoff = liveSummary?.stopQueue?.find(
-            s => s.type === "dropoff" && s.location?.lat && s.location?.lng
-          );
-          if (!myDropoff) return null;
-
-          // Use rider location if available, else fall back to pickup stop
-          const myPickup = liveSummary?.stopQueue?.find(
-            s => s.type === "pickup" && s.location?.lat && s.location?.lng
-          );
-          const origin = riderLocation
-            ? { lat: riderLocation.lat, lng: riderLocation.lng }
-            : myPickup?.location ?? null;
-          if (!origin) return null;
-
-          const route = calculateCampusRoute(
-            origin,
-            { lat: myDropoff.location.lat, lng: myDropoff.location.lng },
-            { mode: "drive" }
-          );
-          const coords = route.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
-          return coords.length >= 2 ? (
-            <Polyline
-              coordinates={coords}
-              strokeColor="rgba(30,123,76,0.75)"
-              strokeWidth={4}
-              lineDashPattern={route.routed ? undefined : [6, 5]}
-            />
-          ) : null;
-        })()}
-
-        {/* Destination marker — student's dropoff during a ride */}
-        {(ridePhase === "onTrip" || ridePhase === "matched") && (() => {
-          const myDropoff = liveSummary?.stopQueue?.find(
-            s => s.type === "dropoff" && s.location?.lat && s.location?.lng
-          );
-          if (!myDropoff) return null;
+        {/* ── MATCHED phase: rider heading to pickup ──────────────────────
+            - Pickup marker glows (active) — where student should wait
+            - Dropoff marker shown dimmed — just for reference
+            - No route line yet (rider's job to navigate to pickup)
+            - Rider keke marker shows live position                      */}
+        {ridePhase === "matched" && (() => {
+          const myPickup  = liveSummary?.stopQueue?.find(s => s.type === "pickup"  && s.location?.lat);
+          const myDropoff = liveSummary?.stopQueue?.find(s => s.type === "dropoff" && s.location?.lat);
           return (
-            <Marker
-              coordinate={{ latitude: myDropoff.location.lat, longitude: myDropoff.location.lng }}
-              title={liveSummary?.dropoffLabel ?? "Your stop"}
-              pinColor="green"
-            >
-              <View style={styles.destPin}>
-                <Text style={styles.destPinIcon}>📍</Text>
-                <View style={styles.destPinLabel}>
-                  <Text style={styles.destPinText} numberOfLines={1}>
-                    {liveSummary?.dropoffLabel ?? "Your stop"}
-                  </Text>
-                </View>
-              </View>
-            </Marker>
+            <>
+              {myPickup && (
+                <Marker
+                  coordinate={{ latitude: myPickup.location.lat, longitude: myPickup.location.lng }}
+                  title="Your pickup"
+                  description={myPickup.locationLabel ?? "Wait here"}
+                  pinColor="red"
+                  active
+                  opacity={1}
+                />
+              )}
+              {myDropoff && (
+                <Marker
+                  coordinate={{ latitude: myDropoff.location.lat, longitude: myDropoff.location.lng }}
+                  title={liveSummary?.dropoffLabel ?? "Your stop"}
+                  pinColor="green"
+                  opacity={0.32}
+                >
+                  <View style={styles.destPin}>
+                    <Text style={[styles.destPinIcon, { opacity: 0.4 }]}>📍</Text>
+                    <View style={[styles.destPinLabel, { opacity: 0.4 }]}>
+                      <Text style={styles.destPinText} numberOfLines={1}>
+                        {liveSummary?.dropoffLabel ?? "Your stop"}
+                      </Text>
+                    </View>
+                  </View>
+                </Marker>
+              )}
+            </>
           );
         })()}
 
-        {/* Active pickup marker */}
-        {ridePhase === "matched" && activePickupStop && (
+        {/* ── ON TRIP phase: picked up, heading to dropoff ────────────────
+            - Pickup marker gone (already done)
+            - Dropoff glows (active) — the destination
+            - Route line: rider location → dropoff                        */}
+        {ridePhase === "onTrip" && (() => {
+          const myDropoff = liveSummary?.stopQueue?.find(s => s.type === "dropoff" && s.location?.lat);
+          if (!myDropoff) return null;
+
+          const origin = riderLocation ?? null;
+          const routeCoords = origin ? (() => {
+            const route = calculateCampusRoute(
+              { lat: origin.lat, lng: origin.lng },
+              { lat: myDropoff.location.lat, lng: myDropoff.location.lng },
+              { mode: "drive" }
+            );
+            return route.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+          })() : [];
+
+          return (
+            <>
+              {routeCoords.length >= 2 && (
+                <Polyline
+                  coordinates={routeCoords}
+                  strokeColor="rgba(30,123,76,0.85)"
+                  strokeWidth={4}
+                  lineDashPattern={undefined}
+                />
+              )}
+              <Marker
+                coordinate={{ latitude: myDropoff.location.lat, longitude: myDropoff.location.lng }}
+                title={liveSummary?.dropoffLabel ?? "Your stop"}
+                pinColor="green"
+                active
+                opacity={1}
+              >
+                <View style={styles.destPin}>
+                  <Text style={styles.destPinIcon}>📍</Text>
+                  <View style={styles.destPinLabel}>
+                    <Text style={styles.destPinText} numberOfLines={1}>
+                      {liveSummary?.dropoffLabel ?? "Your stop"}
+                    </Text>
+                  </View>
+                </View>
+              </Marker>
+            </>
+          );
+        })()}
+
+        {/* Active pickup marker (legacy — kept for non-stopQueue fallback) */}
+        {false && ridePhase === "matched" && activePickupStop && (
           <Marker
             coordinate={{ latitude: activePickupStop.location.lat, longitude: activePickupStop.location.lng }}
             title="Pickup spot"
-            description={activePickupStop.locationLabel || activePickupStop.location.label || "Pickup location"}
             pinColor="red"
           />
         )}
