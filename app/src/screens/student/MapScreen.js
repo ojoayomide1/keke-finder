@@ -194,26 +194,8 @@ export default function MapScreen() {
     );
   }, [latestRide?.riderId, ridePhase]);
 
-  // ── Auto-center map on rider or user location ───────────────────────────
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    if (ridePhase !== "idle" && riderLocation) {
-      mapRef.current.animateToRegion({
-        latitude: riderLocation.lat,
-        longitude: riderLocation.lng,
-        latitudeDelta: 0.008,
-        longitudeDelta: 0.008,
-      }, 800);
-    } else if (walkRoute && userLocation) {
-      mapRef.current.animateToRegion({
-        latitude: userLocation.lat,
-        longitude: userLocation.lng,
-        latitudeDelta: 0.006,
-        longitudeDelta: 0.006,
-      }, 800);
-    }
-  }, [riderLocation, walkRoute, userLocation]);
+  // Auto-center removed — was preventing manual zoom during rides and walk routes.
+  // Map only auto-centers on initial load (fitToCoordinates in the campus data effect).
 
   // ── Show/hide bottom sheet based on whether there's something active ────
   useEffect(() => {
@@ -403,22 +385,53 @@ export default function MapScreen() {
         {/* Stop markers only visible when student has an active ride */}
         {zoomDelta < 0.018 && ridePhase !== "idle" && stopMarkers}
 
-        {/* Dashed line from stop to destination building when on trip */}
-        {ridePhase === "onTrip" && liveSummary?.dropoffLat && liveSummary?.dropoffLng && riderLocation && (() => {
+        {/* Ride route line — rider → student's dropoff (matched or onTrip) */}
+        {(ridePhase === "onTrip" || ridePhase === "matched") && riderLocation && (() => {
+          // Get student's dropoff location from stopQueue
+          const myDropoff = liveSummary?.stopQueue?.find(
+            s => s.type === "dropoff" && s.location?.lat && s.location?.lng
+          );
+          if (!myDropoff) return null;
+
+          const dest = myDropoff.location;
           const route = calculateCampusRoute(
             { lat: riderLocation.lat, lng: riderLocation.lng },
-            { lat: liveSummary.dropoffLat, lng: liveSummary.dropoffLng },
+            { lat: dest.lat, lng: dest.lng },
             { mode: "drive" }
           );
           const coords = route.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
           return coords.length >= 2 ? (
             <Polyline
               coordinates={coords}
-              strokeColor="rgba(30,122,70,0.65)"
-              strokeWidth={3}
+              strokeColor="rgba(30,123,76,0.7)"
+              strokeWidth={4}
               lineDashPattern={route.routed ? undefined : [6, 5]}
             />
           ) : null;
+        })()}
+
+        {/* Destination marker — student's dropoff during a ride */}
+        {(ridePhase === "onTrip" || ridePhase === "matched") && (() => {
+          const myDropoff = liveSummary?.stopQueue?.find(
+            s => s.type === "dropoff" && s.location?.lat && s.location?.lng
+          );
+          if (!myDropoff) return null;
+          return (
+            <Marker
+              coordinate={{ latitude: myDropoff.location.lat, longitude: myDropoff.location.lng }}
+              title={liveSummary?.dropoffLabel ?? "Your stop"}
+              pinColor="green"
+            >
+              <View style={styles.destPin}>
+                <Text style={styles.destPinIcon}>📍</Text>
+                <View style={styles.destPinLabel}>
+                  <Text style={styles.destPinText} numberOfLines={1}>
+                    {liveSummary?.dropoffLabel ?? "Your stop"}
+                  </Text>
+                </View>
+              </View>
+            </Marker>
+          );
         })()}
 
         {/* Active pickup marker */}
