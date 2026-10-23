@@ -22,6 +22,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from "../../components/MapView";
 import * as Location from "expo-location";
 
@@ -75,6 +76,7 @@ const CATEGORY_EMOJI = {
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 
 export default function MapScreen() {
+  const navigation = useNavigation();
   const {
     currentUser,
     currentRideId, currentRequestId, latestRide,
@@ -163,6 +165,11 @@ export default function MapScreen() {
   useEffect(() => {
     if (latestRide) {
       setLiveSummary(latestRide);
+      if (latestRide.isCompleted) {
+        // Ride finished — go to Ride tab to show the completion card
+        navigation.navigate("Ride");
+        return;
+      }
       if (latestRide.pickupStatus === "completed") setRidePhase("onTrip");
       else setRidePhase("matched");
     } else if (currentRideId) {
@@ -386,24 +393,31 @@ export default function MapScreen() {
         {zoomDelta < 0.018 && ridePhase !== "idle" && stopMarkers}
 
         {/* Ride route line — rider → student's dropoff (matched or onTrip) */}
-        {(ridePhase === "onTrip" || ridePhase === "matched") && riderLocation && (() => {
-          // Get student's dropoff location from stopQueue
+        {(ridePhase === "onTrip" || ridePhase === "matched") && (() => {
           const myDropoff = liveSummary?.stopQueue?.find(
             s => s.type === "dropoff" && s.location?.lat && s.location?.lng
           );
           if (!myDropoff) return null;
 
-          const dest = myDropoff.location;
+          // Use rider location if available, else fall back to pickup stop
+          const myPickup = liveSummary?.stopQueue?.find(
+            s => s.type === "pickup" && s.location?.lat && s.location?.lng
+          );
+          const origin = riderLocation
+            ? { lat: riderLocation.lat, lng: riderLocation.lng }
+            : myPickup?.location ?? null;
+          if (!origin) return null;
+
           const route = calculateCampusRoute(
-            { lat: riderLocation.lat, lng: riderLocation.lng },
-            { lat: dest.lat, lng: dest.lng },
+            origin,
+            { lat: myDropoff.location.lat, lng: myDropoff.location.lng },
             { mode: "drive" }
           );
           const coords = route.points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
           return coords.length >= 2 ? (
             <Polyline
               coordinates={coords}
-              strokeColor="rgba(30,123,76,0.7)"
+              strokeColor="rgba(30,123,76,0.75)"
               strokeWidth={4}
               lineDashPattern={route.routed ? undefined : [6, 5]}
             />
