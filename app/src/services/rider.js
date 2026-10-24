@@ -546,6 +546,17 @@ export function listenToActiveRides(riderId, callback) {
  */
 export async function completeNextStop(rideId) {
   try {
+    // Pre-fetch ride data outside transaction to get requestIds and riderId
+    // This reduces the number of reads inside the transaction, lowering
+    // the chance of contention failures when location updates are frequent
+    const rideSnap = await getDoc(doc(db, "rides", rideId));
+    if (!rideSnap.exists()) return { success: false, error: "Ride not found" };
+    const preRideData = rideSnap.data();
+
+    // Pre-fetch request docs outside transaction
+    const requestRefs = (preRideData.requestIds ?? []).map(id => doc(db, "rideRequests", id));
+    const requestSnapshots = await Promise.all(requestRefs.map(r => getDoc(r)));
+
     const result = await runTransaction(db, async (transaction) => {
       const rideRef = doc(db, "rides", rideId);
       const rideDoc = await transaction.get(rideRef);
@@ -557,11 +568,8 @@ export async function completeNextStop(rideId) {
       const rideData = rideDoc.data();
       const riderRef = doc(db, "users", rideData.riderId);
       const riderDoc = await transaction.get(riderRef);
-      const requestRefs = (rideData.requestIds ?? []).map((requestId) => doc(db, "rideRequests", requestId));
-      const requestDocs = [];
-      for (const requestRef of requestRefs) {
-        requestDocs.push(await transaction.get(requestRef));
-      }
+
+      // Use pre-fetched request docs (avoids extra reads inside transaction)
       const stopQueue = rideData.stopQueue || [];
       
       // Find next pending stop
@@ -599,7 +607,7 @@ export async function completeNextStop(rideId) {
           updates.status = "completed";
           updates.completedAt = serverTimestamp();
 
-          requestDocs.forEach((requestDoc, index) => {
+          requestSnapshots.forEach((requestDoc, index) => {
             if (requestDoc.exists() && requestDoc.data().status === "matched") {
               transaction.update(requestRefs[index], {
                 status: "completed",
