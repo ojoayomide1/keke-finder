@@ -317,6 +317,13 @@ export function listenToRideRequests(riderId, callback) {
  */
 export async function acceptRideRequest(requestId, riderId) {
   try {
+    // Query existing rides OUTSIDE the transaction (getDocs not allowed inside)
+    const existingRidesSnap = await getDocs(query(
+      collection(db, "rides"),
+      where("riderId", "==", riderId),
+      where("status", "in", ["waiting", "matched", "onTrip"])
+    ));
+
     const result = await runTransaction(db, async (transaction) => {
       const requestRef = doc(db, "rideRequests", requestId);
       const requestDoc = await transaction.get(requestRef);
@@ -326,15 +333,6 @@ export async function acceptRideRequest(requestId, riderId) {
       }
 
       const requestData = requestDoc.data();
-      
-      // Check if rider has an existing active ride to add stops to
-      const existingRidesQuery = query(
-        collection(db, "rides"),
-        where("riderId", "==", riderId),
-        where("status", "in", ["matched", "onTrip"])
-      );
-      
-      const existingRidesSnap = await getDocs(existingRidesQuery);
       
       let rideRef;
       let rideData;

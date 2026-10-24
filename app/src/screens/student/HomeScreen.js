@@ -365,40 +365,43 @@ export default function StudentHomeScreen({ navigation }) {
   // ── Cancel ride ─────────────────────────────────────────────────────────
   function handleCancel() {
     if (cancelling) return;
-    Alert.alert("Cancel Ride", "Are you sure?", [
-      { text: "Keep Ride", style: "cancel" },
-      {
-        text: "Cancel",
-        style: "destructive",
-        onPress: async () => {
-          setCancelling(true);
-          try {
-            await cancelRide({
-              requestId: currentRequestId,
-              rideId:    currentRideId,
-              studentId: currentUser.uid,
-            });
-            unsubRequestRef.current?.();
-            unsubRideRef.current?.();
-            unsubQueueRef.current?.();
-            setRidePhase("idle");
-            clearRideState();
-            setLiveSummary(null);
-            setQueueInfo(null);
-            notifiedArrivingRef.current = false;
-            showToast("Ride cancelled.", "info");
-          } catch (err) {
-            if (err.message === "ALREADY_PICKED_UP") {
-              showToast("Cannot cancel after pickup.", "error");
-            } else {
-              showToast("Cancel failed. Try again.", "error");
-            }
-          } finally {
-            setCancelling(false);
-          }
-        },
-      },
-    ]);
+
+    const doCancel = async () => {
+      setCancelling(true);
+      try {
+        await cancelRide({
+          requestId: currentRequestId,
+          rideId:    currentRideId,
+          studentId: currentUser.uid,
+        });
+        unsubRequestRef.current?.();
+        unsubRideRef.current?.();
+        unsubQueueRef.current?.();
+        setRidePhase("idle");
+        clearRideState();
+        setLiveSummary(null);
+        setQueueInfo(null);
+        notifiedArrivingRef.current = false;
+        showToast("Ride cancelled.", "info");
+      } catch (err) {
+        if (err.message === "ALREADY_PICKED_UP") {
+          showToast("Cannot cancel after pickup.", "error");
+        } else {
+          showToast("Cancel failed. Try again.", "error");
+        }
+      } finally {
+        setCancelling(false);
+      }
+    };
+
+    if (Platform.OS === "web") {
+      if (window.confirm("Cancel this ride?")) doCancel();
+    } else {
+      Alert.alert("Cancel Ride", "Are you sure?", [
+        { text: "Keep Ride", style: "cancel" },
+        { text: "Cancel", style: "destructive", onPress: doCancel },
+      ]);
+    }
   }
 
   // ── Pay for ride ────────────────────────────────────────────────────────

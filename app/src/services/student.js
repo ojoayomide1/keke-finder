@@ -90,18 +90,21 @@ export async function runMatching(requestId, request) {
     return;
   }
 
-  // 2. Try rides that are matched but not yet moving (rider on the way to first pickup)
-  const matchedSnap = await getDocs(
-    query(collection(db, "rides"), where("status", "==", "matched"))
+  // 2. Try rides that are waiting (rider online, no passengers yet) or matched
+  const availableSnap = await getDocs(
+    query(collection(db, "rides"), where("status", "in", ["waiting", "matched"]))
   );
 
-  matchedSnap.forEach((docSnap) => {
+  availableSnap.forEach((docSnap) => {
     const data = docSnap.data();
     if (!data.seats || data.seats.available <= 0) return;
-    const dist = data.currentLocation
-      ? getDistance(data.currentLocation, request.pickup)
-      : Infinity;
-    if (dist < bestScore && dist < MAX_DETOUR_IDLE) {
+    // For waiting rides (no currentLocation yet), treat distance as 0 — they're available
+    const dist = data.status === "waiting"
+      ? 0
+      : (data.currentLocation
+          ? getDistance(data.currentLocation, request.pickup)
+          : Infinity);
+    if (dist < bestScore && (data.status === "waiting" || dist < MAX_DETOUR_IDLE)) {
       bestScore = dist;
       bestRide  = { id: docSnap.id, ...data };
     }
